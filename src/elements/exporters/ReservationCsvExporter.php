@@ -1,0 +1,56 @@
+<?php
+
+namespace anvildev\booked\elements\exporters;
+
+use anvildev\booked\helpers\CsvHelper;
+use Craft;
+use craft\base\ElementExporter;
+use craft\elements\db\ElementQueryInterface;
+use craft\helpers\Db;
+
+class ReservationCsvExporter extends ElementExporter
+{
+    public static function displayName(): string
+    {
+        return Craft::t('booked', 'Bookings CSV');
+    }
+
+    public static function isFormattable(): bool
+    {
+        return false;
+    }
+
+    public function export(ElementQueryInterface $query): mixed
+    {
+        $handle = fopen('php://temp', 'r+');
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, ['ID', 'Name', 'Email', 'Phone', 'Date', 'Start Time', 'End Time', 'Status', 'Notes', 'Created']);
+
+        foreach (Db::each($query) as $r) {
+            /** @var \anvildev\booked\elements\Reservation $r */
+            fputcsv($handle, [
+                (string) $r->id,
+                CsvHelper::sanitizeValue($r->userName ?? ''),
+                CsvHelper::sanitizeValue($r->userEmail ?? ''),
+                CsvHelper::sanitizeValue($r->userPhone ?? ''),
+                (string) ($r->bookingDate ?? ''),
+                (string) ($r->startTime ?? ''),
+                (string) ($r->endTime ?? ''),
+                (string) $r->getStatusLabel(),
+                CsvHelper::sanitizeValue($r->notes ?? ''),
+                $r->dateCreated ? $r->dateCreated->format('Y-m-d H:i:s') : '',
+            ]);
+        }
+
+        rewind($handle);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return $content;
+    }
+
+    public function getFilename(): string
+    {
+        return 'bookings-' . date('Y-m-d') . '.csv';
+    }
+}

@@ -1,0 +1,151 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.cancellations.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-red booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.cancellations.rate"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ cancellationRate|number_format(1) }}%</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/cancellations', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-grid-3 booked-mb-24">
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "labels.totalBookings"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg color-primary">{{ totalBookings }}</div>
+        </div>
+
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.cancellations.cancelledBookings"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg color-danger">{{ cancelledBookings }}</div>
+        </div>
+
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.cancellations.rate"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg {% if cancellationRate < 10 %}color-success{% elseif cancellationRate < 20 %}color-warning{% else %}color-danger{% endif %}">
+                {{ cancellationRate|number_format(1) }}%
+            </div>
+        </div>
+    </div>
+
+    <div class="booked-widget-card booked-mb-24">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.cancellations.rateIndicator"|t('booked') }}</h3>
+        </div>
+
+        <div class="booked-rate-indicator">
+            <div class="booked-rate-zone zone-good"></div>
+            <div class="booked-rate-zone zone-moderate"></div>
+            <div class="booked-rate-zone zone-bad"></div>
+
+            <div class="booked-rate-marker" style="left: {{ cancellationRate > 30 ? 30 : cancellationRate }}%;">
+                <div class="booked-rate-marker-line"></div>
+                <div class="booked-rate-marker-label">{{ cancellationRate|number_format(1) }}%</div>
+            </div>
+        </div>
+
+        <div class="booked-rate-scale">
+            <div>{{ "reports.cancellations.rateLow"|t('booked') }}</div>
+            <div>10%</div>
+            <div>20%</div>
+            <div>{{ "reports.cancellations.rateHigh"|t('booked') }}</div>
+        </div>
+    </div>
+
+    {% if byService|length > 0 %}
+        <div class="booked-widget-card booked-mb-24" style="padding: 0;">
+            <div class="booked-widget-header" style="padding: 20px 20px 0;">
+                <h3 class="booked-widget-title">{{ "reports.cancellations.byService"|t('booked') }}</h3>
+            </div>
+            <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>{{ "labels.service"|t('booked') }}</th>
+                            <th>{{ "labels.totalBookings"|t('booked') }}</th>
+                            <th>{{ "reports.cancellations.cancelledBookings"|t('booked') }}</th>
+                            <th>{{ "reports.cancellations.rate"|t('booked') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in byService %}
+                            <tr>
+                                <td>{{ entry.service ? entry.service.title : 'labels.na'|t('booked') }}</td>
+                                <td>{{ entry.total }}</td>
+                                <td>{{ entry.cancelled }}</td>
+                                <td>
+                                    <span class="{% if entry.rate < 10 %}color-success{% elseif entry.rate < 20 %}color-warning{% else %}color-danger{% endif %}">
+                                        {{ entry.rate|number_format(1) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if byEmployee|length > 0 %}
+        <div class="booked-widget-card" style="padding: 0;">
+            <div class="booked-widget-header" style="padding: 20px 20px 0;">
+                <h3 class="booked-widget-title">{{ "reports.cancellations.byEmployee"|t('booked') }}</h3>
+            </div>
+            <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>{{ "labels.employee"|t('booked') }}</th>
+                            <th>{{ "labels.totalBookings"|t('booked') }}</th>
+                            <th>{{ "reports.cancellations.cancelledBookings"|t('booked') }}</th>
+                            <th>{{ "reports.cancellations.rate"|t('booked') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in byEmployee %}
+                            <tr>
+                                <td>{{ entry.employee ? entry.employee.title : 'labels.na'|t('booked') }}</td>
+                                <td>{{ entry.total }}</td>
+                                <td>{{ entry.cancelled }}</td>
+                                <td>
+                                    <span class="{% if entry.rate < 10 %}color-success{% elseif entry.rate < 20 %}color-warning{% else %}color-danger{% endif %}">
+                                        {{ entry.rate|number_format(1) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

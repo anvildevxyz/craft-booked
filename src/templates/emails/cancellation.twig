@@ -1,0 +1,101 @@
+{% extends 'booked/emails/_base' %}
+
+{% set title = 'emails.cancellation.title'|t('booked') %}
+{% set headerIcon = '✕' %}
+{% set headerColor = '#000000' %}
+{% set preheader = 'emails.cancellation.preheader'|t('booked', { date: formattedDateTime }) %}
+
+{% block header %}
+<div class="email-header">
+    <div style="
+        display: inline-block;
+        background-color: #000000;
+        color: white;
+        padding: 12px 24px;
+        font-weight: 900;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 16px;
+    ">
+        ✕ {{ 'emails.cancellation.cancelled'|t('booked') }}
+    </div>
+    <h1 class="header-title">{{ title }}</h1>
+    <p class="header-subtitle">{{ siteName }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+    <p style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">
+        {{ 'emails.hello'|t('booked', { name: userName }) }}
+    </p>
+    <p>
+        {{ 'emails.cancellation.success'|t('booked') }}
+    </p>
+
+    <div class="highlight-box danger">
+        <div class="highlight-primary" style="text-decoration: line-through;">{{ formattedDateTime }}</div>
+        {% if serviceName is defined and serviceName %}
+        <div class="highlight-secondary" style="text-decoration: line-through; opacity: 0.5;">{{ serviceName }}</div>
+        {% endif %}
+        <div style="margin-top: 16px;">
+            <span class="badge badge-danger">{{ 'element.booking'|t('booked') }} #{{ bookingId }}</span>
+        </div>
+    </div>
+
+    {% if cancellationReason is defined and cancellationReason and cancellationReason|trim != '' %}
+    <div class="section">
+        <div class="section-title">{{ 'emails.cancellation.reason'|t('booked') }}</div>
+        <div style="background-color: #ffffff; border: 2px solid #000000; padding: 20px; color: #000000; font-size: 14px; font-weight: 600;">
+            {{ cancellationReason }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if cancelledAt is defined %}
+    <div class="section">
+        <div class="info-grid">
+            <div class="info-row">
+                <span class="info-label">{{ 'emails.cancellation.cancelledOn'|t('booked') }}</span>
+                <span class="info-value">{{ formattedCancelledAt }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if reservation is defined %}
+        {% set reservationExtras = reservation.getExtras() %}
+        {% if reservationExtras|length %}
+        <div class="section">
+            <div class="section-title">{{ 'emails.confirmation.serviceExtras'|t('booked') }}</div>
+            <div class="info-grid">
+                {% for item in reservationExtras %}
+                    {% set extra = item.extra %}
+                    {% set qty = item.quantity %}
+                    <div class="info-row">
+                        <span class="info-label">
+                            {{ extra.title }}
+                            {% if qty > 1 %}<span style="font-weight: 400;">({{ qty }}×)</span>{% endif %}
+                        </span>
+                        <span class="info-value">{{ (extra.price * qty)|currency }}</span>
+                    </div>
+                {% endfor %}
+                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                    <span class="info-label" style="font-size: 16px;">{{ 'labels.totalPrice'|t('booked') }}</span>
+                    <span class="info-value" style="font-size: 20px;">{{ reservation.getTotalPrice()|currency }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <p style="text-align: center; margin-top: 32px; font-weight: 700;">
+        {{ 'emails.cancellation.makeNewBooking'|t('booked') }}
+    </p>
+
+    {% if bookingPageUrl is defined and bookingPageUrl %}
+    <div class="btn-container">
+        <a href="{{ bookingPageUrl }}" class="btn btn-primary">{{ 'emails.cancellation.button'|t('booked') }}</a>
+    </div>
+    {% endif %}
+{% endblock %}

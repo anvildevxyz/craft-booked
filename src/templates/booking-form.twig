@@ -1,0 +1,13 @@
+{#
+/**
+ * Booking Form Template
+ *
+ * This template renders the booking form for the site.
+ * Usage: {{ craft.booked.getForm({ title: 'Book Now', text: 'Select your preferred date and time', entry: entry }) }}
+ */
+#}
+{% include "_includes/components/booking-form/booking-form" with {
+    title: title,
+    text: text,
+    entryId: entryId
+} only %}

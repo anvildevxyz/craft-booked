@@ -1,0 +1,102 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.utilization.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-emerald booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.utilization.overallUtilization"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ summaryPct }}%</div>
+        <div class="booked-summary-date">{{ startDate|date('M d, Y') }} – {{ endDate|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar" style="flex-wrap: wrap;">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate,
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate,
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.service"|t('booked'),
+            name: "serviceId",
+            value: serviceId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(services|map(s => {label: s.title, value: s.id})),
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.employee"|t('booked'),
+            name: "employeeId",
+            value: employeeId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(employees|map(e => {label: e.title, value: e.id})),
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.location"|t('booked'),
+            name: "locationId",
+            value: locationId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(locations|map(l => {label: l.title, value: l.id})),
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/utilization', {startDate: startDate, endDate: endDate, serviceId: serviceId ?? '', employeeId: employeeId ?? '', locationId: locationId ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card" style="padding: 0;">
+        <div class="booked-widget-header" style="padding: 20px 20px 0;">
+            <h3 class="booked-widget-title">{{ "reports.utilization.utilization"|t('booked') }}</h3>
+        </div>
+        <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "labels.date"|t('booked') }}</th>
+                    <th>{{ "reports.utilization.capacity"|t('booked') }}</th>
+                    <th>{{ "reports.utilization.booked"|t('booked') }}</th>
+                    <th>{{ "reports.utilization.utilization"|t('booked') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if days|length > 0 %}
+                    {% for date, day in days %}
+                        <tr{% if day.utilizationPct >= 80 %} style="background: #f0fdf4;"{% endif %}>
+                            <td>{{ day.date|date('M d, Y') }}</td>
+                            <td>{{ day.capacity }}</td>
+                            <td>{{ day.booked }}</td>
+                            <td>
+                                <div class="booked-flex" style="align-items: center; gap: 8px;">
+                                    <div class="booked-progress-bar" style="flex: 1; max-width: 120px;">
+                                        <div class="booked-progress-fill {% if day.utilizationPct >= 80 %}color-success{% elseif day.utilizationPct >= 50 %}color-primary{% else %}color-teal{% endif %}" style="width: {{ day.utilizationPct }}%;"></div>
+                                    </div>
+                                    <span class="booked-font-semibold">{{ day.utilizationPct }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="booked-empty-state">{{ "reports.utilization.noData"|t('booked') }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+{% endblock %}

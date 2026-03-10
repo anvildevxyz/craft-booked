@@ -1,0 +1,334 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set selectedSubnavItem = 'event-dates' %}
+{% set title = eventDate ? 'eventDate.edit'|t('booked') : 'eventDate.new'|t('booked') %}
+{% set fullPageForm = true %}
+
+{% block actionButton %}
+	{% if craft.app.isMultiSite and eventDate and eventDate.id and (eventDate.propagationMethod.value ?? 'none') != 'none' %}
+		{% set propagationMethod = eventDate.propagationMethod.value ?? 'none' %}
+		{% set allSites = craft.app.sites.getAllSites() %}
+		{% set eventSiteId = eventDate.siteId ?? currentSite.id %}
+		{% set eventSite = craft.app.sites.getSiteById(eventSiteId) %}
+
+		{% set availableSites = [] %}
+		{% for siteItem in allSites %}
+			{% if propagationMethod == 'all' %}
+				{% set availableSites = availableSites|merge([siteItem]) %}
+			{% elseif propagationMethod == 'siteGroup' %}
+				{% if siteItem.groupId == eventSite.groupId %}
+					{% set availableSites = availableSites|merge([siteItem]) %}
+				{% endif %}
+			{% elseif propagationMethod == 'language' %}
+				{% if siteItem.language == eventSite.language %}
+					{% set availableSites = availableSites|merge([siteItem]) %}
+				{% endif %}
+			{% endif %}
+		{% endfor %}
+
+		{% if availableSites|length > 1 %}
+			<div class="site-selector">
+				<div class="btn menubtn" data-icon="world">{{ currentSite.name|t('site') }}</div>
+				<div class="menu">
+					<ul class="padded">
+						{% for siteItem in availableSites %}
+							<li>
+								<a href="{{ url('booked/cp/event-dates/' ~ eventDate.id, {site: siteItem.handle}) }}" {% if siteItem.id == currentSite.id %}class="sel"{% endif %}>
+									{{ siteItem.name|t('site') }}
+								</a>
+							</li>
+						{% endfor %}
+					</ul>
+				</div>
+			</div>
+		{% endif %}
+	{% endif %}
+
+	<div class="btngroup">
+		<input type="submit" class="btn submit" value="{{ 'Save'|t('app') }}">
+	</div>
+{% endblock %}
+
+{% block content %}
+    <input type="hidden" name="action" value="booked/cp/event-dates/save">
+    <input type="hidden" name="siteId" value="{{ currentSite.id ?? (eventDate ? eventDate.siteId : null) }}">
+    {% if eventDate %}
+        <input type="hidden" name="elementId" value="{{ eventDate.id }}">
+        <input type="hidden" name="id" value="{{ eventDate.id }}">
+    {% endif %}
+
+    {% if craft.app.isMultiSite %}
+        {{ forms.selectField({
+            first: true,
+            label: 'multiSite.propagationMethod'|t('booked'),
+            instructions: 'multiSite.eventPropagationInstructions'|t('booked'),
+            id: 'propagationMethod',
+            name: 'propagationMethod',
+            value: eventDate ? (eventDate.propagationMethod.value ?? 'none') : 'none',
+            options: [
+                { label: 'multiSite.propagationNone'|t('booked'), value: 'none' },
+                { label: 'multiSite.propagationAll'|t('booked'), value: 'all' },
+                { label: 'multiSite.propagationSiteGroup'|t('booked'), value: 'siteGroup' },
+                { label: 'multiSite.propagationLanguage'|t('booked'), value: 'language' },
+            ],
+            errors: eventDate ? eventDate.getErrors('propagationMethod') : []
+        }) }}
+        <hr>
+    {% endif %}
+
+    <div id="fields">
+        <div class="field {% if not craft.app.isMultiSite %}first{% endif %}">
+            {{ forms.lightswitchField({
+                label: 'Enabled'|t('app'),
+                id: 'enabled',
+                name: 'enabled',
+                on: eventDate ? eventDate.enabled : true
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.textField({
+                label: 'Title'|t('app'),
+                id: 'title',
+                name: 'title',
+                value: eventDate ? eventDate.title : '',
+                required: true,
+                errors: eventDate ? eventDate.getErrors('title') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.textareaField({
+                label: 'Description'|t('app'),
+                id: 'description',
+                name: 'description',
+                value: eventDate ? eventDate.description : '',
+                rows: 4,
+                errors: eventDate ? eventDate.getErrors('description') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.dateField({
+                label: 'labels.startDate'|t('booked'),
+                id: 'eventDate',
+                name: 'eventDate',
+                value: eventDate ? eventDate.eventDate : '',
+                required: true,
+                errors: eventDate ? eventDate.getErrors('eventDate') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.dateField({
+                label: 'labels.endDate'|t('booked'),
+                id: 'endDate',
+                name: 'endDate',
+                value: eventDate ? eventDate.endDate : '',
+                required: false,
+                instructions: 'eventDate.endDateInstructions'|t('booked'),
+                errors: eventDate ? eventDate.getErrors('endDate') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.timeField({
+                label: 'labels.startTime'|t('booked'),
+                id: 'startTime',
+                name: 'startTime',
+                value: eventDate ? eventDate.startTime : '',
+                required: true,
+                errors: eventDate ? eventDate.getErrors('startTime') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.timeField({
+                label: 'eventDate.endTime'|t('booked'),
+                id: 'endTime',
+                name: 'endTime',
+                value: eventDate ? eventDate.endTime : '',
+                required: true,
+                errors: eventDate ? eventDate.getErrors('endTime') : []
+            }) }}
+        </div>
+
+        <hr>
+
+        <div class="field">
+            {{ forms.elementSelectField({
+                label: 'labels.location'|t('booked'),
+                id: 'locationId',
+                name: 'locationId',
+                elementType: 'anvildev\\booked\\elements\\Location',
+                elements: eventDate and eventDate.locationId ? [craft.app.elements.getElementById(eventDate.locationId, 'anvildev\\booked\\elements\\Location')]|filter : [],
+                limit: 1,
+                required: false,
+                errors: eventDate ? eventDate.getErrors('locationId') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.textField({
+                label: 'labels.capacity'|t('booked'),
+                id: 'capacity',
+                name: 'capacity',
+                type: 'number',
+                min: 1,
+                value: eventDate ? eventDate.capacity : '',
+                required: false,
+                instructions: 'eventDate.maxCapacityInstructions'|t('booked'),
+                errors: eventDate ? eventDate.getErrors('capacity') : []
+            }) }}
+        </div>
+
+        <div class="field">
+            {{ forms.textField({
+                label: 'eventDate.price'|t('booked'),
+                id: 'price',
+                name: 'price',
+                type: 'number',
+                step: '0.01',
+                min: 0,
+                value: eventDate ? eventDate.price : '',
+                required: false,
+                instructions: 'eventDate.priceInstructions'|t('booked'),
+                errors: eventDate ? eventDate.getErrors('price') : []
+            }) }}
+        </div>
+
+        <hr>
+        <h2>{{ 'service.bookingRules'|t('booked') }}</h2>
+
+        <div class="field">
+            {{ forms.lightswitchField({
+                label: 'service.allowCancellation'|t('booked'),
+                instructions: 'service.allowCancellationInstructions'|t('booked'),
+                id: 'allowCancellation',
+                name: 'allowCancellation',
+                on: eventDate ? eventDate.allowCancellation : true,
+                errors: eventDate ? eventDate.getErrors('allowCancellation') : [],
+                toggle: '#cancellation-policy-field',
+            }) }}
+        </div>
+
+        <div id="cancellation-policy-field"{{ not (eventDate ? eventDate.allowCancellation : true) ? ' class="hidden"' : '' }}>
+            {{ forms.textField({
+                label: 'service.cancellationPolicyHours'|t('booked'),
+                instructions: 'service.cancellationPolicyHoursInstructions'|t('booked'),
+                id: 'cancellationPolicyHours',
+                name: 'cancellationPolicyHours',
+                type: 'number',
+                min: 0,
+                value: eventDate ? eventDate.cancellationPolicyHours : '',
+                errors: eventDate ? eventDate.getErrors('cancellationPolicyHours') : [],
+                size: 10,
+                unit: 'labels.hoursUnit'|t('booked')
+            }) }}
+        </div>
+
+        {% set settings = craft.app.plugins.getPlugin('booked').getSettings() %}
+
+        <hr>
+        <h2>{{ 'service.waitlist'|t('booked') }}</h2>
+
+        {% set waitlistValue = eventDate ? eventDate.enableWaitlist : null %}
+        {% if waitlistValue is same as(true) %}
+            {% set waitlistValue = '1' %}
+        {% elseif waitlistValue is same as(false) %}
+            {% set waitlistValue = '0' %}
+        {% else %}
+            {% set waitlistValue = '' %}
+        {% endif %}
+
+        {{ forms.selectField({
+            label: 'service.enableWaitlist'|t('booked'),
+            instructions: 'service.enableWaitlistInstructions'|t('booked'),
+            id: 'enableWaitlist',
+            name: 'enableWaitlist',
+            value: waitlistValue,
+            options: [
+                { label: 'service.useGlobalSetting'|t('booked') ~ (settings.enableWaitlist ? ' (' ~ 'labels.enabled'|t('booked') ~ ')' : ' (' ~ 'labels.disabled'|t('booked') ~ ')'), value: '' },
+                { label: 'labels.enabled'|t('booked'), value: '1' },
+                { label: 'labels.disabled'|t('booked'), value: '0' },
+            ],
+            errors: eventDate ? eventDate.getErrors('enableWaitlist') : []
+        }) }}
+
+        <hr>
+        <h2>{{ 'service.refundTiers'|t('booked') }}</h2>
+
+        <div class="field">
+            {{ forms.lightswitchField({
+                label: 'service.allowRefund'|t('booked'),
+                instructions: 'service.allowRefundInstructions'|t('booked'),
+                id: 'allowRefund',
+                name: 'allowRefund',
+                on: eventDate ? eventDate.allowRefund : true,
+                errors: eventDate ? eventDate.getErrors('allowRefund') : [],
+                toggle: '#refund-tiers-settings',
+            }) }}
+        </div>
+
+        <div id="refund-tiers-settings" class="{% if eventDate and not eventDate.allowRefund %}hidden{% endif %}">
+            {% set refundTierData = eventDate and eventDate.refundTiers ? (eventDate.refundTiers is iterable ? eventDate.refundTiers : eventDate.refundTiers|json_decode) : null %}
+            {% set refundTierRows = {} %}
+            {% if refundTierData %}
+                {% for tier in refundTierData %}
+                    {% set refundTierRows = refundTierRows|merge({ ('row' ~ loop.index): tier }) %}
+                {% endfor %}
+            {% endif %}
+
+            {{ forms.editableTableField({
+                label: 'service.refundTiersLabel'|t('booked'),
+                instructions: 'service.refundTiersInstructions'|t('booked'),
+                id: 'refundTiers',
+                name: 'refundTiers',
+                cols: {
+                    hoursBeforeStart: {
+                        type: 'number',
+                        heading: 'service.refundTiersHoursColumn'|t('booked'),
+                        thin: false,
+                    },
+                    refundPercentage: {
+                        type: 'number',
+                        heading: 'service.refundTiersPercentColumn'|t('booked'),
+                        thin: false,
+                    },
+                },
+                rows: refundTierRows,
+                errors: eventDate ? eventDate.getErrors('refundTiers') : [],
+                allowAdd: true,
+                allowDelete: true,
+                allowReorder: true,
+                addRowLabel: 'service.refundTiersAddRow'|t('booked'),
+            }) }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block details %}
+    {% if eventDate and eventDate.id %}
+        {% set bookedCount = craft.booked.eventDate.getBookedCount(eventDate.id) %}
+        {% set remainingCapacity = eventDate.getRemainingCapacity() %}
+        <div class="meta">
+            <div class="data">
+                <h5 class="heading">{{ 'labels.booked'|t('booked') }}</h5>
+                <div class="value">{{ bookedCount }}{% if eventDate.capacity %} / {{ eventDate.capacity }}{% endif %}</div>
+            </div>
+            {% if eventDate.capacity and remainingCapacity is not same as(null) %}
+            <div class="data">
+                <h5 class="heading">{{ 'eventDate.remaining'|t('booked') }}</h5>
+                <div class="value">{{ remainingCapacity }}</div>
+            </div>
+            {% endif %}
+            {% if bookedCount > 0 %}
+            <div class="data">
+                <h5 class="heading">&nbsp;</h5>
+                <div class="value"><a href="{{ cpUrl('booked/bookings', { eventDateId: eventDate.id }) }}">{{ 'eventDate.viewReservations'|t('booked') }} &rarr;</a></div>
+            </div>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

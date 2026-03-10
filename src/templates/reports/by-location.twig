@@ -1,0 +1,76 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.byLocation.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-teal booked-mb-24">
+        <div class="booked-summary-label">{{ "labels.totalBookings"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalBookings }}</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/by-location', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.byLocation.heading"|t('booked') }}</h3>
+        </div>
+
+        {% if locationBookings|length > 0 %}
+            {% for locationId, data in locationBookings %}
+                <div class="booked-list-item-lg">
+                    <div class="booked-flex-between booked-mb-12">
+                        <div>
+                            <div class="booked-font-semibold booked-text-lg">
+                                {{ data.location ? data.location.title : 'Location #' ~ locationId }}
+                            </div>
+                            <div class="booked-text-sm booked-text-muted booked-mt-4">
+                                {{ data.percentage|number_format(1) }}% {{ "reports.byService.ofTotal"|t('booked') }}
+                            </div>
+                        </div>
+                        <div class="booked-text-right">
+                            <div class="booked-kpi-value color-teal">{{ data.count }}</div>
+                            <div class="booked-text-sm booked-text-muted">{{ "labels.bookingsLower"|t('booked') }}</div>
+                            <div class="booked-font-semibold booked-mt-4">{{ data.revenue|number_format(2) }} {{ currency }}</div>
+                        </div>
+                    </div>
+
+                    <div class="booked-progress-bar">
+                        <div class="booked-progress-fill color-teal" style="width: {{ data.percentage }}%;"></div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="booked-empty-state-lg">
+                {{ "reports.byLocation.noData"|t('booked') }}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

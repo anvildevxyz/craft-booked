@@ -1,0 +1,146 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'commerce' %}
+{% set title = 'settings.commerce.title'|t('booked') %}
+
+{% block sidebar %}
+    {% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% block content %}
+    <form method="post" accept-charset="UTF-8" id="settings-form">
+        {{ csrfInput() }}
+        <input type="hidden" name="action" value="booked/cp/settings/save">
+        <input type="hidden" name="tab" value="commerce">
+        {{ redirectInput('booked/settings/commerce') }}
+
+        <h2 class="heading first">{{ 'settings.commerce.title'|t('booked') }}</h2>
+        <p class="light">{{ 'settings.commerce.description'|t('booked') }}</p>
+        <hr>
+        {# Currency options are built in the controller with Auto-detect as first option #}
+        {% set currencyInput %}
+            {{ forms.select({
+                id: 'defaultCurrency',
+                name: 'settings[defaultCurrency]',
+                options: currencyOptions,
+                value: settings.defaultCurrency ?? 'auto',
+                class: 'selectize fullwidth',
+            }) }}
+        {% endset %}
+
+        {{ forms.field({
+            label: 'settings.booking.defaultCurrency'|t('booked'),
+            instructions: 'settings.booking.defaultCurrencyInstructions'|t('booked'),
+            id: 'defaultCurrency',
+        }, currencyInput) }}
+
+        {% if craft.app.plugins.isPluginEnabled('commerce') %}
+            <fieldset>
+                {{ forms.lightswitchField({
+                    label: 'settings.commerce.enable'|t('booked'),
+                    instructions: 'settings.commerce.enableInstructions'|t('booked'),
+                    id: 'commerceEnabled',
+                    name: 'settings[commerceEnabled]',
+                    on: settings.commerceEnabled
+                }) }}
+
+                {% set taxCategories = craft.commerce.taxCategories.allTaxCategories %}
+                {% set taxOptions = [{label: 'settings.commerce.defaultTaxCategory'|t('booked'), value: ''}] %}
+                {% for category in taxCategories %}
+                    {% set taxOptions = taxOptions|merge([{label: category.name, value: category.id}]) %}
+                {% endfor %}
+                {{ forms.selectField({
+                    label: 'settings.commerce.taxCategory'|t('booked'),
+                    instructions: 'settings.commerce.taxCategoryInstructions'|t('booked'),
+                    id: 'commerceTaxCategoryId',
+                    name: 'settings[commerceTaxCategoryId]',
+                    value: settings.commerceTaxCategoryId,
+                    options: taxOptions
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.commerce.pendingCartExpirationHours'|t('booked'),
+                    instructions: 'settings.commerce.pendingCartExpirationHoursInstructions'|t('booked'),
+                    id: 'pendingCartExpirationHours',
+                    name: 'settings[pendingCartExpirationHours]',
+                    value: settings.pendingCartExpirationHours,
+                    type: 'number',
+                    min: 1,
+                    max: 168,
+                    size: 5
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.commerce.cartUrl'|t('booked'),
+                    instructions: 'settings.commerce.cartUrlInstructions'|t('booked'),
+                    id: 'commerceCartUrl',
+                    name: 'settings[commerceCartUrl]',
+                    value: settings.commerceCartUrl,
+                    placeholder: 'shop/cart'
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.commerce.checkoutUrl'|t('booked'),
+                    instructions: 'settings.commerce.checkoutUrlInstructions'|t('booked'),
+                    id: 'commerceCheckoutUrl',
+                    name: 'settings[commerceCheckoutUrl]',
+                    value: settings.commerceCheckoutUrl,
+                    placeholder: 'shop/checkout'
+                }) }}
+
+                <hr>
+                <h2>{{ 'settings.commerce.refundTitle'|t('booked') }}</h2>
+
+                {{ forms.lightswitchField({
+                    label: 'settings.commerce.enableAutoRefund'|t('booked'),
+                    instructions: 'settings.commerce.enableAutoRefundInstructions'|t('booked'),
+                    id: 'enableAutoRefund',
+                    name: 'settings[enableAutoRefund]',
+                    on: settings.enableAutoRefund
+                }) }}
+
+                {% set refundTierData = settings.defaultRefundTiers is iterable ? settings.defaultRefundTiers : (settings.defaultRefundTiers ? settings.defaultRefundTiers|json_decode : null) %}
+                {% set refundTierRows = {} %}
+                {% if refundTierData %}
+                    {% for tier in refundTierData %}
+                        {% set refundTierRows = refundTierRows|merge({ ('row' ~ loop.index): tier }) %}
+                    {% endfor %}
+                {% endif %}
+
+                {{ forms.editableTableField({
+                    label: 'settings.commerce.defaultRefundTiers'|t('booked'),
+                    instructions: 'settings.commerce.defaultRefundTiersInstructions'|t('booked'),
+                    id: 'defaultRefundTiers',
+                    name: 'settings[defaultRefundTiers]',
+                    cols: {
+                        hoursBeforeStart: {
+                            type: 'number',
+                            heading: 'service.refundTiersHoursColumn'|t('booked'),
+                            thin: false,
+                        },
+                        refundPercentage: {
+                            type: 'number',
+                            heading: 'service.refundTiersPercentColumn'|t('booked'),
+                            thin: false,
+                        },
+                    },
+                    rows: refundTierRows,
+                    allowAdd: true,
+                    allowDelete: true,
+                    allowReorder: true,
+                    addRowLabel: 'service.refundTiersAddRow'|t('booked'),
+                }) }}
+            </fieldset>
+        {% else %}
+            <div class="pane warning-pane">
+                <p>{{ 'settings.commerce.notInstalled'|t('booked') }}</p>
+                <p class="light">{{ 'settings.commerce.installMessage'|t('booked') }}</p>
+            </div>
+        {% endif %}
+    </form>
+{% endblock %}

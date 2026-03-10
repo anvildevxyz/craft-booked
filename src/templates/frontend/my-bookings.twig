@@ -1,0 +1,135 @@
+{#
+/**
+ * My Bookings - Customer Portal Template
+ * 
+ * Displays all bookings for the currently logged-in user.
+ * Accessed via: /account/bookings
+ * 
+ * Variables:
+ * - user: The current Craft user
+ * - upcomingBookings: Array of future bookings
+ * - pastBookings: Array of past bookings
+ * - allBookings: All bookings combined
+ */
+#}
+
+{% extends "_layout" %}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{% set bodyClass = 'page-my-bookings' %}
+
+{% block content %}
+<main id="main" class="main-content" role="main" tabindex="0">
+    <div class="booked-wizard">
+
+        {% if craft.app.session.hasFlash('notice') %}
+            <div class="booked-flash">
+                <p>{{ craft.app.session.getFlash('notice') }}</p>
+            </div>
+        {% endif %}
+
+        {% if craft.app.session.hasFlash('error') %}
+            <div class="booked-flash flash-error">
+                <p>{{ craft.app.session.getFlash('error') }}</p>
+            </div>
+        {% endif %}
+
+        <div class="booked-account-header">
+            <h3>{{ 'frontend.myBookings'|t('booked') }}</h3>
+            <p>{{ 'Welcome, {name}'|t('booked', { name: user.friendlyName }) }}</p>
+        </div>
+
+        {% if upcomingBookings|length %}
+            <div class="booked-section">
+                <h4 class="booked-section-title">
+                    {{ 'account.upcomingBookings'|t('booked') }}
+                    <span>({{ upcomingBookings|length }})</span>
+                </h4>
+
+                {% for booking in upcomingBookings %}
+                    <div class="booked-booking-card">
+                        <div class="booked-booking-card-inner">
+                            <div>
+                                <p class="booked-booking-service">
+                                    {% if booking.service %}{{ booking.service.title }}{% else %}{{ 'element.booking'|t('booked') }}{% endif %}
+                                </p>
+                                <p class="booked-booking-datetime">
+                                    {{ booking.getFormattedDateTime() }}
+                                </p>
+                                {% if booking.employee %}
+                                    <p class="booked-booking-meta">
+                                        {{ 'frontend.with'|t('booked') }} {{ booking.employee.title }}
+                                    </p>
+                                {% endif %}
+                                {% if booking.location %}
+                                    <p class="booked-booking-meta">
+                                        {{ booking.location.title }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                            <div class="booked-text-right">
+                                <span class="booked-badge badge-{{ booking.status }}">
+                                    {{ booking.getStatusLabel() }}
+                                </span>
+                                <div class="booked-booking-actions">
+                                    <a href="{{ booking.getIcsUrl() }}" class="booked-btn">
+                                        {{ 'account.addToCalendar'|t('booked') }}
+                                    </a>
+                                    <a href="{{ booking.getManagementUrl() }}" class="booked-btn">
+                                        {{ 'labels.manage'|t('booked') }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if upcomingBookings|length == 0 %}
+            <div class="booked-section section-soft">
+                <div class="booked-empty">
+                    <p>{{ 'account.noUpcomingBookings'|t('booked') }}</p>
+                    <a href="/booking" class="booked-btn booked-btn-lg booked-btn-primary">
+                        {{ 'frontend.bookNow'|t('booked') }}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if pastBookings|length %}
+            <div class="booked-section section-plain">
+                <h4 class="booked-section-title-sm">
+                    {{ 'account.pastBookings'|t('booked') }}
+                    <span>({{ pastBookings|length }})</span>
+                </h4>
+
+                {% for booking in pastBookings %}
+                    <div class="booked-booking-card card-compact">
+                        <div class="booked-booking-card-inner">
+                            <div>
+                                <p class="booked-booking-service">
+                                    {% if booking.service %}{{ booking.service.title }}{% else %}{{ 'element.booking'|t('booked') }}{% endif %}
+                                </p>
+                                <p class="booked-booking-meta">
+                                    {{ booking.getFormattedDateTime() }}
+                                </p>
+                            </div>
+                            <div>
+                                <span class="booked-badge {% if booking.status == 'cancelled' %}badge-cancelled{% else %}badge-completed{% endif %}">
+                                    {% if booking.status == 'cancelled' %}
+                                        {{ 'status.cancelled'|t('booked') }}
+                                    {% else %}
+                                        {{ 'status.completed'|t('booked') }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = webhook.name ~ ' ' ~ 'webhook.logs.titleSuffix'|t('booked') %}
+{% set selectedSubnavItem = 'webhooks' %}
+
+{% block content %}
+<div class="booked-webhook-logs">
+	<div class="booked-flex-between booked-mb-24">
+		<a href="{{ cpUrl('booked/webhooks/' ~ webhook.id) }}" class="btn">
+			&larr; {{ 'webhook.logs.editWebhook'|t('booked') }}
+		</a>
+		<form method="post" style="display:inline">
+			{{ csrfInput() }}
+			{{ actionInput('booked/cp/webhooks/test') }}
+			<input type="hidden" name="id" value="{{ webhook.id }}">
+			<button type="submit" class="btn">{{ 'webhook.logs.sendTest'|t('booked') }}</button>
+		</form>
+	</div>
+
+	<div class="booked-summary-card summary-blue booked-mb-24">
+		<div class="booked-summary-label">{{ 'webhook.logs.last7Days'|t('booked') }}</div>
+		<div class="booked-summary-value">{{ stats.total }} {{ 'webhook.logs.totalDeliveries'|t('booked') }}</div>
+		<div class="booked-log-summary-stats">
+			<div class="booked-log-summary-stat">
+				<span class="booked-log-summary-stat-value">{{ stats.success }}</span>
+				<span class="booked-log-summary-stat-label">{{ 'webhook.logs.successful'|t('booked') }}</span>
+			</div>
+			<div class="booked-log-summary-stat">
+				<span class="booked-log-summary-stat-value">{{ stats.failed }}</span>
+				<span class="booked-log-summary-stat-label">{{ 'webhook.logs.failed'|t('booked') }}</span>
+			</div>
+			<div class="booked-log-summary-stat">
+				<span class="booked-log-summary-stat-value">{{ stats.successRate }}%</span>
+				<span class="booked-log-summary-stat-label">{{ 'webhook.logs.successRate'|t('booked') }}</span>
+			</div>
+			<div class="booked-log-summary-stat">
+				<span class="booked-log-summary-stat-value">{{ stats.avgDuration }}ms</span>
+				<span class="booked-log-summary-stat-label">{{ 'webhook.logs.avgDuration'|t('booked') }}</span>
+			</div>
+		</div>
+	</div>
+
+	{% if logs|length %}
+		<div class="booked-widget-card">
+			<div class="booked-widget-header">
+				<h3 class="booked-widget-title">{{ 'webhook.logs.last7Days'|t('booked') }}</h3>
+			</div>
+
+			<table class="data fullwidth booked-logs-table">
+				<thead>
+					<tr>
+						<th>{{ 'webhook.logs.date'|t('booked') }}</th>
+						<th>{{ 'webhook.logs.event'|t('booked') }}</th>
+						<th>{{ 'webhook.logs.status'|t('booked') }}</th>
+						<th>{{ 'webhook.logs.response'|t('booked') }}</th>
+						<th>{{ 'webhook.logs.duration'|t('booked') }}</th>
+						<th>{{ 'webhook.logs.attempt'|t('booked') }}</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for log in logs %}
+						<tr class="log-row" data-log-id="{{ log.id }}">
+							<td>{{ log.dateCreated|date('Y-m-d H:i:s') }}</td>
+							<td><code class="booked-log-event-code">{{ log.event }}</code></td>
+							<td>
+								<span class="status {{ log.success ? 'green' : 'red' }}"></span>
+								{{ log.statusLabel }}
+							</td>
+							<td>
+								{% if log.responseCode %}
+									<span class="booked-log-http-code {{ log.success ? 'code-success' : 'code-error' }}">{{ log.responseCode }}</span>
+								{% elseif log.errorMessage %}
+									<span class="error">{{ log.errorMessage|slice(0, 50) }}{{ log.errorMessage|length > 50 ? '...' : '' }}</span>
+								{% else %}
+									<span class="light">&ndash;</span>
+								{% endif %}
+							</td>
+							<td>{{ log.formattedDuration }}</td>
+							<td>{{ log.attempt }}</td>
+							<td class="thin">
+								<div class="btngroup">
+									<button type="button" class="btn small" onclick="toggleDetails({{ log.id }})">
+										{{ 'webhook.logs.details'|t('booked') }}
+									</button>
+									{% if not log.success %}
+										<form method="post" style="display: contents;">
+											{{ csrfInput() }}
+											{{ actionInput('booked/cp/webhooks/retry') }}
+											{{ hiddenInput('logId', log.id) }}
+											{{ hiddenInput('webhookId', webhook.id) }}
+											<button type="submit" class="btn small">{{ 'webhook.logs.retry'|t('booked') }}</button>
+										</form>
+									{% endif %}
+								</div>
+							</td>
+						</tr>
+						<tr class="log-details" id="details-{{ log.id }}" style="display: none;">
+							<td colspan="7">
+								<div class="booked-log-details-pane">
+									<div class="booked-grid-2 booked-gap-24">
+										<div>
+											<h4 class="booked-log-detail-heading">{{ 'webhook.logs.requestBody'|t('booked') }}</h4>
+											<pre class="booked-code-block">{{ log.redactedRequestBody|json_encode(constant('JSON_PRETTY_PRINT'))|default('N/A') }}</pre>
+										</div>
+										<div>
+											<h4 class="booked-log-detail-heading">{{ 'webhook.logs.responseBody'|t('booked') }}</h4>
+											<pre class="booked-code-block">{{ log.responseBody|default('N/A') }}</pre>
+										</div>
+									</div>
+									{% if log.errorMessage %}
+										<div class="booked-mt-16">
+											<h4 class="booked-log-detail-heading">{{ 'webhook.logs.errorMessage'|t('booked') }}</h4>
+											<div class="booked-log-error-box">{{ log.errorMessage }}</div>
+										</div>
+									{% endif %}
+								</div>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	{% else %}
+		<div class="booked-widget-card">
+			<div class="zilch">
+				<p>{{ 'webhook.logs.noLogs'|t('booked') }}</p>
+				<form method="post" style="display:inline">
+					{{ csrfInput() }}
+					{{ actionInput('booked/cp/webhooks/test') }}
+					<input type="hidden" name="id" value="{{ webhook.id }}">
+					<button type="submit" class="btn">{{ 'webhook.logs.sendTestWebhook'|t('booked') }}</button>
+				</form>
+			</div>
+		</div>
+	{% endif %}
+</div>
+
+<script>
+function toggleDetails(logId) {
+	var row = document.getElementById('details-' + logId);
+	if (row.style.display === 'none') {
+		row.style.display = 'table-row';
+	} else {
+		row.style.display = 'none';
+	}
+}
+</script>
+{% endblock %}

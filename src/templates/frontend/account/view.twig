@@ -1,0 +1,119 @@
+{#
+/**
+ * View Single Booking
+ *
+ * Shows detailed information about a single booking.
+ */
+#}
+
+{% extends "booked/frontend/account/_layout" %}
+
+{% set currentPage = '' %}
+
+{% block pageTitle %}{{ 'labels.bookingDetails'|t('booked') }}{% endblock %}
+
+{% block accountContent %}
+    <div class="booked-section section-plain">
+        <a href="{{ url('booked/account') }}" class="booked-back-link">
+            ← {{ 'account.backToDashboard'|t('booked') }}
+        </a>
+
+        <div class="booked-detail-card">
+            <div class="booked-detail-header">
+                <span class="booked-badge badge-{{ booking.status }}">
+                    {{ booking.getStatusLabel() }}
+                </span>
+            </div>
+
+            <h4 class="booked-detail-title">
+                {% if booking.service %}{{ booking.service.title }}{% else %}{{ 'element.booking'|t('booked') }}{% endif %}
+            </h4>
+
+            <div class="booked-detail-grid">
+                <div>
+                    <p class="booked-detail-item-label">{{ 'labels.dateTime'|t('booked') }}</p>
+                    <p class="booked-detail-item-value">{{ booking.getFormattedDateTime() }}</p>
+                </div>
+
+                {% if booking.employee %}
+                    <div>
+                        <p class="booked-detail-item-label">{{ 'labels.employee'|t('booked') }}</p>
+                        <p class="booked-detail-item-value">{{ booking.employee.title }}</p>
+                    </div>
+                {% endif %}
+
+                {% if booking.location %}
+                    <div>
+                        <p class="booked-detail-item-label">{{ 'labels.location'|t('booked') }}</p>
+                        <p class="booked-detail-item-value">{{ booking.location.title }}</p>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <p class="booked-detail-item-label">{{ 'labels.duration'|t('booked') }}</p>
+                    <p class="booked-detail-item-value">{{ booking.getDurationMinutes() }} {{ 'labels.minutes'|t('booked') }}</p>
+                </div>
+
+                {% if booking.quantity > 1 %}
+                    <div>
+                        <p class="booked-detail-item-label">{{ 'labels.quantity'|t('booked') }}</p>
+                        <p class="booked-detail-item-value">{{ booking.quantity }}</p>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <p class="booked-detail-item-label">{{ 'account.bookingId'|t('booked') }}</p>
+                    <p class="booked-detail-item-value">#{{ booking.id }}</p>
+                </div>
+            </div>
+
+            {% if booking.virtualMeetingUrl %}
+                <div class="booked-meeting-box">
+                    <p class="booked-detail-item-label">{{ 'account.virtualMeeting'|t('booked') }}</p>
+                    <a href="{{ booking.virtualMeetingUrl }}" target="_blank" rel="noopener">
+                        {{ booking.virtualMeetingUrl }}
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if booking.notes %}
+                <div class="booked-detail-section">
+                    <p class="booked-detail-item-label">{{ 'labels.notes'|t('booked') }}</p>
+                    <p class="booked-detail-item-value">{{ booking.notes }}</p>
+                </div>
+            {% endif %}
+
+            {% if booking.hasExtras() %}
+                <div class="booked-detail-section">
+                    <p class="booked-detail-item-label">{{ 'account.extras'|t('booked') }}</p>
+                    {% for extra in booking.getExtras() %}
+                        <p class="booked-detail-item-value">
+                            {{ extra.extra.title }}{% if extra.quantity > 1 %} × {{ extra.quantity }}{% endif %}
+                        </p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="booked-detail-actions">
+                <a href="{{ booking.getIcsUrl() }}" class="booked-btn">
+                    {{ 'account.addToCalendar'|t('booked') }}
+                </a>
+
+                {% if booking.canBeCancelled() and booking.status != 'cancelled' %}
+                    <form method="post" action="" class="inline-block">
+                        {{ csrfInput() }}
+                        {{ actionInput('booked/account/cancel') }}
+                        {{ hiddenInput('id', booking.id) }}
+                        {{ redirectInput(url('booked/account')) }}
+                        <button
+                            type="submit"
+                            onclick="return confirm('{{ 'account.cancelConfirm'|t('booked')|e('js') }}')"
+                            class="booked-btn booked-btn-danger">
+                            {{ 'account.cancelBooking'|t('booked') }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

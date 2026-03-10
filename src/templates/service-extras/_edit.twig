@@ -1,0 +1,178 @@
+{% extends "_layouts/cp" %}
+
+{% import "_includes/forms" as forms %}
+
+{% set selectedSubnavItem = 'service-extras' %}
+{% set title = isNew ? "New Add-On"|t('booked') : extra.title %}
+
+{% set fullPageForm = true %}
+
+{% block actionButton %}
+	{% if craft.app.isMultiSite and extra.id and (extra.propagationMethod.value ?? 'none') != 'none' %}
+		{% set propagationMethod = extra.propagationMethod.value ?? 'none' %}
+		{% set allSites = craft.app.sites.getAllSites() %}
+		{% set extraSiteId = extra.siteId ?? currentSite.id %}
+		{% set extraSite = craft.app.sites.getSiteById(extraSiteId) %}
+
+		{% set availableSites = [] %}
+		{% for siteItem in allSites %}
+			{% if propagationMethod == 'all' %}
+				{% set availableSites = availableSites|merge([siteItem]) %}
+			{% elseif propagationMethod == 'siteGroup' %}
+				{% if siteItem.groupId == extraSite.groupId %}
+					{% set availableSites = availableSites|merge([siteItem]) %}
+				{% endif %}
+			{% elseif propagationMethod == 'language' %}
+				{% if siteItem.language == extraSite.language %}
+					{% set availableSites = availableSites|merge([siteItem]) %}
+				{% endif %}
+			{% endif %}
+		{% endfor %}
+
+		{% if availableSites|length > 1 %}
+			<div class="site-selector">
+				<div class="btn menubtn" data-icon="world">{{ currentSite.name|t('site') }}</div>
+				<div class="menu">
+					<ul class="padded">
+						{% for siteItem in availableSites %}
+							<li>
+								<a href="{{ url('booked/service-extras/' ~ extra.id, {site: siteItem.handle}) }}" {% if siteItem.id == currentSite.id %}class="sel"{% endif %}>
+									{{ siteItem.name|t('site') }}
+								</a>
+							</li>
+						{% endfor %}
+					</ul>
+				</div>
+			</div>
+		{% endif %}
+	{% endif %}
+
+	<div class="btngroup">
+		<input type="submit" class="btn submit" value="{{ 'Save'|t('app') }}">
+	</div>
+{% endblock %}
+
+{% block content %}
+	<input type="hidden" name="action" value="booked/cp/service-extra/save">
+	<input type="hidden" name="redirect" value="{{ 'booked/service-extras'|hash }}">
+	<input type="hidden" name="siteId" value="{{ currentSite.id ?? extra.siteId }}">
+
+	{% if extra.id %}
+		<input type="hidden" name="elementId" value="{{ extra.id }}">
+	{% endif %}
+
+	{% if craft.app.isMultiSite %}
+		{{ forms.selectField({
+            first: true,
+            label: 'multiSite.propagationMethod'|t('booked'),
+            instructions: 'multiSite.propagationInstructions'|t('booked'),
+            id: 'propagationMethod',
+            name: 'propagationMethod',
+            value: extra.propagationMethod.value ?? 'none',
+            options: [
+                { label: 'multiSite.propagationNone'|t('booked'), value: 'none' },
+                { label: 'multiSite.propagationAll'|t('booked'), value: 'all' },
+                { label: 'multiSite.propagationSiteGroup'|t('booked'), value: 'siteGroup' },
+                { label: 'multiSite.propagationLanguage'|t('booked'), value: 'language' },
+            ],
+            errors: extra.getErrors('propagationMethod')
+        }) }}
+		<hr>
+	{% endif %}
+
+	<div class="field {% if not craft.app.isMultiSite %}first{% endif %}">
+		{{ forms.lightswitchField({
+            label: 'Enabled'|t('app'),
+            id: 'enabled',
+            name: 'enabled',
+            on: extra.enabled ?? true
+        }) }}
+	</div>
+
+	<hr>
+
+	<div class="field">
+		{{ forms.lightswitchField({
+            label: 'Required'|t('app'),
+            id: 'isRequired',
+            name: 'isRequired',
+            on: extra.isRequired ?? false,
+            instructions: "Whether this add-on is required for the booking"|t('booked')
+        }) }}
+	</div>
+
+	<div class="field">
+		{{ forms.textField({
+            label: "Title"|t('booked'),
+            id: 'title',
+            name: 'title',
+            value: extra.title,
+            errors: extra.getErrors('title'),
+                autofocus: true,
+                required: true
+            }) }}
+	</div>
+
+	<div class="field">
+		{{ forms.textareaField({
+            label: "Description"|t('booked'),
+            id: 'description',
+            name: 'description',
+            value: extra.description,
+            errors: extra.getErrors('description'),
+            rows: 3
+        }) }}
+	</div>
+
+	<hr>
+
+	<div class="field">
+		<div class="heading">
+			<label for="price">{{ "Price"|t('booked') }}</label>
+			<div class="instructions">
+				<p>{{ "Additional cost for this add-on"|t('booked') }}</p>
+			</div>
+		</div>
+		<div class="input ltr">
+			{{ forms.text({
+                    id: 'price',
+                    name: 'price',
+                    value: extra.price,
+                    type: 'number',
+                    step: '0.01',
+                    min: '0',
+                    size: 10
+                }) }}
+		</div>
+	</div>
+
+	<div class="field">
+		{{ forms.textField({
+            label: "Additional Duration (minutes)"|t('booked'),
+            instructions: "How many minutes this add-on adds to the appointment (0 = no additional time)"|t('booked'),
+            id: 'duration',
+            name: 'duration',
+            value: extra.duration,
+            type: 'number',
+            min: 0,
+            size: 10
+        }) }}
+	</div>
+
+	<hr>
+
+	<div class="field">
+		{{ forms.textField({
+            label: "Maximum Quantity"|t('booked'),
+            instructions: "Maximum number of this add-on allowed per booking. Leave empty for unlimited."|t('booked'),
+            id: 'maxQuantity',
+            name: 'maxQuantity',
+            value: extra.maxQuantity == 0 ? '' : extra.maxQuantity,
+            placeholder: "Unlimited"|t('booked'),
+            type: 'number',
+            min: 0,
+            size: 10,
+            errors: extra.getErrors('maxQuantity')
+        }) }}
+	</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\Location' %}
+{% set title = 'labels.locations'|t('booked') %}
+{% set selectedSubnavItem = 'locations' %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="{{ url('booked/locations/new') }}">{{ 'location.new'|t('booked') }}</a>
+{% endblock %}
+

@@ -1,0 +1,142 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'meetings' %}
+{% set title = 'settings.meetings.title'|t('booked') %}
+
+{% block sidebar %}
+    {% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% block content %}
+    <form method="post" accept-charset="UTF-8" id="settings-form">
+        {{ csrfInput() }}
+        <input type="hidden" name="action" value="booked/cp/settings/save">
+        <input type="hidden" name="tab" value="meetings">
+        {{ redirectInput('booked/settings/meetings') }}
+
+        <h2 class="heading first">{{ 'settings.meetings.title'|t('booked') }}</h2>
+        <p class="light">{{ 'settings.meetings.description'|t('booked') }}</p>
+        <hr>
+        <fieldset>
+            {{ forms.lightswitchField({
+                label: 'settings.meetings.enableMeetings'|t('booked'),
+                instructions: 'settings.meetings.enableMeetingsInstructions'|t('booked'),
+                id: 'enableVirtualMeetings',
+                name: 'settings[enableVirtualMeetings]',
+                on: settings.enableVirtualMeetings,
+                toggle: '#virtual-meeting-settings'
+            }) }}
+
+            <div id="virtual-meeting-settings" class="{% if not settings.enableVirtualMeetings %}hidden{% endif %}">
+                <hr>
+                <h3>{{ 'settings.meetings.zoom'|t('booked') }}</h3>
+
+                {{ forms.lightswitchField({
+                    label: 'settings.meetings.enableZoom'|t('booked'),
+                    id: 'zoomEnabled',
+                    name: 'settings[zoomEnabled]',
+                    on: settings.zoomEnabled,
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.meetings.zoomAccountId'|t('booked'),
+                    id: 'zoomAccountId',
+                    name: 'settings[zoomAccountId]',
+                    value: settings.zoomAccountId,
+                    instructions: 'settings.meetings.zoomAccountIdInstructions'|t('booked'),
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.meetings.zoomClientId'|t('booked'),
+                    id: 'zoomClientId',
+                    name: 'settings[zoomClientId]',
+                    value: settings.zoomClientId,
+                }) }}
+
+                {{ forms.passwordField({
+                    label: 'settings.meetings.zoomClientSecret'|t('booked'),
+                    id: 'zoomClientSecret',
+                    name: 'settings[zoomClientSecret]',
+                    value: settings.zoomClientSecret,
+                }) }}
+
+                <div class="field" style="margin-top: 16px;">
+                    <button type="button" id="test-zoom-btn" class="btn">{{ 'settings.meetings.testZoom'|t('booked') }}</button>
+                    <div id="zoom-test-result" style="margin-top: 12px; display: none;">
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; white-space: pre-wrap; font-size: 13px;"></pre>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h3>{{ 'settings.meetings.googleMeet'|t('booked') }}</h3>
+
+                <div class="readable">
+                    <blockquote class="note tip">
+                        <p>{{ 'settings.meetings.googleMeetNote'|t('booked') }}</p>
+                        <p><a href="{{ url('booked/settings/calendar') }}">{{ 'settings.meetings.configureGoogleCalendar'|t('booked') }}</a></p>
+                    </blockquote>
+                </div>
+
+                {{ forms.lightswitchField({
+                    label: 'settings.meetings.enableGoogleMeet'|t('booked'),
+                    id: 'googleMeetEnabled',
+                    name: 'settings[googleMeetEnabled]',
+                    on: settings.googleMeetEnabled,
+                }) }}
+
+                <hr>
+
+                <h3>{{ 'settings.meetings.teams'|t('booked') }}</h3>
+
+                <div class="readable">
+                    <blockquote class="note tip">
+                        <p>{{ 'settings.meetings.teamsNote'|t('booked') }}</p>
+                    </blockquote>
+                </div>
+
+                {{ forms.lightswitchField({
+                    label: 'settings.meetings.enableTeams'|t('booked'),
+                    id: 'teamsEnabled',
+                    name: 'settings[teamsEnabled]',
+                    on: settings.teamsEnabled,
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.meetings.teamsTenantId'|t('booked'),
+                    id: 'teamsTenantId',
+                    name: 'settings[teamsTenantId]',
+                    value: settings.teamsTenantId,
+                    instructions: 'settings.meetings.teamsTenantIdInstructions'|t('booked'),
+                }) }}
+
+                {{ forms.textField({
+                    label: 'settings.meetings.teamsClientId'|t('booked'),
+                    id: 'teamsClientId',
+                    name: 'settings[teamsClientId]',
+                    value: settings.teamsClientId,
+                }) }}
+
+                {{ forms.passwordField({
+                    label: 'settings.meetings.teamsClientSecret'|t('booked'),
+                    id: 'teamsClientSecret',
+                    name: 'settings[teamsClientSecret]',
+                    value: settings.teamsClientSecret,
+                }) }}
+
+                <div class="field" style="margin-top: 16px;">
+                    <button type="button" id="test-teams-btn" class="btn">{{ 'settings.meetings.testTeams'|t('booked') }}</button>
+                    <div id="teams-test-result" style="margin-top: 12px; display: none;">
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; white-space: pre-wrap; font-size: 13px;"></pre>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+
+{% endblock %}

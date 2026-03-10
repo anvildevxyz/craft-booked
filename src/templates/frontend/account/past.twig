@@ -1,0 +1,25 @@
+{#
+/**
+ * Past Bookings
+ * 
+ * Shows all past bookings for the user.
+ */
+#}
+
+{% extends "booked/frontend/account/_layout" %}
+
+{% set currentPage = 'past' %}
+
+{% block pageTitle %}{{ 'account.pastBookings'|t('booked') }}{% endblock %}
+
+{% block accountContent %}
+    <div class="booked-section section-plain">
+        {% if bookings|length %}
+            {% for booking in bookings %}
+                {% include 'booked/frontend/account/_booking-card' with { booking: booking, compact: true } %}
+            {% endfor %}
+        {% else %}
+            {% include 'booked/frontend/account/_empty-state' with { message: 'account.noPastBookings'|t('booked'), showBookButton: false } %}
+        {% endif %}
+    </div>
+{% endblock %}

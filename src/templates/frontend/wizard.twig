@@ -1,0 +1,909 @@
+{#
+/**
+ * Booked Wizard Template
+ *
+ * A fully configurable booking wizard that guides users through the booking process.
+ *
+ * FLOW:
+ * -----
+ * Step 1: Select Service
+ * Step 2: Select Location (skipped if 0 or 1 locations exist)
+ * Step 3: Select Employee (skipped if only 1 employee available)
+ * Step 4: Select Date & Time
+ * Step 5: Enter Customer Info
+ * Step 6: Review & Confirm
+ * Step 7: Success
+ *
+ * USAGE:
+ * ------
+ * Include this template in your Twig templates:
+ *
+ *   {% include 'booked/frontend/wizard' %}
+ *
+ * Or with custom configuration:
+ *
+ *   {% include 'booked/frontend/wizard' with {
+ *       labels: {
+ *           stepService: 'Choose Service',
+ *           stepLocation: 'Location',
+ *       },
+ *       requirePhone: true,
+ *       showNotes: false,
+ *   } %}
+ *
+ * CONFIGURATION VARIABLES:
+ * ------------------------
+ *
+ * LABELS (labels object):
+ * All text labels can be customized. Default values are in German.
+ *
+ *   labels.stepService          - Step indicator: Service (default: "1. Service")
+ *   labels.stepLocation         - Step indicator: Location (default: "2. Ort")
+ *   labels.stepEmployee         - Step indicator: Employee (default: "3. Mitarbeiter")
+ *   labels.stepDateTime         - Step indicator: Date & Time (default: "Datum & Zeit")
+ *   labels.stepInfo             - Step indicator: Customer info (default: "Info")
+ *   labels.stepConfirm          - Step indicator: Confirmation (default: "Bestätigung")
+ *
+ *   labels.selectService        - Service selection heading (default: "Wählen Sie eine Dienstleistung")
+ *   labels.selectLocation       - Location selection heading (default: "Wählen Sie einen Standort")
+ *   labels.selectEmployee       - Employee selection heading (default: "Wählen Sie einen Mitarbeiter")
+ *   labels.selectDateTime       - Date/time selection heading (default: "Wählen Sie Datum und Zeit")
+ *   labels.enterInfo            - Customer info heading (default: "Ihre Informationen")
+ *   labels.confirmBooking       - Confirmation heading (default: "Buchung bestätigen")
+ *
+ *   labels.noServices           - No services message title (default: "Keine Services verfügbar")
+ *   labels.noServicesDesc       - No services message description
+ *   labels.noSchedules          - No availability configured title (default: "Keine Verfügbarkeit konfiguriert")
+ *   labels.noSchedulesDesc      - No availability configured description
+ *   labels.noEmployees          - No employees message title (default: "Keine Mitarbeiter verfügbar")
+ *   labels.noEmployeesDesc      - No employees message description
+ *   labels.noSlots              - No slots message (default: "Keine freien Termine an diesem Tag.")
+ *
+ *   labels.anyEmployee          - "Any available" option title (default: "Beliebig")
+ *   labels.anyEmployeeDesc      - "Any available" option description (default: "Erster verfügbarer Mitarbeiter")
+ *   labels.firstAvailable       - First available label in summary (default: "Erster Verfügbarer")
+ *
+ *   labels.fieldName            - Name field label (default: "Name")
+ *   labels.fieldEmail           - Email field label (default: "E-Mail")
+ *   labels.fieldPhone           - Phone field label (default: "Telefon")
+ *   labels.fieldNotes           - Notes field label (default: "Notizen")
+ *
+ *   labels.summaryService       - Summary: Service label (default: "Dienstleistung")
+ *   labels.summaryLocation      - Summary: Location label (default: "Ort")
+ *   labels.summaryEmployee      - Summary: Employee label (default: "Mitarbeiter")
+ *   labels.summaryDate          - Summary: Date label (default: "Datum")
+ *   labels.summaryTime          - Summary: Time label (default: "Zeit")
+ *   labels.summaryQuantity      - Summary: Quantity label (default: "Anzahl Personen")
+ *   labels.summaryName          - Summary: Name label (default: "Name")
+ *   labels.summaryEmail         - Summary: Email label (default: "E-Mail")
+ *
+ *   labels.btnBack              - Back button (default: "Zurück")
+ *   labels.btnNext              - Next button (default: "Weiter")
+ *   labels.btnBook              - Book button (default: "Jetzt buchen")
+ *   labels.btnProcessing        - Processing button (default: "Wird bearbeitet...")
+ *   labels.btnNewBooking        - New booking button (default: "Neue Buchung erstellen")
+ *   labels.btnHome              - Home button (default: "Zur Startseite")
+ *
+ *   labels.successTitle         - Success heading (default: "Buchung erfolgreich!")
+ *   labels.successMessage       - Success message (default: "Ihre Buchung wurde erfolgreich erstellt.")
+ *   labels.successStatus        - Success: Status label (default: "Status")
+ *   labels.successBookingId     - Success: Booking ID label (default: "Buchungs-ID")
+ *   labels.successAppointment   - Success: Appointment label (default: "Termin")
+ *   labels.successNextSteps     - Success: Next steps heading (default: "Nächste Schritte:")
+ *   labels.successEmailNote     - Success: Email note (default: "Sie erhalten in Kürze eine Bestätigungs-E-Mail...")
+ *   labels.statusConfirmed      - Status: Confirmed (default: "Bestätigt")
+ *
+ *   labels.durationUnit         - Duration unit (default: "min")
+ *   labels.currencySymbol       - Currency symbol (default: from plugin settings or Commerce)
+ *
+ * BEHAVIOR OPTIONS:
+ *
+ *   requirePhone                - Whether phone field is required (default: false)
+ *   showNotes                   - Whether to show notes field (default: true)
+ *   showPrice                   - Whether to show price on service cards (default: true)
+ *   showDuration                - Whether to show duration on service cards (default: true)
+ *   showEmployeeBio             - Whether to show employee bio (default: true)
+ *   showStepIndicator           - Whether to show step indicator (default: true)
+ *   defaultQuantity             - Default booking quantity (default: 1)
+ *   homeUrl                     - URL for "Home" button (default: "/")
+ *
+ * CSS CLASSES (for custom styling):
+ *
+ *   cssPrefix                   - Prefix for all CSS classes (default: "booked")
+ *   cssWrapperClass             - Additional wrapper class (default: "")
+ *   customStyles                - Object of CSS custom properties to override design tokens (default: {})
+ *                                  Example: { '--bk-black': '#1e3a5f', '--bk-white': '#f8fafc' }
+ *                                  Available tokens: --bk-black, --bk-white, --bk-dark, --bk-hover,
+ *                                  --bk-muted, --bk-placeholder, --bk-disabled, --bk-border-light,
+ *                                  --bk-bg-light, --bk-bg-lighter, --bk-bg-soft, --bk-red, --bk-green
+ *
+ */
+#}
+
+{% set defaultLabels = {
+    stepService: 'wizard.stepService'|t('booked'),
+    stepLocation: 'wizard.stepLocation'|t('booked'),
+    stepEmployee: 'wizard.stepEmployee'|t('booked'),
+    stepDateTime: 'wizard.stepDateTime'|t('booked'),
+    stepInfo: 'wizard.stepInfo'|t('booked'),
+    stepConfirm: 'wizard.stepConfirm'|t('booked'),
+
+    selectService: 'wizard.selectService'|t('booked'),
+    selectLocation: 'wizard.selectLocation'|t('booked'),
+    selectEmployee: 'wizard.selectEmployee'|t('booked'),
+    selectDateTime: 'wizard.selectDateTime'|t('booked'),
+    enterInfo: 'wizard.enterInfo'|t('booked'),
+    confirmBooking: 'wizard.confirmBooking'|t('booked'),
+
+    noServices: 'wizard.noServices'|t('booked'),
+    noServicesDesc: 'wizard.noServicesDesc'|t('booked'),
+    noSchedules: 'wizard.noSchedules'|t('booked'),
+    noSchedulesDesc: 'wizard.noSchedulesDesc'|t('booked'),
+    noEmployees: 'wizard.noEmployees'|t('booked'),
+    noEmployeesDesc: 'wizard.noEmployeesDesc'|t('booked'),
+    noSlots: 'wizard.noSlots'|t('booked'),
+    noSlotsDesc: 'wizard.noSlotsDesc'|t('booked'),
+
+    waitlistTitle: 'wizard.waitlistTitle'|t('booked'),
+    waitlistDesc: 'wizard.waitlistDesc'|t('booked'),
+    waitlistQuestion: 'wizard.waitlistQuestion'|t('booked'),
+    waitlistBtnJoin: 'wizard.waitlistBtnJoin'|t('booked'),
+    waitlistBtnJoining: 'wizard.waitlistBtnJoining'|t('booked'),
+    waitlistBtnCancel: 'wizard.waitlistBtnCancel'|t('booked'),
+    waitlistFieldName: 'wizard.waitlistFieldName'|t('booked'),
+    waitlistFieldEmail: 'wizard.waitlistFieldEmail'|t('booked'),
+    waitlistFieldPhone: 'wizard.waitlistFieldPhone'|t('booked'),
+    waitlistSuccess: 'wizard.waitlistSuccess'|t('booked'),
+    waitlistSuccessTitle: 'wizard.waitlistSuccessTitle'|t('booked'),
+    waitlistNameEmailRequired: 'wizard.waitlistNameEmailRequired'|t('booked'),
+    waitlistJoinError: 'wizard.waitlistJoinError'|t('booked'),
+    waitlistJoinFailed: 'wizard.waitlistJoinFailed'|t('booked'),
+    waitlistJoinedAnnounce: 'wizard.waitlistJoinedAnnounce'|t('booked'),
+    slotsAvailableAnnounce: 'wizard.slotsAvailableAnnounce'|t('booked'),
+    noSlotsAnnounce: 'wizard.noSlotsAnnounce'|t('booked'),
+    loadingTimesAnnounce: 'wizard.loadingTimesAnnounce'|t('booked'),
+
+    anyEmployee: 'wizard.anyEmployee'|t('booked'),
+    anyEmployeeDesc: 'wizard.anyEmployeeDesc'|t('booked'),
+    firstAvailable: 'wizard.firstAvailable'|t('booked'),
+
+    fieldName: 'wizard.fieldName'|t('booked'),
+    fieldEmail: 'wizard.fieldEmail'|t('booked'),
+    fieldPhone: 'wizard.fieldPhone'|t('booked'),
+    fieldNotes: 'wizard.fieldNotes'|t('booked'),
+
+    summaryService: 'wizard.summaryService'|t('booked'),
+    summaryLocation: 'wizard.summaryLocation'|t('booked'),
+    summaryAddress: 'wizard.summaryAddress'|t('booked'),
+    summaryEmployee: 'wizard.summaryEmployee'|t('booked'),
+    summaryDate: 'wizard.summaryDate'|t('booked'),
+    summaryTime: 'wizard.summaryTime'|t('booked'),
+    summaryEndTime: 'wizard.summaryEndTime'|t('booked'),
+    summaryDuration: 'wizard.summaryDuration'|t('booked'),
+    summaryQuantity: 'wizard.summaryQuantity'|t('booked'),
+    summaryName: 'wizard.summaryName'|t('booked'),
+    summaryEmail: 'wizard.summaryEmail'|t('booked'),
+    summaryPhone: 'wizard.summaryPhone'|t('booked'),
+    summaryExtras: 'wizard.summaryExtras'|t('booked'),
+    summaryVirtualMeeting: 'wizard.summaryVirtualMeeting'|t('booked'),
+    summaryNotes: 'wizard.summaryNotes'|t('booked'),
+
+    stepExtras: 'wizard.stepExtras'|t('booked'),
+    selectExtras: 'wizard.selectExtras'|t('booked'),
+    noExtras: 'wizard.noExtras'|t('booked'),
+    skipExtras: 'wizard.skipExtras'|t('booked'),
+
+    btnBack: 'wizard.btnBack'|t('booked'),
+    btnNext: 'wizard.btnNext'|t('booked'),
+    btnBook: 'wizard.btnBook'|t('booked'),
+    btnAddToCart: 'wizard.btnAddToCart'|t('booked'),
+    btnProceedToCheckout: 'wizard.btnProceedToCheckout'|t('booked'),
+    btnProcessing: 'wizard.btnProcessing'|t('booked'),
+    btnNewBooking: 'wizard.btnNewBooking'|t('booked'),
+    btnHome: 'wizard.btnHome'|t('booked'),
+
+    successTitle: 'wizard.successTitle'|t('booked'),
+    successMessage: 'wizard.successMessage'|t('booked'),
+    successStatus: 'wizard.successStatus'|t('booked'),
+    successBookingId: 'wizard.successBookingId'|t('booked'),
+    successAppointment: 'wizard.successAppointment'|t('booked'),
+    successNextSteps: 'wizard.successNextSteps'|t('booked'),
+    successEmailNotePrefix: 'wizard.successEmailNotePrefix'|t('booked'),
+    successEmailNoteSuffix: 'wizard.successEmailNoteSuffix'|t('booked'),
+    statusConfirmed: 'wizard.statusConfirmed'|t('booked'),
+    statusPendingPayment: 'wizard.statusPendingPayment'|t('booked'),
+
+    bookingErrorTitle: 'wizard.bookingErrorTitle'|t('booked'),
+
+    summaryTotal: 'wizard.summaryTotal'|t('booked'),
+    summaryServicePrice: 'wizard.summaryServicePrice'|t('booked'),
+    summaryExtrasPrice: 'wizard.summaryExtrasPrice'|t('booked'),
+    paymentRequired: 'wizard.paymentRequired'|t('booked'),
+    paymentRequiredNote: 'wizard.paymentRequiredNote'|t('booked'),
+
+    durationUnit: 'wizard.durationUnit'|t('booked'),
+    currencySymbol: craft.booked.getCurrency(),
+    legendAvailable: 'wizard.legendAvailable'|t('booked'),
+    legendUnavailable: 'wizard.legendUnavailable'|t('booked'),
+    selectDatePlaceholder: 'wizard.selectDatePlaceholder'|t('booked'),
+
+    loadingServices: 'wizard.loadingServices'|t('booked'),
+    loadingLocations: 'wizard.loadingLocations'|t('booked'),
+    loadingEmployees: 'wizard.loadingEmployees'|t('booked'),
+    loadingSlots: 'wizard.loadingSlots'|t('booked'),
+    selectDate: 'wizard.selectDate'|t('booked'),
+    selectTime: 'wizard.selectTime'|t('booked'),
+    quantityLabel: 'wizard.quantityLabel'|t('booked'),
+    capacityAvailable: 'wizard.capacityAvailable'|t('booked'),
+    capacityOf: 'wizard.capacityOf'|t('booked'),
+    capacityOpen: 'wizard.capacityOpen'|t('booked'),
+    extrasTotal: 'wizard.extrasTotal'|t('booked'),
+} %}
+
+{% set labels = defaultLabels|merge(labels ?? {}) %}
+
+{% set requirePhone = requirePhone ?? false %}
+{% set showNotes = showNotes ?? true %}
+{% set showPrice = showPrice ?? true %}
+{% set showDuration = showDuration ?? true %}
+{% set showEmployeeBio = showEmployeeBio ?? true %}
+{% set showStepIndicator = showStepIndicator ?? true %}
+{% set defaultQuantity = defaultQuantity ?? 1 %}
+{% set homeUrl = homeUrl ?? '/' %}
+
+{% set cssPrefix = cssPrefix ?? 'booked' %}
+{% set cssWrapperClass = cssWrapperClass ?? '' %}
+{% set customStyles = customStyles ?? {} %}
+
+{% set wizardConfig = {
+    requirePhone: requirePhone,
+    showNotes: showNotes,
+    defaultQuantity: defaultQuantity,
+    maximumAdvanceBookingDays: craft.booked.getSettings().maximumAdvanceBookingDays,
+    captchaEnabled: captchaEnabled ?? false,
+    captchaProvider: captchaProvider ?? null,
+    captchaSiteKey: captchaSiteKey ?? null,
+    captchaAction: captchaAction ?? 'booking',
+    honeypotFieldName: honeypotFieldName ?? null,
+    locale: craft.app.language,
+    siteHandle: craft.app.sites.currentSite.handle,
+    stepAnnouncements: {
+        '1': labels.selectService,
+        '2': labels.selectExtras,
+        '3': labels.selectLocation,
+        '4': labels.selectEmployee,
+        '5': labels.selectDateTime,
+        '6': labels.enterInfo,
+        '7': labels.confirmBooking,
+    },
+    messages: {
+        waitlistNameEmailRequired: labels.waitlistNameEmailRequired,
+        waitlistJoinError: labels.waitlistJoinError,
+        waitlistJoinFailed: labels.waitlistJoinFailed,
+        waitlistJoinedAnnounce: labels.waitlistJoinedAnnounce,
+        slotsAvailableAnnounce: labels.slotsAvailableAnnounce,
+        noSlotsAnnounce: labels.noSlotsAnnounce,
+        loadingTimesAnnounce: labels.loadingTimesAnnounce,
+    },
+} %}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% set flatpickrLocale = craft.app.language|split('-')|first %}
+{% if flatpickrLocale != 'en' %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/{{ flatpickrLocale }}.js"></script>
+<script>flatpickr.localize(flatpickr.l10ns.{{ flatpickrLocale }});</script>
+{% endif %}
+
+{% if (captchaEnabled ?? false) and (captchaSiteKey ?? null) %}
+    {% if captchaProvider == 'recaptcha' %}
+        <script src="https://www.google.com/recaptcha/api.js?render={{ captchaSiteKey }}"></script>
+    {% elseif captchaProvider == 'hcaptcha' %}
+        <script src="https://js.hcaptcha.com/1/api.js?render=explicit" async defer></script>
+    {% elseif captchaProvider == 'turnstile' %}
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+    {% endif %}
+{% endif %}
+
+<div class="{{ cssPrefix }}-wizard {{ cssWrapperClass }}"
+     {% if customStyles|length %}style="{% for prop, val in customStyles %}{{ prop }}: {{ val }};{% endfor %}"{% endif %}
+     x-data="bookingWizard({{ wizardConfig|json_encode }})" :class="{ '{{ cssPrefix }}-loading': loading }" role="region" aria-label="{{ 'wizard.ariaBookingWizard'|t('booked') }}">
+
+    <div class="sr-only" role="status" aria-live="polite" x-text="liveAnnouncement"></div>
+
+    {% if showStepIndicator %}
+    <nav aria-label="{{ 'wizard.ariaStepNav'|t('booked') }}">
+        <ol class="{{ cssPrefix }}-step-indicator" role="list">
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 1 }" :aria-current="step === 1 ? 'step' : false">{{ labels.stepService }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 2 }" :aria-current="step === 2 ? 'step' : false" x-show="hasExtras">{{ labels.stepExtras }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 3 }" :aria-current="step === 3 ? 'step' : false" x-show="!skipLocationStep">{{ labels.stepLocation }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 4 }" :aria-current="step === 4 ? 'step' : false" x-show="employees.length > 0 && !shouldSkipEmployeeStep()">{{ labels.stepEmployee }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 5 }" :aria-current="step === 5 ? 'step' : false">{{ labels.stepDateTime }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 6 }" :aria-current="step === 6 ? 'step' : false">{{ labels.stepInfo }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 7 }" :aria-current="step === 7 ? 'step' : false">{{ labels.stepConfirm }}</li>
+        </ol>
+    </nav>
+    {% endif %}
+
+    <div x-show="step === 1" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectService }}</h3>
+        <template x-if="loading && services.length === 0">
+            <div class="{{ cssPrefix }}-loading-slots">
+                <div class="{{ cssPrefix }}-spinner" role="status" aria-label="{{ labels.loadingServices }}"></div>
+                <p>{{ labels.loadingServices }}</p>
+            </div>
+        </template>
+        <div class="{{ cssPrefix }}-grid" role="group" aria-label="{{ labels.selectService }}" x-show="!loading || services.length > 0">
+            <template x-for="service in services" :key="service.id">
+                <div class="{{ cssPrefix }}-card" role="button" tabindex="0" @click="selectService(service)" @keydown.enter.prevent="selectService(service)" @keydown.space.prevent="selectService(service)">
+                    <h4 x-text="service.title"></h4>
+                    <p x-text="service.description"></p>
+                    {% if showDuration or showPrice %}
+                    <div class="light" x-show="(service.duration && service.duration > 0) || (service.price && service.price > 0)">
+                        {% if showDuration %}<span x-show="service.duration && service.duration > 0" x-text="service.duration + ' {{ labels.durationUnit }}'"></span>{% endif %}
+                        <span x-show="service.duration && service.duration > 0 && service.price && service.price > 0"> | </span>
+                        {% if showPrice %}<span x-show="service.price && service.price > 0" x-text="service.price + ' {{ labels.currencySymbol }}'"></span>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </template>
+            <template x-if="services.length === 0 && !loading">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-disabled">
+                    <h4>{{ labels.noServices }}</h4>
+                    <p>{{ labels.noServicesDesc }}</p>
+                </div>
+            </template>
+        </div>
+
+    </div>
+
+    <div x-show="step === 2 && hasExtras" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectExtras }}</h3>
+        <div class="{{ cssPrefix }}-grid" role="group" aria-label="{{ labels.selectExtras }}">
+            <template x-for="extra in extras" :key="extra.id">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-extra-card"
+                     :class="{ '{{ cssPrefix }}-extra-selected': selectedExtras[extra.id] > 0 }"
+                     :style="extra.maxQuantity === 1 && !extra.isRequired ? 'cursor: pointer;' : ''"
+                     :role="extra.maxQuantity === 1 && !extra.isRequired ? 'button' : false"
+                     :tabindex="extra.maxQuantity === 1 && !extra.isRequired ? '0' : false"
+                     :aria-pressed="extra.maxQuantity === 1 && !extra.isRequired ? (selectedExtras[extra.id] > 0).toString() : false"
+                     @click="extra.maxQuantity === 1 && !extra.isRequired ? toggleExtra(extra.id) : null"
+                     @keydown.enter.prevent="extra.maxQuantity === 1 && !extra.isRequired ? toggleExtra(extra.id) : null"
+                     @keydown.space.prevent="extra.maxQuantity === 1 && !extra.isRequired ? toggleExtra(extra.id) : null">
+                    <div class="{{ cssPrefix }}-extra-header">
+                        <h4 x-text="extra.title"></h4>
+                        <span class="{{ cssPrefix }}-extra-price" x-show="extra.price > 0" x-text="extra.price + ' {{ labels.currencySymbol }}'"></span>
+                    </div>
+                    <p x-text="extra.description" class="text-sm text-gray-600"></p>
+                    <template x-if="extra.duration > 0">
+                        <p class="text-xs text-gray-500">+ <span x-text="extra.duration"></span> {{ labels.durationUnit }}</p>
+                    </template>
+                    <template x-if="extra.maxQuantity > 1">
+                        <div class="{{ cssPrefix }}-extra-quantity mt-2">
+                            <button type="button" class="btn btn-sm" @click.stop="decrementExtra(extra.id)" :disabled="!selectedExtras[extra.id] || selectedExtras[extra.id] <= 0" :aria-label="'{{ 'wizard.ariaDecreaseQuantity'|t('booked') }} ' + extra.title">−</button>
+                            <span class="mx-2" x-text="selectedExtras[extra.id] || 0" aria-live="polite"></span>
+                            <button type="button" class="btn btn-sm" @click.stop="incrementExtra(extra.id, extra.maxQuantity)" :aria-label="'{{ 'wizard.ariaIncreaseQuantity'|t('booked') }} ' + extra.title">+</button>
+                        </div>
+                    </template>
+                    <template x-if="extra.isRequired">
+                        <span class="text-xs text-red-500">{{ 'labels.required'|t('booked') }}</span>
+                    </template>
+                </div>
+            </template>
+            <template x-if="extras.length === 0 && !loading">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-disabled">
+                    <h4>{{ labels.noExtras }}</h4>
+                </div>
+            </template>
+        </div>
+        <div class="{{ cssPrefix }}-extras-summary mt-4" x-show="getExtrasTotal() > 0">
+            <p class="text-sm"><strong>{{ labels.extrasTotal }}:</strong> <span x-text="getExtrasTotal().toFixed(2) + ' {{ labels.currencySymbol }}'"></span></p>
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+            <button class="btn btn-primary" @click="confirmExtras()" :disabled="!areRequiredExtrasSelected()">{{ labels.btnNext }}</button>
+        </div>
+    </div>
+
+    <div x-show="step === 3" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectLocation }}</h3>
+        <template x-if="loading && locations.length === 0">
+            <div class="{{ cssPrefix }}-loading-slots">
+                <div class="{{ cssPrefix }}-spinner" role="status" aria-label="{{ labels.loadingLocations }}"></div>
+                <p>{{ labels.loadingLocations }}</p>
+            </div>
+        </template>
+        <div class="{{ cssPrefix }}-grid" role="group" aria-label="{{ labels.selectLocation }}" x-show="!loading || locations.length > 0">
+            <template x-for="location in locations" :key="location.id">
+                <div class="{{ cssPrefix }}-card" role="button" tabindex="0" @click="selectLocation(location)" @keydown.enter.prevent="selectLocation(location)" @keydown.space.prevent="selectLocation(location)">
+                    <h4 x-text="location.name"></h4>
+                    <p x-text="location.address"></p>
+                </div>
+            </template>
+        </div>
+        <button class="btn mt-4" @click="prevStep()">{{ labels.btnBack }}</button>
+    </div>
+
+    <div x-show="step === 4 && !shouldSkipEmployeeStep()" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectEmployee }}</h3>
+        <template x-if="loading && employees.length === 0">
+            <div class="{{ cssPrefix }}-loading-slots">
+                <div class="{{ cssPrefix }}-spinner" role="status" aria-label="{{ labels.loadingEmployees }}"></div>
+                <p>{{ labels.loadingEmployees }}</p>
+            </div>
+        </template>
+        <div class="{{ cssPrefix }}-grid" role="group" aria-label="{{ labels.selectEmployee }}" x-show="!loading || employees.length > 0">
+            <template x-if="employees.length === 0 && !serviceHasSchedule && !hasSchedules && !loading">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-error">
+                    <h4>{{ labels.noSchedules }}</h4>
+                    <p>{{ labels.noSchedulesDesc }}</p>
+                </div>
+            </template>
+
+            <template x-if="employees.length > 0 && !hasSchedules && !serviceHasSchedule && !loading">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-error">
+                    <h4>{{ labels.noSchedules }}</h4>
+                    <p>{{ labels.noSchedulesDesc }}</p>
+                </div>
+            </template>
+
+            <template x-if="employees.length > 1 && !employeeRequired && (hasSchedules || serviceHasSchedule)">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-any" role="button" tabindex="0" @click="skipEmployee()" @keydown.enter.prevent="skipEmployee()" @keydown.space.prevent="skipEmployee()">
+                    <h4>{{ labels.anyEmployee }}</h4>
+                    <p>{{ labels.anyEmployeeDesc }}</p>
+                </div>
+            </template>
+
+            <template x-if="employees.length > 0 && (hasSchedules || serviceHasSchedule)">
+                <template x-for="employee in employees" :key="employee.id">
+                    <div class="{{ cssPrefix }}-card" role="button" tabindex="0" @click="selectEmployee(employee)" @keydown.enter.prevent="selectEmployee(employee)" @keydown.space.prevent="selectEmployee(employee)">
+                        <h4 x-text="employee.name"></h4>
+                        {% if showEmployeeBio %}
+                        <p x-text="employee.bio"></p>
+                        {% endif %}
+                    </div>
+                </template>
+            </template>
+        </div>
+        <button class="btn mt-4" @click="prevStep()">{{ labels.btnBack }}</button>
+    </div>
+
+    <div x-show="step === 5" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectDateTime }}</h3>
+        
+        <div class="{{ cssPrefix }}-date-picker" x-init="initDatePicker()" x-ref="datePickerContainer">
+            <label for="booking-date" class="{{ cssPrefix }}-date-label">{{ labels.selectDate }}</label>
+            <input type="text"
+                   id="booking-date"
+                   x-ref="dateInput"
+                   readonly
+                   placeholder="{{ labels.selectDatePlaceholder }}"
+                   class="text-input {{ cssPrefix }}-datepicker-input">
+            <div class="{{ cssPrefix }}-calendar-legend">
+                <span class="{{ cssPrefix }}-calendar-legend-item">
+                    <span class="{{ cssPrefix }}-calendar-legend-dot available"></span>
+                    {{ labels.legendAvailable }}
+                </span>
+                <span class="{{ cssPrefix }}-calendar-legend-item">
+                    <span class="{{ cssPrefix }}-calendar-legend-dot unavailable"></span>
+                    {{ labels.legendUnavailable }}
+                </span>
+            </div>
+        </div>
+
+        <div class="{{ cssPrefix }}-time-section" x-show="date">
+            <template x-if="availableSlots.length > 0">
+                <div>
+                    <label class="{{ cssPrefix }}-time-label">{{ labels.selectTime }}</label>
+                    <div class="{{ cssPrefix }}-slots" role="group" aria-label="{{ labels.selectTime }}">
+                        <template x-for="slot in availableSlots" :key="slot.time + '-' + (slot.employeeId || 'any')">
+                            <div class="{{ cssPrefix }}-slot-container" :class="{ 'selected': selectedSlot && selectedSlot.time === slot.time && (!selectedSlot.employeeId || selectedSlot.employeeId === slot.employeeId) }">
+                                <div class="{{ cssPrefix }}-slot" role="button" tabindex="0" :aria-pressed="String(!!selectedSlot && selectedSlot.time === slot.time && (!selectedSlot.employeeId || selectedSlot.employeeId === slot.employeeId))" @click="selectSlot(slot)" @keydown.enter.prevent="selectSlot(slot)" @keydown.space.prevent="selectSlot(slot)">
+                                    <span class="{{ cssPrefix }}-slot-time" x-text="formatDisplayTime(slot.time)"></span>
+                                    <template x-if="slot.availableCapacity !== null && slot.availableCapacity !== undefined && slot.availableCapacity !== 1">
+                                        <span class="{{ cssPrefix }}-slot-capacity" x-text="getCapacityText(slot)"></span>
+                                    </template>
+                                    <template x-if="slot.availableCapacity === null || slot.availableCapacity === undefined">
+                                        <span class="{{ cssPrefix }}-slot-capacity">{{ labels.capacityOpen }}</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <template x-if="selectedSlot && (selectedSlot.availableCapacity === null || selectedSlot.availableCapacity > 1)">
+                        <div class="{{ cssPrefix }}-slot-quantity">
+                            <label>{{ labels.quantityLabel }}:</label>
+                            <div class="{{ cssPrefix }}-quantity-controls">
+                                <button type="button" class="btn btn-sm" @click.stop.prevent="decrementSlotQuantity(selectedSlot)" :disabled="slotQuantity <= 1" aria-label="{{ 'wizard.ariaDecreaseQuantity'|t('booked') }}">−</button>
+                                <input type="number"
+                                       x-model.number="slotQuantity"
+                                       :max="selectedSlot.availableCapacity || 99"
+                                       min="1"
+                                       class="text-input text-center"
+                                       aria-label="{{ 'wizard.ariaSlotQuantity'|t('booked') }}"
+                                       @change="validateSlotQuantity(selectedSlot)">
+                                <button type="button" class="btn btn-sm" @click.stop.prevent="incrementSlotQuantity(selectedSlot)" :disabled="slotQuantity >= (selectedSlot.availableCapacity || 99)" aria-label="{{ 'wizard.ariaIncreaseQuantity'|t('booked') }}">+</button>
+                                <span class="text-xs" x-show="selectedSlot.availableCapacity !== null" x-text="selectedSlot.availableCapacity + ' {{ labels.capacityAvailable }}'"></span>
+                                <span class="text-xs" x-show="selectedSlot.availableCapacity === null">{{ labels.capacityAvailable }}</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="availableSlots.length === 0 && !loading">
+                <div class="{{ cssPrefix }}-no-slots-container">
+                    <div class="{{ cssPrefix }}-no-slots-card" x-show="!waitlistSuccess">
+                        <div class="{{ cssPrefix }}-no-slots-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                <line x1="9" y1="16" x2="15" y2="16"></line>
+                            </svg>
+                        </div>
+
+                        <h4 class="{{ cssPrefix }}-no-slots-title">{{ labels.noSlots }}</h4>
+                        <p class="{{ cssPrefix }}-no-slots-desc">{{ labels.noSlotsDesc }}</p>
+
+                        <template x-if="waitlistAvailable">
+                            <div class="{{ cssPrefix }}-waitlist-section">
+                                <div class="{{ cssPrefix }}-waitlist-prompt" x-show="!showWaitlistForm">
+                                    <p>{{ labels.waitlistQuestion }}</p>
+                                    <button type="button" class="{{ cssPrefix }}-waitlist-btn" @click="showWaitlistForm = true">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                        </svg>
+                                        {{ labels.waitlistBtnJoin }}
+                                    </button>
+                                </div>
+
+                                <div class="{{ cssPrefix }}-waitlist-form" x-show="showWaitlistForm" x-cloak role="dialog" aria-modal="true" aria-labelledby="waitlist-dialog-title" @keydown.escape.prevent="showWaitlistForm = false">
+                                    <div class="{{ cssPrefix }}-waitlist-form-header">
+                                        <h5 id="waitlist-dialog-title">{{ labels.waitlistTitle }}</h5>
+                                        <p>{{ labels.waitlistDesc }}</p>
+                                    </div>
+
+                                    <div class="{{ cssPrefix }}-waitlist-form-fields">
+                                        <div class="{{ cssPrefix }}-waitlist-field">
+                                            <label for="waitlist-name">{{ labels.waitlistFieldName }} <span class="required">*</span></label>
+                                            <input type="text"
+                                                   id="waitlist-name"
+                                                   x-model="customerName"
+                                                   placeholder="{{ labels.waitlistFieldName }}"
+                                                   class="text-input"
+                                                   required>
+                                        </div>
+                                        <div class="{{ cssPrefix }}-waitlist-field">
+                                            <label for="waitlist-email">{{ labels.waitlistFieldEmail }} <span class="required">*</span></label>
+                                            <input type="email"
+                                                   id="waitlist-email"
+                                                   x-model="customerEmail"
+                                                   placeholder="{{ labels.waitlistFieldEmail }}"
+                                                   class="text-input"
+                                                   required>
+                                        </div>
+                                        <div class="{{ cssPrefix }}-waitlist-field">
+                                            <label for="waitlist-phone">{{ labels.waitlistFieldPhone }}</label>
+                                            <input type="tel"
+                                                   id="waitlist-phone"
+                                                   x-model="customerPhone"
+                                                   placeholder="{{ labels.waitlistFieldPhone }}"
+                                                   class="text-input">
+                                        </div>
+                                    </div>
+
+                                    <div class="{{ cssPrefix }}-waitlist-form-actions">
+                                        <button type="button"
+                                                class="{{ cssPrefix }}-waitlist-btn-secondary"
+                                                @click="showWaitlistForm = false">
+                                            {{ labels.waitlistBtnCancel }}
+                                        </button>
+                                        <button type="button"
+                                                class="{{ cssPrefix }}-waitlist-btn-primary"
+                                                @click="joinWaitlist()"
+                                                :disabled="joiningWaitlist || !customerName || !customerEmail">
+                                            <span x-show="!joiningWaitlist">{{ labels.waitlistBtnJoin }}</span>
+                                            <span x-show="joiningWaitlist">{{ labels.waitlistBtnJoining }}</span>
+                                        </button>
+                                    </div>
+
+                                    <template x-if="waitlistError">
+                                        <div class="{{ cssPrefix }}-waitlist-error" role="alert">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                            </svg>
+                                            <span x-text="waitlistError"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="{{ cssPrefix }}-waitlist-success" x-show="waitlistAvailable && waitlistSuccess" x-cloak role="status">
+                        <div class="{{ cssPrefix }}-waitlist-success-icon">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <h4>{{ labels.waitlistSuccessTitle }}</h4>
+                        <p>{{ labels.waitlistSuccess }}</p>
+                        <button type="button" class="{{ cssPrefix }}-waitlist-btn" @click="resetWaitlistForm()">
+                            {{ labels.btnBack }}
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="loading">
+                <div class="{{ cssPrefix }}-loading-slots">
+                    <div class="{{ cssPrefix }}-spinner" role="status" aria-label="{{ labels.loadingSlots }}"></div>
+                    <p>{{ labels.loadingSlots }}</p>
+                </div>
+            </template>
+        </div>
+
+        <div class="{{ cssPrefix }}-step-nav">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+            <button 
+                class="btn btn-primary" 
+                @click="nextStep()" 
+                x-show="selectedSlot && (selectedSlot.availableCapacity === null || selectedSlot.availableCapacity <= 1 || slotQuantity > 0)"
+                :disabled="selectedSlot && selectedSlot.availableCapacity !== null && selectedSlot.availableCapacity > 1 && slotQuantity < 1">
+                {{ labels.btnNext }}
+            </button>
+        </div>
+    </div>
+
+    <div x-show="step === 6" x-cloak>
+        <h3 tabindex="-1">{{ labels.enterInfo }}</h3>
+        <div class="form-group">
+            <label for="customer-name">{{ labels.fieldName }} <span class="required" aria-hidden="true">*</span></label>
+            <input type="text"
+                   id="customer-name"
+                   x-model="customerName"
+                   class="text-input"
+                   aria-required="true"
+                   :aria-invalid="(touched.name && (!customerName || customerName.trim().length === 0)).toString()"
+                   :aria-describedby="(touched.name && (!customerName || customerName.trim().length === 0)) ? 'name-error' : false"
+                   @blur="touched.name = true; customerName = customerName ? customerName.trim() : ''">
+            <p id="name-error" role="alert" x-show="touched.name && (!customerName || customerName.trim().length === 0)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.nameRequired'|t('booked') }}</p>
+        </div>
+        <div class="form-group">
+            <label for="customer-email">{{ labels.fieldEmail }} <span class="required" aria-hidden="true">*</span></label>
+            <input type="email"
+                   id="customer-email"
+                   x-model="customerEmail"
+                   class="text-input"
+                   aria-required="true"
+                   :aria-invalid="(touched.email && (customerEmail ? !isValidEmail(customerEmail) : true)).toString()"
+                   :aria-describedby="(touched.email && customerEmail && !isValidEmail(customerEmail)) ? 'email-error' : (touched.email && !customerEmail ? 'email-required' : false)"
+                   @blur="touched.email = true; customerEmail = customerEmail.trim()"
+                   :class="{ 'border-red-500': touched.email && customerEmail && !isValidEmail(customerEmail) }">
+            <p id="email-error" role="alert" x-show="touched.email && customerEmail && !isValidEmail(customerEmail)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.invalidEmail'|t('booked') }}</p>
+            <p id="email-required" role="alert" x-show="touched.email && !customerEmail" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.emailRequired'|t('booked') }}</p>
+        </div>
+        <div class="form-group">
+            <label for="customer-phone">{{ labels.fieldPhone }}{% if requirePhone %} <span class="required" aria-hidden="true">*</span>{% endif %}</label>
+            <input type="tel"
+                   id="customer-phone"
+                   x-model="customerPhone"
+                   class="text-input"
+                   {% if requirePhone %}aria-required="true"{% endif %}
+                   :aria-invalid="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0) ? 'true' : false"
+                   :aria-describedby="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0) ? 'phone-error' : false"
+                   @blur="touched.phone = true">
+            <p id="phone-error" role="alert" x-show="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.phoneRequired'|t('booked') }}</p>
+        </div>
+        {% if showNotes %}
+        <div class="form-group">
+            <label for="customer-notes">{{ labels.fieldNotes }}</label>
+            <textarea id="customer-notes" x-model="notes" class="text-input"></textarea>
+        </div>
+        {% endif %}
+
+        {% if honeypotFieldName ?? null %}
+        <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;">
+            <input type="text" id="{{ honeypotFieldName }}" name="{{ honeypotFieldName }}" autocomplete="off" tabindex="-1">
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between mt-4">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+            <button class="btn btn-primary" @click="nextStep()" :disabled="!isCustomerInfoValid()">{{ labels.btnNext }}</button>
+        </div>
+    </div>
+
+    <div x-show="step === 7" x-cloak>
+        <h3 tabindex="-1">{{ labels.confirmBooking }}</h3>
+        <div class="{{ cssPrefix }}-summary p-4">
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <p class="font-semibold text-lg" x-text="selectedService?.title"></p>
+                <p x-show="selectedService?.description" class="text-sm text-gray-600 mt-1" x-text="selectedService?.description"></p>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-600">
+                    <span x-show="selectedService?.virtualMeetingProvider" class="inline-flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <span x-text="selectedService?.virtualMeetingProvider === 'zoom' ? 'Zoom' : selectedService?.virtualMeetingProvider === 'google' ? 'Google Meet' : selectedService?.virtualMeetingProvider === 'teams' ? 'Microsoft Teams' : '{{ labels.summaryVirtualMeeting }}'"></span>
+                    </span>
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryDate }}:</span>
+                        <span class="font-medium" x-text="formatDisplayDate(date)"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryTime }}:</span>
+                        <span class="font-medium" x-text="formatDisplayTime(time)"></span>
+                        <span class="text-gray-400" x-show="selectedService?.duration"> - <span x-text="formatDisplayTime(calculateEndTime())"></span></span>
+                    </div>
+                    <div x-show="quantity > 1">
+                        <span class="text-gray-500">{{ labels.summaryQuantity }}:</span>
+                        <span class="font-medium" x-text="quantity"></span>
+                    </div>
+                </div>
+            </div>
+
+            <template x-if="selectedLocation || selectedEmployee || (!selectedEmployee && employees.length > 0)">
+                <div class="{{ cssPrefix }}-summary-section mb-4">
+                    <div class="grid grid-cols-1 gap-2 text-sm">
+                        <div x-show="selectedLocation">
+                            <span class="text-gray-500">{{ labels.summaryLocation }}:</span>
+                            <span class="font-medium" x-text="selectedLocation?.name"></span>
+                            <p x-show="selectedLocation?.address" class="text-gray-500 text-xs mt-0.5" x-text="selectedLocation?.address"></p>
+                        </div>
+                        <div x-show="selectedEmployee">
+                            <span class="text-gray-500">{{ labels.summaryEmployee }}:</span>
+                            <span class="font-medium" x-text="selectedEmployee?.name"></span>
+                        </div>
+                        <div x-show="!selectedEmployee && employees.length > 0">
+                            <span class="text-gray-500">{{ labels.summaryEmployee }}:</span>
+                            <span class="font-medium">{{ labels.firstAvailable }}</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="getSelectedExtrasCount() > 0">
+                <div class="{{ cssPrefix }}-summary-section mb-4">
+                    <p class="text-gray-500 text-sm mb-1">{{ labels.summaryExtras }}:</p>
+                    <ul class="list-disc list-inside text-sm">
+                        <template x-for="extra in getSelectedExtrasDetails()" :key="extra.id">
+                            <li><span x-text="extra.title"></span> x<span x-text="extra.quantity"></span> (<span x-text="extra.subtotal.toFixed(2) + ' {{ labels.currencySymbol }}'"></span>)</li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
+            <hr class="my-3">
+
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <div class="grid grid-cols-1 gap-1 text-sm">
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryName }}:</span>
+                        <span class="font-medium" x-text="customerName"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryEmail }}:</span>
+                        <span class="font-medium" x-text="customerEmail"></span>
+                    </div>
+                    <div x-show="customerPhone">
+                        <span class="text-gray-500">{{ labels.summaryPhone }}:</span>
+                        <span class="font-medium" x-text="customerPhone"></span>
+                    </div>
+                    <div x-show="notes">
+                        <span class="text-gray-500">{{ labels.summaryNotes }}:</span>
+                        <span class="font-medium" x-text="notes"></span>
+                    </div>
+                </div>
+            </div>
+
+            <template x-if="getServicePrice() > 0 || getExtrasTotal() > 0">
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <p x-show="getServicePrice() > 0"><strong>{{ labels.summaryServicePrice }}:</strong> <span x-text="formatPrice(getServicePrice() * quantity)"></span></p>
+                    <p x-show="getExtrasTotal() > 0"><strong>{{ labels.summaryExtrasPrice }}:</strong> <span x-text="formatPrice(getExtrasTotal())"></span></p>
+                    <p class="text-lg font-bold mt-2"><strong>{{ labels.summaryTotal }}:</strong> <span x-text="formatPrice(getTotalPrice())"></span></p>
+                </div>
+            </template>
+
+            <template x-if="requiresPayment()">
+                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded">
+                    <p class="text-amber-800 font-semibold">{{ labels.paymentRequired }}</p>
+                    <p class="text-amber-700 text-sm">{{ labels.paymentRequiredNote }}</p>
+                </div>
+            </template>
+        </div>
+
+        {% if (captchaEnabled ?? false) and (captchaSiteKey ?? null) %}
+            {% if captchaProvider == 'turnstile' %}
+            <div id="booked-turnstile-widget" class="mt-4"></div>
+            {% elseif captchaProvider == 'hcaptcha' %}
+            <div id="booked-hcaptcha-widget" class="mt-4"></div>
+            {% endif %}
+        {% endif %}
+
+        <template x-if="bookingError">
+            <div class="{{ cssPrefix }}-error mt-4 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
+                <div class="flex items-start gap-3">
+                    <svg class="flex-shrink-0 w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <h4 class="text-red-800 font-semibold">{{ labels.bookingErrorTitle }}</h4>
+                        <p class="text-red-700 text-sm mt-1" x-text="bookingError"></p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <div class="{{ cssPrefix }}-step-nav mt-4">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+
+            <template x-if="requiresPayment()">
+                <div class="flex gap-4">
+                    <button class="btn" @click="addToCart()" :disabled="loading">
+                        <span x-show="!loading">{{ labels.btnAddToCart }}</span>
+                        <span x-show="loading">{{ labels.btnProcessing }}</span>
+                    </button>
+                    <button class="btn btn-primary" @click="proceedToCheckout()" :disabled="loading">
+                        <span x-show="!loading">{{ labels.btnProceedToCheckout }}</span>
+                        <span x-show="loading">{{ labels.btnProcessing }}</span>
+                    </button>
+                </div>
+            </template>
+
+            <template x-if="!requiresPayment()">
+                <button class="btn btn-primary" @click="submitBooking()" :disabled="loading">
+                    <span x-show="!loading">{{ labels.btnBook }}</span>
+                    <span x-show="loading">{{ labels.btnProcessing }}</span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <div x-show="step === 8" x-cloak>
+        <div class="{{ cssPrefix }}-success text-center py-8" role="status">
+            <svg class="mx-auto mb-4" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #000000;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="m9 12 2 2 4-4"></path>
+            </svg>
+
+            <h3 class="text-2xl font-bold mb-2">{{ labels.successTitle }}</h3>
+            <p class="text-gray-600 mb-6">{{ labels.successMessage }}</p>
+
+            <div class="{{ cssPrefix }}-success-details p-6 mb-6 text-left max-w-md mx-auto">
+                <p class="mb-2"><strong>{{ labels.successStatus }}:</strong> <span x-text="reservationDetails?.status || '{{ labels.statusConfirmed }}'"></span></p>
+                <p class="mb-2"><strong>{{ labels.successBookingId }}:</strong> #<span x-text="reservationDetails?.id"></span></p>
+                <p class="mb-4"><strong>{{ labels.successAppointment }}:</strong> <span x-text="reservationDetails?.formattedDateTime || (formatDisplayDate(date) + ' ' + formatDisplayTime(time))"></span></p>
+
+                <div class="bg-blue-50 border-l-4 border-black p-4 text-sm">
+                    <p class="font-semibold mb-1">{{ labels.successNextSteps }}</p>
+                    <p>{{ labels.successEmailNotePrefix }}<strong x-text="customerEmail"></strong>{{ labels.successEmailNoteSuffix }}</p>
+                </div>
+            </div>
+
+            <div class="flex gap-4 justify-center">
+                <button class="btn btn-primary" @click="resetWizard()">{{ labels.btnNewBooking }}</button>
+                <a href="{{ homeUrl }}" class="btn">{{ labels.btnHome }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% js %}
+    window.csrfTokenName = "{{ craft.app.config.general.csrfTokenName }}";
+    window.csrfTokenValue = "{{ craft.app.request.csrfToken }}";
+{% endjs %}

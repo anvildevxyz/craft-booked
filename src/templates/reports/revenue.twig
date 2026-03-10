@@ -1,0 +1,107 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.revenue.title"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.revenue.total"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalRevenue|number_format(2) }} {{ currency }}</div>
+        {% if changePercent is not null %}
+            <div class="booked-mt-16">
+                <span class="booked-kpi-trend {{ changePercent > 0 ? 'trend-up' : (changePercent < 0 ? 'trend-down' : 'trend-neutral') }}">
+                    <span class="booked-kpi-trend-arrow">{{ changePercent > 0 ? '▲' : (changePercent < 0 ? '▼' : '–') }}</span>
+                    {{ changePercent|abs|number_format(1) }}% {{ "reports.revenue.vsPreviousPeriod"|t('booked') }}
+                </span>
+            </div>
+            {% if previousTotal is not null %}
+                <div class="booked-summary-date" style="opacity: 0.7; margin-top: 8px;">
+                    {{ "reports.revenue.previousPeriod"|t('booked') }}: {{ previousTotal|number_format(2) }} {{ currency }}
+                </div>
+            {% endif %}
+        {% endif %}
+        <div class="booked-summary-date">
+            {{ startDate|date('M d, Y') }} - {{ endDate|date('M d, Y') }}
+        </div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate,
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate,
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/revenue', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card" style="padding: 0;">
+        <div class="booked-widget-header" style="padding: 20px 20px 0;">
+            <h3 class="booked-widget-title">{{ "reports.revenue.title"|t('booked') }}</h3>
+        </div>
+        <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "labels.date"|t('booked') }}</th>
+                    <th>{{ "labels.customer"|t('booked') }}</th>
+                    <th>{{ "labels.serviceOrEvent"|t('booked') }}</th>
+                    <th>{{ "labels.time"|t('booked') }}</th>
+                    <th>{{ "labels.revenue"|t('booked') }}</th>
+                    <th>{{ "labels.status"|t('booked') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if reservations|length > 0 %}
+                    {% for reservation in reservations %}
+                        <tr>
+                            <td>{{ reservation.bookingDate|date('M d, Y') }}</td>
+                            <td>{{ reservation.userEmail }}</td>
+                            <td>
+                                {% if reservation.service %}
+                                    {{ reservation.service.title }}
+                                {% elseif reservation.eventDate %}
+                                    {{ reservation.eventDate.title }}
+                                {% else %}
+                                    {{ 'labels.na'|t('booked') }}
+                                {% endif %}
+                            </td>
+                            <td>{{ reservation.startTime }} - {{ reservation.endTime }}</td>
+                            <td class="booked-font-semibold">{{ reservation.totalPrice|number_format(2) }} {{ currency }}</td>
+                            <td>
+                                <span class="booked-status-badge status-{{ reservation.status }}">
+                                    {{ reservation.status|upper }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="booked-empty-state">
+                            {{ "reports.revenue.noResults"|t('booked') }}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+{% endblock %}

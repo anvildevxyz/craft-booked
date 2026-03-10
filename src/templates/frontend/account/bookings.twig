@@ -1,0 +1,29 @@
+{#
+/**
+ * All Bookings
+ * 
+ * Shows all bookings for the user.
+ */
+#}
+
+{% extends "booked/frontend/account/_layout" %}
+
+{% set currentPage = 'all' %}
+
+{% block pageTitle %}{{ 'account.allBookings'|t('booked') }}{% endblock %}
+
+{% block accountContent %}
+    <div class="booked-section section-plain">
+        {% if bookings|length %}
+            <p class="booked-booking-meta booked-booking-count">
+                {{ 'account.showingBookings'|t('booked', { count: bookings|length }) }}
+            </p>
+            {% for booking in bookings %}
+                {% set isPast = booking.bookingDate < date()|date('Y-m-d') %}
+                {% include 'booked/frontend/account/_booking-card' with { booking: booking, compact: isPast } %}
+            {% endfor %}
+        {% else %}
+            {% include 'booked/frontend/account/_empty-state' with { message: 'account.noBookingsFound'|t('booked') } %}
+        {% endif %}
+    </div>
+{% endblock %}

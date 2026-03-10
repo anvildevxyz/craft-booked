@@ -1,0 +1,242 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = 'waitlist.edit.title'|t('booked', {id: entry.id}) %}
+{% set selectedSubnavItem = 'waitlist' %}
+
+{% block actionButton %}
+	<div class="btngroup">
+		{% if entry.canBeNotified() %}
+			<form method="post" style="display: contents;">
+				{{ csrfInput() }}
+				<input type="hidden" name="action" value="booked/cp/waitlist/notify">
+				<input type="hidden" name="entryId" value="{{ entry.id }}">
+				{{ redirectInput('booked/waitlist/' ~ entry.id) }}
+				<button type="submit" class="btn submit">{{ 'waitlist.edit.sendNotification'|t('booked') }}</button>
+			</form>
+		{% endif %}
+		{% if entry.status == 'active' %}
+			<form method="post" style="display: contents;">
+				{{ csrfInput() }}
+				<input type="hidden" name="action" value="booked/cp/waitlist/cancel">
+				<input type="hidden" name="entryId" value="{{ entry.id }}">
+				{{ redirectInput('booked/waitlist/' ~ entry.id) }}
+				<button type="submit" class="btn" onclick="return confirm('{{ 'waitlist.edit.cancelConfirm'|t('booked') }}')">
+					{{ 'waitlist.edit.cancelEntry'|t('booked') }}
+				</button>
+			</form>
+		{% endif %}
+		<form method="post" style="display: contents;">
+			{{ csrfInput() }}
+			<input type="hidden" name="action" value="booked/cp/waitlist/delete">
+			<input type="hidden" name="entryId" value="{{ entry.id }}">
+			<button type="submit" class="btn" onclick="return confirm('{{ 'waitlist.edit.deleteConfirm'|t('booked') }}')">
+				{{ 'waitlist.edit.delete'|t('booked') }}
+			</button>
+		</form>
+	</div>
+{% endblock %}
+
+{% block content %}
+	<div id="fields">
+		<h2>{{ 'waitlist.edit.customerInfo'|t('booked') }}</h2>
+
+		{{ forms.textField({
+            label: 'waitlist.edit.name'|t('booked'),
+            value: entry.userName,
+            readonly: true,
+        }) }}
+
+		{{ forms.textField({
+            label: 'waitlist.edit.email'|t('booked'),
+            value: entry.userEmail,
+            readonly: true,
+        }) }}
+
+		{% if entry.userPhone %}
+			{{ forms.textField({
+                label: 'waitlist.edit.phone'|t('booked'),
+                value: entry.userPhone,
+                readonly: true,
+            }) }}
+		{% endif %}
+
+		{% if entry.userId %}
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.userAccount'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{% if entry.userEmail %}
+						<a href="{{ cpUrl('users/' ~ entry.userId) }}">{{ entry.userEmail }}</a>
+					{% endif %}
+				</div>
+			</div>
+		{% endif %}
+
+		<hr>
+
+		{% if eventDate %}
+			<h2>{{ 'waitlist.edit.eventDetails'|t('booked') }}</h2>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.event'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					<a href="{{ cpUrl('booked/cp/event-dates/' ~ eventDate.id) }}">{{ eventDate.title }}</a>
+				</div>
+			</div>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.eventDateTime'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{{ eventDate.eventDate|date('l, F j, Y') }} &middot; {{ eventDate.getFormattedTimeRange() }}
+				</div>
+			</div>
+
+			{% if eventDate.capacity %}
+				<div class="field">
+					<div class="heading">
+						<label>{{ 'labels.capacity'|t('booked') }}</label>
+					</div>
+					<div class="input">
+						{{ eventDate.getBookedCountCached() }} / {{ eventDate.capacity }}
+						{% if eventDate.isFullyBooked() %}
+							<span class="light">({{ 'wizard.fullyBooked'|t('booked') }})</span>
+						{% endif %}
+					</div>
+				</div>
+			{% endif %}
+		{% else %}
+			<h2>{{ 'waitlist.edit.servicePreferences'|t('booked') }}</h2>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.service'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{% if service %}
+						<a href="{{ cpUrl('booked/services/' ~ service.id) }}">{{ service.title }}</a>
+					{% else %}
+						<span class="light">&ndash;</span>
+					{% endif %}
+				</div>
+			</div>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.employee'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{% if employee %}
+						<a href="{{ cpUrl('booked/employees/' ~ employee.id) }}">{{ employee.title }}</a>
+					{% else %}
+						<span class="light">{{ 'waitlist.edit.anyAvailable'|t('booked') }}</span>
+					{% endif %}
+				</div>
+			</div>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.location'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{% if location %}
+						<a href="{{ cpUrl('booked/locations/' ~ location.id) }}">{{ location.title }}</a>
+					{% else %}
+						<span class="light">{{ 'waitlist.edit.anyLocation'|t('booked') }}</span>
+					{% endif %}
+				</div>
+			</div>
+
+			<div class="field">
+				<div class="heading">
+					<label>{{ 'waitlist.edit.preferredDate'|t('booked') }}</label>
+				</div>
+				<div class="input">
+					{% if entry.preferredDate %}
+						{{ entry.preferredDate|date('l, F j, Y') }}
+					{% else %}
+						<span class="light">{{ 'waitlist.edit.anyDate'|t('booked') }}</span>
+					{% endif %}
+				</div>
+			</div>
+
+			{% if entry.preferredTimeStart or entry.preferredTimeEnd %}
+				<div class="field">
+					<div class="heading">
+						<label>{{ 'waitlist.edit.preferredTime'|t('booked') }}</label>
+					</div>
+					<div class="input">
+						{{ entry.preferredTimeStart ?? 'Any' }}
+						&ndash;
+						{{ entry.preferredTimeEnd ?? 'Any' }}
+					</div>
+				</div>
+			{% endif %}
+		{% endif %}
+
+		{% if entry.notes %}
+			<hr>
+			<h2>{{ 'waitlist.edit.notes'|t('booked') }}</h2>
+			<div class="field">
+				<div class="input">
+					{{ entry.notes|nl2br }}
+				</div>
+			</div>
+		{% endif %}
+	</div>
+
+{% endblock %}
+
+{% block details %}
+	<div class="meta">
+		<div class="data">
+			<h5 class="heading">{{ 'labels.status'|t('booked') }}</h5>
+			<div class="value">
+				{% if entry.status == 'active' %}
+					<span class="status green"></span>
+					{{ 'waitlist.edit.statusActive'|t('booked') }}
+				{% elseif entry.status == 'notified' %}
+					<span class="status blue"></span>
+					{{ 'waitlist.edit.statusNotified'|t('booked') }}
+				{% elseif entry.status == 'converted' %}
+					<span class="status purple"></span>
+					{{ 'waitlist.edit.statusConverted'|t('booked') }}
+				{% elseif entry.status == 'expired' %}
+					<span class="status light"></span>
+					{{ 'waitlist.edit.statusExpired'|t('booked') }}
+				{% elseif entry.status == 'cancelled' %}
+					<span class="status red"></span>
+					{{ 'waitlist.edit.statusCancelled'|t('booked') }}
+				{% endif %}
+			</div>
+		</div>
+	</div>
+
+	<div class="meta read-only">
+		<div class="data">
+			<h5 class="heading">{{ 'waitlist.edit.priority'|t('booked') }}</h5>
+			<div class="value">{{ entry.priority }}</div>
+		</div>
+		<div class="data">
+			<h5 class="heading">{{ 'waitlist.edit.created'|t('booked') }}</h5>
+			<div class="value">{{ entry.dateCreated|date('M j, Y g:i A') }}</div>
+		</div>
+		{% if entry.expiresAt %}
+			<div class="data">
+				<h5 class="heading">{{ 'waitlist.edit.expires'|t('booked') }}</h5>
+				<div class="value">{{ entry.expiresAt|date('M j, Y g:i A') }}</div>
+			</div>
+		{% endif %}
+		{% if entry.notifiedAt %}
+			<div class="data">
+				<h5 class="heading">{{ 'waitlist.edit.statusNotified'|t('booked') }}</h5>
+				<div class="value">{{ entry.notifiedAt|date('M j, Y g:i A') }}</div>
+			</div>
+		{% endif %}
+	</div>
+{% endblock %}

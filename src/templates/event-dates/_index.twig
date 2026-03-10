@@ -1,0 +1,8 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\EventDate' %}
+{% set title = 'element.eventDates'|t('booked') %}
+{% set selectedSubnavItem = 'event-dates' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/cp/event-dates/new') }}" class="btn submit add icon">{{ 'eventDate.new'|t('booked') }}</a>
+{% endblock %}

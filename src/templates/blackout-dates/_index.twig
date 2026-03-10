@@ -1,0 +1,8 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\BlackoutDate' %}
+{% set title = 'element.blackoutDates'|t('booked') %}
+{% set selectedSubnavItem = 'blackout-dates' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/blackout-dates/new') }}" class="btn submit add icon">{{ 'blackoutDate.new'|t('booked') }}</a>
+{% endblock %}

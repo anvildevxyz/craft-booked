@@ -1,0 +1,76 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.byEmployee.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-indigo booked-mb-24">
+        <div class="booked-summary-label">{{ "labels.totalBookings"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalBookings }}</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/by-employee', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.byEmployee.heading"|t('booked') }}</h3>
+        </div>
+
+        {% if employeeBookings|length > 0 %}
+            {% for employeeId, data in employeeBookings %}
+                <div class="booked-list-item-lg">
+                    <div class="booked-flex-between booked-mb-12">
+                        <div>
+                            <div class="booked-font-semibold booked-text-lg">
+                                {{ data.employee ? data.employee.title : 'reports.byEmployee.employeeNumber'|t('booked') ~ employeeId }}
+                            </div>
+                            <div class="booked-text-sm booked-text-muted booked-mt-4">
+                                {{ data.percentage|number_format(1) }}% {{ "reports.byService.ofTotal"|t('booked') }}
+                            </div>
+                        </div>
+                        <div class="booked-text-right">
+                            <div class="booked-kpi-value color-primary">{{ data.count }}</div>
+                            <div class="booked-text-sm booked-text-muted">{{ "labels.bookingsLower"|t('booked') }}</div>
+                            <div class="booked-font-semibold booked-mt-4">{{ data.revenue|number_format(2) }} {{ currency }}</div>
+                        </div>
+                    </div>
+
+                    <div class="booked-progress-bar">
+                        <div class="booked-progress-fill color-primary" style="width: {{ data.percentage }}%;"></div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="booked-empty-state-lg">
+                {{ "reports.byEmployee.noData"|t('booked') }}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

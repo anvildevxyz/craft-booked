@@ -1,0 +1,160 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWebhooksAsset") %}
+
+{% set title = title %}
+{% set selectedSubnavItem = 'webhooks' %}
+{% set fullPageForm = true %}
+
+{% if not isNew %}
+    {% set additionalButtons %}
+        <button type="button" class="btn" id="send-test-btn">{{ 'webhook.edit.sendTest'|t('booked') }}</button>
+        <a href="{{ cpUrl('booked/webhooks/' ~ webhook.id ~ '/logs') }}" class="btn">{{ 'webhook.edit.viewLogs'|t('booked') }}</a>
+    {% endset %}
+{% endif %}
+
+{% block content %}
+	{{ actionInput('booked/cp/webhooks/save') }}
+	{% if not isNew %}
+		{{ hiddenInput('id', webhook.id) }}
+	{% endif %}
+
+	<div class="field first">
+		{{ forms.lightswitchField({
+                label: 'webhook.edit.enabled'|t('booked'),
+                instructions: 'webhook.edit.enabledInstructions'|t('booked'),
+                id: 'enabled',
+                name: 'enabled',
+                on: webhook.enabled ?? true,
+            }) }}
+	</div>
+	<div class="field">
+		{{ forms.textField({
+        label: 'webhook.edit.name'|t('booked'),
+        instructions: 'webhook.edit.nameInstructions'|t('booked'),
+        id: 'name',
+        name: 'name',
+        value: webhook.name,
+        required: true,
+        first: true,
+        errors: webhook.getErrors('name'),
+    }) }}
+	</div>
+
+	<h2>{{ 'webhook.edit.endpoint'|t('booked') }}</h2>
+	<div class="field">
+		{{ forms.textField({
+        label: 'webhook.edit.url'|t('booked'),
+        instructions: 'webhook.edit.urlInstructions'|t('booked'),
+        id: 'url',
+        name: 'url',
+        type: 'url',
+        value: webhook.url,
+        required: true,
+        errors: webhook.getErrors('url'),
+    }) }}
+	</div>
+	<div class="field">
+		{{ forms.selectField({
+        label: 'webhook.edit.payloadFormat'|t('booked'),
+        instructions: 'webhook.edit.payloadFormatInstructions'|t('booked'),
+        id: 'payloadFormat',
+        name: 'payloadFormat',
+        options: [
+            { label: 'Standard (nested)'|t('booked'), value: 'standard' },
+            { label: 'Flat (Zapier-optimized)'|t('booked'), value: 'flat' },
+        ],
+        value: webhook.payloadFormat ?? 'standard',
+    }) }}
+	</div>
+	<hr>
+
+	<h2>{{ 'webhook.edit.events'|t('booked') }}</h2>
+	<div class="field">
+		{{ forms.checkboxSelectField({
+        label: 'webhook.edit.triggerEvents'|t('booked'),
+        instructions: 'webhook.edit.triggerEventsInstructions'|t('booked'),
+        id: 'events',
+        name: 'events',
+        options: eventTypes,
+        values: webhook.eventsArray,
+        required: true,
+    }) }}
+	</div>
+	<hr>
+
+	<h2>{{ 'webhook.edit.security'|t('booked') }}</h2>
+	<div class="field">
+		<div class="field">
+			<div class="heading">
+				<label>{{ 'webhook.edit.signingSecret'|t('booked') }}</label>
+				<div class="instructions">
+					<p>{{ 'webhook.edit.signingSecretInstructions'|t('booked') }}</p>
+				</div>
+			</div>
+			<div class="input">
+				<div class="flex">
+					<div class="flex-grow">
+						<input type="text" class="text fullwidth code" value="{{ webhook.secret }}" readonly id="secret-display">
+					</div>
+					<button type="button" class="btn" onclick="copySecret()">{{ 'webhook.edit.copy'|t('booked') }}</button>
+					{% if not isNew %}
+						<button type="button" class="btn" id="regenerate-secret-btn" data-webhook-id="{{ webhook.id }}">
+							{{ 'webhook.edit.regenerate'|t('booked') }}
+						</button>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+	<hr>
+
+	<h2>{{ 'webhook.edit.advanced'|t('booked') }}</h2>
+	<div class="field">
+		{{ forms.textField({
+        label: 'webhook.edit.retryAttempts'|t('booked'),
+        instructions: 'webhook.edit.retryAttemptsInstructions'|t('booked'),
+        id: 'retryCount',
+        name: 'retryCount',
+        type: 'number',
+        min: 1,
+        max: 10,
+        value: webhook.retryCount ?? 3,
+    }) }}
+	</div>
+	<div class="field booked-mt-24">
+		<div class="heading">
+			<label>{{ 'webhook.edit.customHeaders'|t('booked') }}</label>
+			<div class="instructions">
+				<p>{{ 'webhook.edit.customHeadersInstructions'|t('booked') }}</p>
+			</div>
+		</div>
+		<div class="input">
+			<div id="custom-headers">
+				{% set headers = webhook.headersArray %}
+				{% if headers|length %}
+					{% for key, value in headers %}
+						<div class="flex header-row booked-mb-8">
+							<input type="text" name="headerKeys[]" value="{{ key }}" placeholder="{{ 'webhook.headerNamePlaceholder'|t('booked') }}" class="text booked-header-name-input">
+							<input type="text" name="headerValues[]" value="{{ value }}" placeholder="{{ 'webhook.headerValuePlaceholder'|t('booked') }}" class="text flex-grow">
+							<button type="button" class="btn small" onclick="this.parentElement.remove()">×</button>
+						</div>
+					{% endfor %}
+				{% endif %}
+			</div>
+			<button type="button" class="btn small add icon" onclick="addHeader()">{{ 'webhook.edit.addHeader'|t('booked') }}</button>
+		</div>
+	</div>
+
+	{% if not isNew %}
+		<hr>
+
+		<button type="button" class="btn delete small" id="delete-webhook-btn"
+			data-webhook-id="{{ webhook.id }}"
+			data-redirect-url="{{ cpUrl('booked/webhooks') }}">
+			{{ 'webhook.edit.deleteWebhook'|t('booked') }}
+		</button>
+	{% endif %}
+{% endblock %}
+

@@ -1,0 +1,100 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.dayOfWeek.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    {% set dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+    {% set allValues = [] %}
+    {% for hour, dowCounts in heatmapData %}
+        {% for dow, count in dowCounts %}
+            {% set allValues = allValues|merge([count]) %}
+        {% endfor %}
+    {% endfor %}
+    {% set maxValue = allValues|length > 0 ? max(allValues) : 1 %}
+
+    {% set totalDowBookings = 0 %}
+    {% for hour, dowCounts in heatmapData %}
+        {% for dow, count in dowCounts %}
+            {% set totalDowBookings = totalDowBookings + count %}
+        {% endfor %}
+    {% endfor %}
+
+    <div class="booked-summary-card summary-violet booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.dayOfWeek.heading"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalDowBookings }}</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.service"|t('booked'),
+            name: "serviceId",
+            value: serviceId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(services|map(s => {label: s.title, value: s.id})),
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.employee"|t('booked'),
+            name: "employeeId",
+            value: employeeId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(employees|map(e => {label: e.title, value: e.id})),
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/day-of-week', {startDate: startDate ?? '', endDate: endDate ?? '', serviceId: serviceId ?? '', employeeId: employeeId ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.dayOfWeek.heading"|t('booked') }}</h3>
+        </div>
+
+        {% if heatmapData|length > 0 %}
+            <div class="booked-heatmap-grid">
+                <div class="booked-heatmap-cell booked-heatmap-header"></div>
+                {% for day in dayNames %}
+                    <div class="booked-heatmap-cell booked-heatmap-header">{{ day }}</div>
+                {% endfor %}
+
+                {% for hour in 0..23 %}
+                    <div class="booked-heatmap-cell booked-heatmap-hour">{{ '%02d:00'|format(hour) }}</div>
+                    {% for dow in 0..6 %}
+                        {% set count = heatmapData[hour][dow] ?? 0 %}
+                        {% set opacity = maxValue > 0 ? (count / maxValue) : 0 %}
+                        <div class="booked-heatmap-cell" style="background: rgba(139, 92, 246, {{ opacity * 0.8 + (count > 0 ? 0.1 : 0) }});" title="{{ count }} {{ 'labels.bookingsLower'|t('booked') }}">
+                            {% if count > 0 %}{{ count }}{% endif %}
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="booked-empty-state-lg">
+                {{ "reports.dayOfWeek.noData"|t('booked') }}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

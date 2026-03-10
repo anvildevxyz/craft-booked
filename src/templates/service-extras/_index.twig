@@ -1,0 +1,8 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\ServiceExtra' %}
+{% set title = 'element.addOns'|t('booked') %}
+{% set selectedSubnavItem = 'service-extras' %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="{{ url('booked/service-extras/new') }}">{{ 'serviceExtra.new'|t('booked') }}</a>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% set settingsSubnavItems = {
+    'booking': { label: 'element.booking'|t('booked'), url: url('booked/settings/booking') },
+    'waitlist': { label: 'settings.sidebar.waitlist'|t('booked'), url: url('booked/settings/waitlist') },
+    'security': { label: 'settings.sidebar.security'|t('booked'), url: url('booked/settings/security') },
+    'notifications': { label: 'settings.sidebar.emailNotifications'|t('booked'), url: url('booked/settings/notifications') },
+    'sms': { label: 'settings.sidebar.smsNotifications'|t('booked'), url: url('booked/settings/sms') },
+    'calendar': { label: 'settings.sidebar.calendar'|t('booked'), url: url('booked/settings/calendar') },
+    'meetings': { label: 'settings.sidebar.virtualMeetings'|t('booked'), url: url('booked/settings/meetings') },
+    'commerce': { label: 'settings.sidebar.commerce'|t('booked'), url: url('booked/settings/commerce') },
+    'webhooks': { label: 'settings.sidebar.webhooks'|t('booked'), url: url('booked/settings/webhooks') },
+} %}
+
+<nav id="settings-nav">
+    <ul>
+        {% for key, item in settingsSubnavItems %}
+            <li>
+                <a href="{{ item.url }}" class="{% if key == selectedSettingsSubnavItem %}sel{% endif %}">
+                    {{ item.label }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</nav>

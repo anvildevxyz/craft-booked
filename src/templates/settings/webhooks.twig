@@ -1,0 +1,92 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'webhooks' %}
+{% set title = 'settings.webhook.title'|t('booked') %}
+
+{% block sidebar %}
+	{% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% block content %}
+	<form method="post" accept-charset="UTF-8" id="settings-form">
+		{{ csrfInput() }}
+		<input type="hidden" name="action" value="booked/cp/settings/save">
+		<input type="hidden" name="tab" value="webhooks">
+		{{ redirectInput('booked/settings/webhooks') }}
+
+		<h2 class="heading first">{{ 'settings.webhook.heading'|t('booked') }}</h2>
+		<p class="light">{{ 'settings.webhook.description'|t('booked') }}</p>
+
+		<hr>
+
+		<div class="field">
+			{{ forms.lightswitchField({
+                label: 'settings.webhook.enable'|t('booked'),
+                instructions: 'settings.webhook.enableInstructions'|t('booked'),
+                id: 'webhooksEnabled',
+                name: 'settings[webhooksEnabled]',
+                on: settings.webhooksEnabled,
+                toggle: '#webhook-settings',
+            }) }}
+		</div>
+
+		<div id="webhook-settings" class="{% if not settings.webhooksEnabled %}hidden{% endif %}">
+			<hr>
+
+			<h3>{{ 'settings.webhook.deliverySettings'|t('booked') }}</h3>
+
+			<div class="field">
+				{{ forms.textField({
+                label: 'settings.webhook.timeout'|t('booked'),
+                instructions: 'settings.webhook.timeoutInstructions'|t('booked'),
+                id: 'webhookTimeout',
+                name: 'settings[webhookTimeout]',
+                value: settings.webhookTimeout ?? 30,
+                type: 'number',
+                min: 5,
+                max: 120
+            }) }}
+			</div>
+
+			<hr>
+
+			<h3>{{ 'settings.webhook.logging'|t('booked') }}</h3>
+
+			<div class="field">
+				{{ forms.lightswitchField({
+                label: 'settings.webhook.enableLogging'|t('booked'),
+                instructions: 'settings.webhook.enableLoggingInstructions'|t('booked'),
+                id: 'webhookLogEnabled',
+                name: 'settings[webhookLogEnabled]',
+                on: settings.webhookLogEnabled ?? true
+            }) }}
+			</div>
+
+			<div class="field">
+				{{ forms.textField({
+                label: 'settings.webhook.logRetention'|t('booked'),
+                instructions: 'settings.webhook.logRetentionInstructions'|t('booked'),
+                id: 'webhookLogRetentionDays',
+                name: 'settings[webhookLogRetentionDays]',
+                value: settings.webhookLogRetentionDays ?? 30,
+                type: 'number',
+                min: 1
+            }) }}
+			</div>
+		</div>
+	</form>
+
+	{# Config for notification-settings.js #}
+	{% js %}
+	window.BookedNotificationSettings = {
+				toggles: [
+					{ toggleId: 'webhooksEnabled', settingsId: 'webhook-settings' }
+				]
+			};
+	{% endjs %}
+{% endblock %}

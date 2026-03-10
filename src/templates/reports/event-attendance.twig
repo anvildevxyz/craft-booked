@@ -1,0 +1,91 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.eventAttendance.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-pink booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.eventAttendance.totalEvents"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalEvents }}</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/event-attendance', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card" style="padding: 0;">
+        <div class="booked-widget-header" style="padding: 20px 20px 0;">
+            <h3 class="booked-widget-title">{{ "reports.eventAttendance.reportTitle"|t('booked') }}</h3>
+        </div>
+        <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "labels.event"|t('booked') }}</th>
+                    <th>{{ "labels.date"|t('booked') }}</th>
+                    <th>{{ "labels.time"|t('booked') }}</th>
+                    <th>{{ "reports.eventAttendance.capacity"|t('booked') }}</th>
+                    <th>{{ "reports.eventAttendance.booked"|t('booked') }}</th>
+                    <th>{{ "reports.eventAttendance.remaining"|t('booked') }}</th>
+                    <th>{{ "reports.utilization.utilization"|t('booked') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if events|length > 0 %}
+                    {% for eventId, data in events %}
+                        <tr>
+                            <td class="booked-font-semibold">{{ data.eventDate.title ?? '' }}</td>
+                            <td>{{ data.eventDate.eventDate ? data.eventDate.eventDate|date('M d, Y') : '' }}</td>
+                            <td>{{ data.eventDate.startTime ?? '' }} - {{ data.eventDate.endTime ?? '' }}</td>
+                            <td>{{ data.capacity ?? 'reports.eventAttendance.unlimited'|t('booked') }}</td>
+                            <td>{{ data.booked }}</td>
+                            <td>{{ data.remaining ?? 'labels.na'|t('booked') }}</td>
+                            <td>
+                                {% if data.utilizationPct is not null %}
+                                    <div class="booked-flex" style="align-items: center; gap: 8px;">
+                                        <div class="booked-progress-bar" style="flex: 1; max-width: 100px;">
+                                            <div class="booked-progress-fill {% if data.utilizationPct >= 80 %}color-success{% elseif data.utilizationPct >= 50 %}color-primary{% else %}color-teal{% endif %}" style="width: {{ data.utilizationPct }}%;"></div>
+                                        </div>
+                                        <span class="booked-font-semibold">{{ data.utilizationPct }}%</span>
+                                    </div>
+                                {% else %}
+                                    {{ 'labels.na'|t('booked') }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="booked-empty-state">{{ "reports.eventAttendance.noData"|t('booked') }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{#
+/**
+ * Booking Cancellation Confirmation Template
+ *
+ * Displays confirmation page before cancelling a booking
+ * Accessed via: /booking/cancel/{token} (GET request)
+ *
+ * Variables:
+ * - reservation: ReservationInterface
+ */
+#}
+
+{% extends "_layout" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{% set bodyClass = 'page-booking-cancel' %}
+
+{% set service = reservation.getService() %}
+{% set employee = reservation.getEmployee() %}
+{% set location = reservation.getLocation() %}
+
+{% block content %}
+<div class="booked-wizard">
+
+    {# Red warning band #}
+    <div class="booked-manage-bar booked-manage-bar--danger">
+        <span class="booked-manage-bar-label">{{ 'templates.cancelBooking'|t('booked') }}</span>
+    </div>
+
+    {# Warning hero #}
+    <div class="booked-manage-hero">
+        <div class="booked-manage-hero-icon booked-manage-hero-icon--danger">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </div>
+        <div class="booked-manage-datetime">{{ reservation.getFormattedDateTime() }}</div>
+        {% if service %}
+            <div class="booked-manage-service">{{ service.title }}</div>
+        {% endif %}
+        <p class="booked-manage-hero-sub">{{ 'templates.cancelBookingConfirmation'|t('booked') }}</p>
+    </div>
+
+    {# Content #}
+    <div class="booked-manage-body">
+
+        <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.05s">
+            <div class="booked-manage-section-title">{{ 'templates.bookingDetails'|t('booked') }}</div>
+            <div class="booked-manage-grid">
+                {% if service %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'labels.service'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ service.title }}</span>
+                    </div>
+                {% endif %}
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.dateTime'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.getFormattedDateTime() }}</span>
+                </div>
+                {% if employee %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'labels.employee'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ employee.title }}</span>
+                    </div>
+                {% endif %}
+                {% if location %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'labels.location'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ location.title }}</span>
+                    </div>
+                {% endif %}
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.name'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userName }}</span>
+                </div>
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.email'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userEmail }}</span>
+                </div>
+            </div>
+        </div>
+
+        {# Cancel form #}
+        <form method="post">
+            {{ csrfInput() }}
+
+            <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.1s">
+                <div class="booked-manage-section-title">{{ 'templates.cancellationReason'|t('booked') }}</div>
+                <textarea
+                    id="reason"
+                    name="reason"
+                    rows="3"
+                    placeholder="{{ 'templates.cancellationReasonPlaceholder'|t('booked') }}"
+                    class="booked-manage-textarea"
+                ></textarea>
+            </div>
+
+            <div class="booked-manage-actions booked-manage-reveal" style="animation-delay: 0.15s">
+                <a href="{{ reservation.getManagementUrl() }}" class="btn btn-primary">
+                    {{ 'templates.keepBooking'|t('booked') }}
+                </a>
+                <button type="submit" class="booked-btn-danger-outline">
+                    {{ 'templates.yesCancelBooking'|t('booked') }}
+                </button>
+            </div>
+        </form>
+
+        <p class="booked-manage-footnote">
+            {{ 'templates.cancellationEmailNotice'|t('booked') }}
+        </p>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,243 @@
+{#
+/**
+ * Booking Management Template
+ *
+ * Displays booking details and allows user to cancel or reschedule
+ * Accessed via: /booking/manage/{token}
+ *
+ * Variables:
+ * - reservation: ReservationInterface
+ * - canCancel: bool
+ * - isPast: bool
+ */
+#}
+
+{% extends "_layout" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{% set bodyClass = 'page-booking-management' %}
+
+{% set service = reservation.getService() %}
+{% set employee = reservation.getEmployee() %}
+{% set location = reservation.getLocation() %}
+{% set eventDate = reservation.getEventDate() ?? null %}
+{% set isCancelled = reservation.status == 'cancelled' %}
+{% set canEditQuantity = reservation.getQuantity() > 1 or (eventDate and eventDate.capacity is not null) %}
+{% set bookingPageUrl = craft.booked.getSettings().bookingPageUrl ?? '/' %}
+
+{% block content %}
+<div class="booked-wizard">
+
+    {% if craft.app.session.hasFlash('notice') %}
+        <div class="booked-flash">
+            <p>{{ craft.app.session.getFlash('notice') }}</p>
+        </div>
+    {% endif %}
+
+    {% if craft.app.session.hasFlash('error') %}
+        <div class="booked-flash flash-error">
+            <p>{{ craft.app.session.getFlash('error') }}</p>
+        </div>
+    {% endif %}
+
+    {# Black header band — mirrors the wizard step indicator #}
+    <div class="booked-manage-bar">
+        <span class="booked-manage-bar-label">
+            {% if isCancelled %}
+                {{ 'templates.bookingAlreadyCancelled'|t('booked') }}
+            {% elseif isPast %}
+                {{ 'templates.bookingCompleted'|t('booked') }}
+            {% else %}
+                {{ 'templates.yourBooking'|t('booked') }}
+            {% endif %}
+        </span>
+        <span class="booked-manage-bar-id">#{{ reservation.getId() }}</span>
+    </div>
+
+    {# Hero — date/time as the focal point #}
+    <div class="booked-manage-hero">
+        <div class="booked-manage-datetime{% if isCancelled %} booked-struck{% endif %}">
+            {{ reservation.getFormattedDateTime() }}
+        </div>
+        {% if service %}
+            <div class="booked-manage-service">{{ service.title }}</div>
+        {% endif %}
+        {% if isCancelled %}
+            <span class="booked-status-badge booked-status-badge--cancelled">
+                {{ 'status.cancelled'|t('booked') }}
+            </span>
+        {% elseif isPast %}
+            <span class="booked-status-badge booked-status-badge--past">
+                {{ 'templates.bookingCompleted'|t('booked') }}
+            </span>
+        {% endif %}
+    </div>
+
+    {# Content sections #}
+    <div class="booked-manage-body">
+
+        {# Booking details #}
+        <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.05s">
+            <div class="booked-manage-section-title">{{ 'templates.bookingDetails'|t('booked') }}</div>
+            <div class="booked-manage-grid">
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.dateTime'|t('booked') }}</span>
+                    <span class="booked-manage-value{% if isCancelled %} booked-struck{% endif %}">{{ reservation.getFormattedDateTime() }}</span>
+                </div>
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.duration'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.getDurationMinutes() }} {{ 'templates.minutes'|t('booked') }}</span>
+                </div>
+                {% if employee %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'labels.employee'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ employee.title }}</span>
+                    </div>
+                {% endif %}
+                {% if location %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'labels.location'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ location.title }}</span>
+                    </div>
+                {% endif %}
+                {% if canEditQuantity or reservation.getQuantity() > 1 %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'wizard.manageQuantity'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ reservation.getQuantity() }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Customer info #}
+        <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.1s">
+            <div class="booked-manage-section-title">{{ 'templates.customerInfo'|t('booked') }}</div>
+            <div class="booked-manage-grid">
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.name'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userName }}</span>
+                </div>
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.email'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userEmail }}</span>
+                </div>
+                {% if reservation.userPhone %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'templates.phone'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ reservation.userPhone }}</span>
+                    </div>
+                {% endif %}
+                {% if reservation.notes %}
+                    <div class="booked-manage-row">
+                        <span class="booked-manage-label">{{ 'templates.notes'|t('booked') }}</span>
+                        <span class="booked-manage-value">{{ reservation.notes }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Quantity adjustment #}
+        {% if not isPast and not isCancelled and canEditQuantity %}
+            <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.15s">
+                <div class="booked-manage-section-title">{{ 'wizard.manageChangeAmount'|t('booked') }}</div>
+                <div class="booked-quantity-row">
+                    <input
+                        type="number"
+                        id="booked-new-quantity"
+                        value="{{ reservation.getQuantity() }}"
+                        min="1"
+                        class="booked-quantity-input"
+                    >
+                    <button type="button" class="btn" id="booked-quantity-submit" disabled>
+                        {{ 'templates.updateQuantity'|t('booked') }}
+                    </button>
+                </div>
+                <p class="booked-quantity-error" id="booked-quantity-error"></p>
+                <script>
+                (function() {
+                    var currentQty = {{ reservation.getQuantity() }};
+                    var reservationId = {{ reservation.getId() }};
+                    var token = '{{ reservation.getConfirmationToken()|e('js') }}';
+                    var csrfName = '{{ craft.app.config.general.csrfTokenName }}';
+                    var csrfToken = '{{ craft.app.request.csrfToken }}';
+                    var redirectUrl = '{{ reservation.getManagementUrl()|e('js') }}';
+
+                    var input = document.getElementById('booked-new-quantity');
+                    var submitBtn = document.getElementById('booked-quantity-submit');
+                    var errorEl = document.getElementById('booked-quantity-error');
+
+                    function showError(msg) {
+                        errorEl.textContent = msg;
+                        errorEl.style.display = msg ? 'block' : 'none';
+                    }
+
+                    input.addEventListener('input', function() {
+                        showError('');
+                        var newQty = parseInt(input.value, 10);
+                        submitBtn.disabled = isNaN(newQty) || newQty < 1 || newQty === currentQty;
+                    });
+
+                    submitBtn.addEventListener('click', function() {
+                        var newQty = parseInt(input.value, 10);
+                        if (isNaN(newQty) || newQty < 1 || newQty === currentQty) return;
+
+                        showError('');
+                        submitBtn.disabled = true;
+
+                        var isReduce = newQty < currentQty;
+                        var action = isReduce
+                            ? '/actions/booked/booking-management/reduce-quantity'
+                            : '/actions/booked/booking-management/increase-quantity';
+
+                        var params = new URLSearchParams();
+                        params.append(csrfName, csrfToken);
+                        params.append('id', reservationId);
+                        params.append('token', token);
+                        params.append(isReduce ? 'reduceBy' : 'increaseBy', Math.abs(newQty - currentQty));
+
+                        fetch(action, {
+                            method: 'POST',
+                            headers: { 'Accept': 'application/json' },
+                            body: params,
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.success) {
+                                window.location.href = redirectUrl;
+                            } else {
+                                showError(data.message || data.error || '{{ 'templates.quantityUpdateFailed'|t('booked')|e('js') }}');
+                                submitBtn.disabled = false;
+                            }
+                        })
+                        .catch(function() {
+                            showError('{{ 'templates.quantityUpdateFailed'|t('booked')|e('js') }}');
+                            submitBtn.disabled = false;
+                        });
+                    });
+                })();
+                </script>
+            </div>
+        {% endif %}
+
+        {# Actions #}
+        <div class="booked-manage-actions booked-manage-reveal" style="animation-delay: 0.2s">
+            {% if not isPast and not isCancelled %}
+                <a href="{{ reservation.getIcsUrl() }}" class="btn">
+                    {{ 'account.addToCalendar'|t('booked') }}
+                </a>
+                {% if canCancel %}
+                    <a href="{{ reservation.getCancelUrl() }}" class="booked-btn-danger-outline">
+                        {{ 'templates.cancelBooking'|t('booked') }}
+                    </a>
+                {% endif %}
+            {% elseif not isCancelled %}
+                <p class="booked-manage-notice">{{ 'templates.cannotCancelBooking'|t('booked') }}</p>
+            {% endif %}
+            <a href="{{ bookingPageUrl }}" class="btn btn-primary">
+                {{ 'templates.bookNewAppointment'|t('booked') }}
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

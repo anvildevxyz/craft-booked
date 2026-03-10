@@ -1,0 +1,84 @@
+{
+    "name": "anvildev/craft-booked",
+    "description": "A comprehensive booking system for Craft CMS",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "booked",
+        "booking",
+        "appointments",
+        "scheduling"
+    ],
+    "support": {
+        "docs": "https://github.com/anvildev/craft-booked/blob/main/README.md",
+        "issues": "https://github.com/anvildev/craft-booked/issues",
+        "source": "https://github.com/anvildev/craft-booked"
+    },
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "anvildev",
+            "homepage": "https://anvildev.xyz"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.0",
+        "google/apiclient": "^2.0",
+        "microsoft/microsoft-graph": "^1.0",
+        "league/oauth2-client": "^2.0",
+        "twilio/sdk": "^6.0 || ^7.0 || ^8.0"
+    },
+    "require-dev": {
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^1.10.0",
+        "craftcms/ecs": "dev-main",
+        "craftcms/rector": "dev-main",
+        "phpunit/phpunit": "^9.5",
+        "mockery/mockery": "^1.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "anvildev\\booked\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "anvildev\\booked\\tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "ecs": "ecs check --fix",
+        "ecs:check": "ecs check",
+        "rector": "rector process --dry-run",
+        "rector:fix": "rector process",
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-html coverage",
+        "check": [
+            "@ecs:check",
+            "@phpstan"
+        ]
+    },
+    "extra": {
+        "name": "Booked",
+        "handle": "booked",
+        "developer": "Anvildev",
+        "developerUrl": "https://anvildev.xyz",
+        "class": "anvildev\\booked\\Booked"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true,
+            "php-http/discovery": true,
+            "tbachert/spi": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

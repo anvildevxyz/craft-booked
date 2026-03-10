@@ -1,0 +1,337 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedBookingsAsset") %}
+
+{% set canManage = canManage ?? true %}
+{% set title = reservation.id ? (canManage ? 'form.editBooking'|t('booked') : 'form.viewBooking'|t('booked')) ~ ' #' ~ reservation.id : 'labels.newBooking'|t('booked') %}
+{% set selectedSubnavItem = 'bookings' %}
+
+{% set fullPageForm = canManage %}
+
+{% set service = reservation.id ? reservation.getService() : null %}
+{% set employee = reservation.id ? reservation.getEmployee() : null %}
+{% set location = reservation.id ? reservation.getLocation() : null %}
+{% set eventDate = reservation.id ? reservation.getEventDate() : null %}
+{% set extras = reservation.id ? reservation.getExtras() : [] %}
+
+{% block actionButton %}
+    {% if canManage %}
+        {% if reservation.id %}
+            <a href="{{ reservation.getIcsUrl() }}" class="btn" data-icon="download">{{ 'account.addToCalendar'|t('booked') }}</a>
+            <div class="btngroup">
+                <button type="submit" class="btn submit">{{ 'Save'|t('app') }}</button>
+                {% if emailEnabled ?? false %}
+                    <button type="button" class="btn menubtn" data-icon="mail"></button>
+                    <div class="menu">
+                        <ul>
+                            <li>
+                                <a class="formsubmit" data-action="booked/cp/bookings/resend-confirmation" data-param="id" data-value="{{ reservation.id }}" data-redirect="{{ ('booked/bookings/' ~ reservation.id)|hash }}">
+                                    {{ 'messages.resendConfirmationEmail'|t('booked') }}
+                                </a>
+                            </li>
+                            {% if smsEnabled ?? false %}
+                                <li>
+                                    <a class="formsubmit" data-action="booked/cp/bookings/resend-sms" data-param="id" data-value="{{ reservation.id }}" data-redirect="{{ ('booked/bookings/' ~ reservation.id)|hash }}">
+                                        {{ 'messages.resendConfirmationSms'|t('booked') }}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <button type="submit" class="btn submit">{{ 'Save'|t('app') }}</button>
+        {% endif %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="booked-booking-edit{% if not canManage %} booked-readonly{% endif %}">
+    {% if canManage %}
+    <input type="hidden" name="action" value="booked/cp/bookings/save">
+    {% if reservation.id %}
+        <input type="hidden" name="id" value="{{ reservation.id }}">
+    {% endif %}
+    {% endif %}
+
+    <div id="fields">
+        <h2>{{ 'labels.bookingDetails'|t('booked') }}</h2>
+
+        {{ forms.selectField({
+            label: 'labels.service'|t('booked'),
+            id: 'serviceId',
+            name: 'serviceId',
+            options: serviceOptions,
+            value: reservation.serviceId,
+            errors: reservation.getErrors('serviceId'),
+            instructions: 'form.serviceInstructions'|t('booked')
+        }) }}
+
+        <div class="flex-fields">
+            {{ forms.selectField({
+                label: 'labels.employee'|t('booked'),
+                id: 'employeeId',
+                name: 'employeeId',
+                options: employeeOptions,
+                value: reservation.employeeId,
+                errors: reservation.getErrors('employeeId')
+            }) }}
+
+            {{ forms.selectField({
+                label: 'labels.location'|t('booked'),
+                id: 'locationId',
+                name: 'locationId',
+                options: locationOptions,
+                value: reservation.locationId,
+                errors: reservation.getErrors('locationId')
+            }) }}
+        </div>
+
+        {{ forms.selectField({
+            label: 'form.eventDate'|t('booked'),
+            id: 'eventDateId',
+            name: 'eventDateId',
+            options: eventDateOptions,
+            value: reservation.eventDateId,
+            errors: reservation.getErrors('eventDateId'),
+            instructions: 'form.eventDateInstructions'|t('booked')
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'labels.dateTime'|t('booked') }}</h2>
+
+        {{ forms.dateField({
+            label: 'form.bookingDate'|t('booked'),
+            id: 'bookingDate',
+            name: 'bookingDate',
+            value: reservation.bookingDate,
+            required: true,
+            errors: reservation.getErrors('bookingDate')
+        }) }}
+
+        <div class="flex-fields">
+            {{ forms.timeField({
+                label: 'labels.startTime'|t('booked'),
+                id: 'startTime',
+                name: 'startTime',
+                value: reservation.startTime,
+                required: true,
+                errors: reservation.getErrors('startTime')
+            }) }}
+
+            {{ forms.timeField({
+                label: 'form.endTime'|t('booked'),
+                id: 'endTime',
+                name: 'endTime',
+                value: reservation.endTime,
+                required: true,
+                errors: reservation.getErrors('endTime')
+            }) }}
+        </div>
+
+        <div class="flex-fields">
+            {{ forms.textField({
+                label: 'labels.quantity'|t('booked'),
+                id: 'quantity',
+                name: 'quantity',
+                type: 'number',
+                value: reservation.quantity ?? 1,
+                min: 1,
+                required: true,
+                errors: reservation.getErrors('quantity'),
+                instructions: 'form.quantityInstructions'|t('booked')
+            }) }}
+
+            {{ forms.selectField({
+                label: 'labels.status'|t('booked'),
+                id: 'status',
+                name: 'status',
+                options: statuses,
+                value: reservation.status,
+                required: true,
+                errors: reservation.getErrors('status')
+            }) }}
+        </div>
+
+        <hr>
+
+        <h2>{{ 'form.customerInfo'|t('booked') }}</h2>
+
+        {{ forms.textField({
+            label: 'labels.name'|t('booked'),
+            id: 'userName',
+            name: 'userName',
+            value: reservation.userName,
+            required: true,
+            errors: reservation.getErrors('userName')
+        }) }}
+
+        <div class="flex-fields">
+            {{ forms.textField({
+                label: 'labels.email'|t('booked'),
+                id: 'userEmail',
+                name: 'userEmail',
+                type: 'email',
+                value: reservation.userEmail,
+                required: true,
+                errors: reservation.getErrors('userEmail')
+            }) }}
+
+            {{ forms.textField({
+                label: 'labels.phone'|t('booked'),
+                id: 'userPhone',
+                name: 'userPhone',
+                value: reservation.userPhone,
+                errors: reservation.getErrors('userPhone')
+            }) }}
+        </div>
+
+        {{ forms.selectField({
+            label: 'form.timezone'|t('booked'),
+            id: 'userTimezone',
+            name: 'userTimezone',
+            options: timezoneOptions,
+            value: reservation.userTimezone,
+            errors: reservation.getErrors('userTimezone'),
+            instructions: 'form.timezoneInstructions'|t('booked')
+        }) }}
+
+        {{ forms.textareaField({
+            label: 'labels.notes'|t('booked'),
+            id: 'notes',
+            name: 'notes',
+            value: reservation.notes,
+            rows: 4,
+            errors: reservation.getErrors('notes'),
+            instructions: 'form.notesInstructions'|t('booked')
+        }) }}
+
+        {% if reservation is instance of('craft\\base\\Element') %}
+            {% set fieldLayout = reservation.getFieldLayout() %}
+            {% if fieldLayout and fieldLayout.getTabs()|length %}
+                <hr>
+                {% set form = fieldLayout.createForm(reservation, false) %}
+                {{ form.render()|raw }}
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if reservation.id %}
+    <div id="booking-details">
+        <h2>{{ 'form.bookingSummary'|t('booked') }}</h2>
+
+        <div class="booking-card">
+            <div class="booking-row">
+                {% if service %}
+                <div class="booking-item">
+                    <span class="booking-label">{{ 'labels.service'|t('booked') }}</span>
+                    <span class="booking-value">{{ service.title }}</span>
+                    {% if service.duration or service.price %}
+                    <span class="booking-meta">
+                        {% if service.duration %}{{ service.duration }} {{ 'labels.min'|t('booked') }}{% endif %}
+                        {% if service.duration and service.price %} · {% endif %}
+                        {% if service.price %}{{ service.price|currency(currency) }}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if employee %}
+                <div class="booking-item">
+                    <span class="booking-label">{{ 'labels.employee'|t('booked') }}</span>
+                    {% set employeeUser = employee.getUser() %}
+                    <span class="booking-value">{{ employeeUser ? employeeUser.getName() : employee.title }}</span>
+                </div>
+                {% endif %}
+
+                {% if location %}
+                <div class="booking-item">
+                    <span class="booking-label">{{ 'labels.location'|t('booked') }}</span>
+                    <span class="booking-value">{{ location.title }}</span>
+                    {% if location.address %}
+                    <span class="booking-meta">{{ location.address }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            {% if eventDate %}
+                <div class="booking-item">
+                    <span class="booking-label">{{ 'reservation.eventDate'|t('booked') }}</span>
+                    <span class="booking-value">{{ eventDate.title }}</span>
+                    <span class="booking-meta">{{ eventDate.getFormattedDate() }} · {{ eventDate.getFormattedTimeRange() }}</span>
+                </div>
+                {% endif %}
+
+            {% if extras|length > 0 %}
+            <div class="booking-section">
+                <span class="booking-label">{{ 'labels.extras'|t('booked') }}</span>
+                <table class="booking-extras-table">
+                    <tbody>
+                    {% for item in extras %}
+                        <tr>
+                            <td class="extra-name">
+                                {{ item.extra.title }}
+                                {% if item.quantity > 1 %}<span class="extra-qty">×{{ item.quantity }}</span>{% endif %}
+                            </td>
+                            <td class="extra-price">
+                                {% if item.unitPrice > 0 %}
+                                    {{ (item.unitPrice * item.quantity)|currency(currency) }}
+                                {% else %}
+                                    –
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <div class="booking-summary">
+                {% if service and service.price %}
+                <div class="summary-row">
+                    <span>{{ 'labels.service'|t('booked') }}</span>
+                    <span>{{ service.price|currency(currency) }}</span>
+                </div>
+                {% endif %}
+                {% if extras|length > 0 and reservation.extrasPrice > 0 %}
+                <div class="summary-row">
+                    <span>{{ 'labels.extras'|t('booked') }}</span>
+                    <span>{{ reservation.getExtrasPrice()|currency(currency) }}</span>
+                </div>
+                {% endif %}
+                {% if order is defined and order and order.totalTax > 0 %}
+                <div class="summary-row">
+                    <span>{{ 'labels.subtotal'|t('booked') }}</span>
+                    <span>{{ reservation.getTotalPrice()|currency(currency) }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>{{ 'labels.tax'|t('booked') }}</span>
+                    <span>{{ order.totalTax|currency(currency) }}</span>
+                </div>
+                <div class="summary-row total">
+                    <span>{{ 'labels.totalPrice'|t('booked') }}</span>
+                    <span>{{ order.totalPrice|currency(currency) }}</span>
+                </div>
+                {% else %}
+                <div class="summary-row total">
+                    <span>{{ 'labels.totalPrice'|t('booked') }}</span>
+                    <span>{{ reservation.getTotalPrice()|currency(currency) }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="booking-meta-info">
+            <span>{{ 'form.created'|t('booked') }}: {{ reservation.dateCreated|date('d.m.Y H:i') }}</span>
+            <span class="separator">·</span>
+            <span>Token: <code>{{ reservation.confirmationToken }}</code></span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

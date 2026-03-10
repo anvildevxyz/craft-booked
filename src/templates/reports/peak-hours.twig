@@ -1,0 +1,101 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.peakHours.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    {% set totalPeakBookings = 0 %}
+    {% for hour, count in hourlyBookings %}
+        {% set totalPeakBookings = totalPeakBookings + count %}
+    {% endfor %}
+
+    <div class="booked-summary-card summary-purple booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.peakHours.heading"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ totalPeakBookings }}</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.service"|t('booked'),
+            name: "serviceId",
+            value: serviceId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(services|map(s => {label: s.title, value: s.id})),
+        }) }}
+
+        {{ forms.selectField({
+            label: "labels.employee"|t('booked'),
+            name: "employeeId",
+            value: employeeId ?? '',
+            options: [{label: 'labels.all'|t('booked'), value: ''}]|merge(employees|map(e => {label: e.title, value: e.id})),
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/peak-hours', {startDate: startDate ?? '', endDate: endDate ?? '', serviceId: serviceId ?? '', employeeId: employeeId ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-widget-card">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.peakHours.heading"|t('booked') }}</h3>
+        </div>
+
+        {% if hourlyBookings|length > 0 %}
+            {% set maxBookings = max(hourlyBookings) %}
+
+            <div class="booked-flex-col booked-gap-12">
+                {% for hour, count in hourlyBookings %}
+                    {% set percentage = maxBookings > 0 ? (count / maxBookings * 100) : 0 %}
+
+                    <div class="booked-hour-row">
+                        <div class="booked-hour-label">
+                            {{ '%02d:00'|format(hour) }}
+                        </div>
+
+                        <div class="booked-hour-bar-container">
+                            <div class="booked-hour-bar">
+                                <div class="booked-hour-bar-fill" style="width: {{ percentage }}%;">
+                                    {% if percentage > 15 %}
+                                        {{ count }} {{ "labels.bookingsLower"|t('booked') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if percentage <= 15 and count > 0 %}
+                                <div class="booked-hour-count-external" style="left: calc({{ percentage }}% + 8px);">
+                                    {{ count }} {{ "labels.bookingsLower"|t('booked') }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+        {% else %}
+            <div class="booked-empty-state-lg">
+                {{ "reports.peakHours.noData"|t('booked') }}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

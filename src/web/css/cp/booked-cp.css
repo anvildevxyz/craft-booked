@@ -1,0 +1,1987 @@
+/**
+ * Booked Control Panel Styles
+ */
+
+/* ==========================================================================
+   WAITLIST ACTION BUTTONS — add spacing between form-wrapped buttons
+   ========================================================================== */
+
+#action-buttons .btngroup {
+    gap: 7px;
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+/* Grid Layouts */
+.booked-grid-auto,
+.booked-grid-2,
+.booked-grid-3,
+.booked-grid-4 {
+    display: grid;
+    gap: 20px;
+}
+
+.booked-grid-auto { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.booked-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.booked-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.booked-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Flex Layouts */
+.booked-flex {
+    display: flex;
+}
+
+.booked-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.booked-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.booked-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.booked-gap-8 { gap: 8px; }
+.booked-gap-12 { gap: 12px; }
+.booked-gap-16 { gap: 16px; }
+.booked-gap-20 { gap: 20px; }
+.booked-gap-24 { gap: 24px; }
+
+/* Spacing */
+.booked-mb-8 { margin-bottom: 8px; }
+.booked-mb-12 { margin-bottom: 12px; }
+.booked-mb-16 { margin-bottom: 16px; }
+.booked-mb-20 { margin-bottom: 20px; }
+.booked-mb-24 { margin-bottom: 24px; }
+.booked-mb-32 { margin-bottom: 32px; }
+
+.booked-mt-8 { margin-top: 8px; }
+.booked-mt-12 { margin-top: 12px; }
+.booked-mt-14 { margin-top: 14px; }
+.booked-mt-16 { margin-top: 16px; }
+.booked-mt-24 { margin-top: 24px; }
+.booked-mt-32 { margin-top: 32px; }
+
+.booked-ml-7 { margin-left: 7px; }
+.booked-mx-4 { margin-left: 4px; margin-right: 4px; }
+.booked-py-14 { padding-top: 14px; padding-bottom: 14px; }
+
+.booked-p-12 { padding: 12px; }
+.booked-p-16 { padding: 16px; }
+.booked-p-20 { padding: 20px; }
+.booked-p-24 { padding: 24px; }
+.booked-p-32 { padding: 32px; }
+
+/* Text */
+.booked-text-center { text-align: center; }
+.booked-text-right { text-align: right; }
+.booked-text-muted { color: #6b7280; }
+.booked-text-light { color: #9ca3af; }
+.booked-text-dark { color: #374151; }
+
+.booked-text-sm { font-size: 12px; }
+.booked-text-base { font-size: 14px; }
+.booked-text-lg { font-size: 16px; }
+.booked-text-xl { font-size: 18px; }
+.booked-text-2xl { font-size: 24px; }
+.booked-text-3xl { font-size: 32px; }
+.booked-text-4xl { font-size: 48px; }
+
+.booked-font-medium { font-weight: 500; }
+.booked-font-semibold { font-weight: 600; }
+.booked-font-bold { font-weight: bold; }
+
+/* Width */
+.booked-w-full { width: 100%; }
+
+/* Inline Block */
+.inline-block { display: inline-block; }
+
+/* Specific widths */
+.booked-header-name-input { width: 200px; }
+
+/* Info Box for settings */
+.booked-settings-info {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+/* Variables Info Box */
+.booked-variables-box {
+    background: #f0f9ff;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.booked-variables-box p {
+    margin: 0;
+    font-size: 13px;
+}
+
+.booked-variables-box code {
+    font-size: 12px;
+}
+
+.booked-variables-note {
+    margin: 8px 0 0 0;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Test Result Box */
+.booked-test-result {
+    margin-top: 12px;
+    display: none;
+}
+
+.booked-test-result pre {
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* ==========================================================================
+   CARD COMPONENTS
+   ========================================================================== */
+
+/* Base Card & KPI Card */
+.booked-card,
+.booked-kpi-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.booked-card-lg {
+    padding: 24px;
+}
+
+/* Shared numeral styling */
+.booked-kpi-value,
+.booked-kpi-value-xl,
+.booked-kpi-value-lg,
+.booked-summary-value,
+.booked-employee-count {
+    font-weight: 600;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
+}
+
+.booked-kpi-value {
+    font-size: 32px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+
+.booked-kpi-value-xl {
+    font-size: 48px;
+}
+
+.booked-kpi-footer {
+    color: #9ca3af;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+/* KPI Value Colors */
+.booked-kpi-value.color-success,
+.booked-kpi-value-xl.color-success,
+.booked-kpi-value-lg.color-success,
+.booked-color-success { color: #10b981; }
+.booked-kpi-value.color-primary,
+.booked-kpi-value-xl.color-primary,
+.booked-kpi-value-lg.color-primary,
+.booked-color-primary { color: #3b82f6; }
+.booked-kpi-value.color-warning,
+.booked-kpi-value-xl.color-warning,
+.booked-kpi-value-lg.color-warning,
+.booked-color-warning { color: #f59e0b; }
+.booked-kpi-value.color-danger,
+.booked-kpi-value-xl.color-danger,
+.booked-kpi-value-lg.color-danger,
+.booked-color-danger { color: #ef4444; }
+.booked-kpi-value.color-purple,
+.booked-kpi-value-xl.color-purple,
+.booked-kpi-value-lg.color-purple,
+.booked-color-purple { color: #8b5cf6; }
+.booked-kpi-value.color-teal,
+.booked-kpi-value-xl.color-teal,
+.booked-kpi-value-lg.color-teal,
+.booked-color-teal { color: #059669; }
+
+/* Report Card (for reports index) */
+.report-card {
+    display: block;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.report-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    transition: box-shadow 0.2s, transform 0.2s;
+    text-decoration: none;
+}
+
+.report-card-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.report-card-content > div:last-child {
+    min-width: 0;
+}
+
+.report-card-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.report-card-icon.bg-green { background: #d1fae5; }
+.report-card-icon.bg-blue { background: #dbeafe; }
+.report-card-icon.bg-yellow { background: #fef3c7; }
+.report-card-icon.bg-red { background: #fee2e2; }
+.report-card-icon.bg-purple { background: #e9d5ff; }
+.report-card-icon.bg-orange { background: #ffedd5; }
+.report-card-icon.bg-teal { background: #ccfbf1; }
+.report-card-icon.bg-indigo { background: #e0e7ff; }
+.report-card-icon.bg-cyan { background: #cffafe; }
+.report-card-icon.bg-amber { background: #fef3c7; }
+.report-card-icon.bg-pink { background: #fce7f3; }
+
+.report-card-title {
+    margin: 0;
+    font-size: 18px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-decoration: none;
+}
+
+.report-card:hover .report-card-title {
+    text-decoration: none;
+}
+
+.report-card-desc {
+    margin: 4px 0 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   STATUS BADGES
+   ========================================================================== */
+
+.booked-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.booked-status-badge.status-confirmed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.booked-status-badge.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.booked-status-badge.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.booked-status-badge.status-default {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* ==========================================================================
+   ALERT BOXES
+   ========================================================================== */
+
+.booked-alert {
+    padding: 16px;
+    border-radius: 12px;
+    border-left: 4px solid;
+}
+
+.booked-alert-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.booked-alert-text {
+    font-size: 14px;
+}
+
+.booked-alert.alert-success {
+    background: #d1fae5;
+    border-color: #10b981;
+}
+.booked-alert.alert-success .booked-alert-title { color: #065f46; }
+.booked-alert.alert-success .booked-alert-text { color: #064e3b; }
+
+.booked-alert.alert-warning {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+.booked-alert.alert-warning .booked-alert-title { color: #92400e; }
+.booked-alert.alert-warning .booked-alert-text { color: #78350f; }
+
+.booked-alert.alert-danger {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+.booked-alert.alert-danger .booked-alert-title { color: #991b1b; }
+.booked-alert.alert-danger .booked-alert-text { color: #7f1d1d; }
+
+.booked-alert.alert-info {
+    background: #f0f9ff;
+    border-color: #3b82f6;
+}
+.booked-alert.alert-info .booked-alert-title { color: #1e40af; }
+.booked-alert.alert-info .booked-alert-text { color: #1e3a8a; }
+
+/* Info Box (no left border) */
+.booked-info-box {
+    padding: 12px;
+    background: #f0f9ff;
+    border-radius: 8px;
+}
+
+/* ==========================================================================
+   PROGRESS BARS
+   ========================================================================== */
+
+.booked-progress-bar {
+    background: #e5e7eb;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.booked-progress-bar.size-sm { height: 8px; }
+.booked-progress-bar.size-lg { height: 24px; }
+
+.booked-progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.booked-progress-fill.color-primary { background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); }
+.booked-progress-fill.color-success { background: linear-gradient(90deg, #10b981 0%, #34d399 100%); }
+.booked-progress-fill.color-purple { background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%); }
+.booked-progress-fill.color-teal { background: linear-gradient(90deg, #059669 0%, #10b981 100%); }
+.booked-progress-fill.color-danger { background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); }
+
+/* ==========================================================================
+   LIST ITEMS
+   ========================================================================== */
+
+.booked-list-item {
+    padding: 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.booked-list-item:last-child {
+    border-bottom: none;
+}
+
+.booked-list-item-lg {
+    padding: 16px;
+}
+
+/* ==========================================================================
+   ACTIVITY/RESERVATION ITEMS
+   ========================================================================== */
+
+.booked-activity-item {
+    padding: 12px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.booked-activity-email {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.booked-activity-date {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   WIDGET HEADERS
+   ========================================================================== */
+
+.booked-widget-title-sm {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+}
+
+/* ==========================================================================
+   EMPTY STATES
+   ========================================================================== */
+
+.booked-empty-state {
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px 0;
+}
+
+.booked-empty-state-lg {
+    padding: 60px 0;
+}
+
+/* ==========================================================================
+   SCROLLABLE CONTAINERS
+   ========================================================================== */
+
+.booked-scrollable {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ==========================================================================
+   REPORT TOOLBAR
+   ========================================================================== */
+
+.booked-report-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+}
+
+.booked-report-toolbar .field {
+    margin: 0 !important;
+    flex: 0 0 auto;
+}
+
+.booked-report-toolbar .field .heading {
+    margin-bottom: 4px;
+}
+
+.booked-report-toolbar .field .heading label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.booked-report-toolbar .btn.submit {
+    margin-bottom: 0;
+    align-self: flex-end;
+    white-space: nowrap;
+}
+
+.booked-report-toolbar .booked-toolbar-spacer {
+    flex: 1;
+}
+
+.booked-report-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .booked-report-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .booked-report-toolbar .field {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
+
+    .booked-report-toolbar .booked-toolbar-spacer {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   SUMMARY/REVENUE CARDS
+   ========================================================================== */
+
+.booked-summary-card {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    border-radius: 12px;
+    padding: 32px;
+    color: white;
+}
+
+.booked-summary-card.summary-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+.booked-summary-card.summary-indigo { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+.booked-summary-card.summary-teal { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+.booked-summary-card.summary-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+.booked-summary-card.summary-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.booked-summary-card.summary-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.booked-summary-card.summary-violet { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+.booked-summary-card.summary-pink { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+.booked-summary-card.summary-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+
+.booked-summary-label {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 12px;
+}
+
+.booked-summary-value {
+    font-size: 48px;
+    line-height: 1.1;
+    margin-bottom: 12px;
+}
+
+.booked-summary-date {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-top: 8px;
+}
+
+/* ==========================================================================
+   DATA TABLES ENHANCEMENTS
+   ========================================================================== */
+
+.booked-table-wrapper {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.booked-table-wrapper tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* ==========================================================================
+   PEAK HOURS REPORT
+   ========================================================================== */
+
+.booked-hour-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.booked-hour-label {
+    width: 80px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.booked-hour-bar-container {
+    flex: 1;
+    position: relative;
+}
+
+.booked-hour-bar {
+    background: #e5e7eb;
+    height: 36px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.booked-hour-bar-fill {
+    background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    transition: width 0.3s ease;
+}
+
+.booked-hour-count-external {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   CANCELLATION RATE INDICATOR
+   ========================================================================== */
+
+.booked-rate-indicator {
+    background: #e5e7eb;
+    height: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.booked-rate-zone {
+    position: absolute;
+    height: 100%;
+}
+
+.booked-rate-zone.zone-good { left: 0; width: 33.33%; background: #10b981; }
+.booked-rate-zone.zone-moderate { left: 33.33%; width: 33.33%; background: #f59e0b; }
+.booked-rate-zone.zone-bad { left: 66.66%; width: 33.34%; background: #ef4444; }
+
+.booked-rate-marker {
+    position: absolute;
+    top: -8px;
+    transform: translateX(-50%);
+}
+
+.booked-rate-marker-line {
+    width: 4px;
+    height: 40px;
+    background: #1f2937;
+    border-radius: 2px;
+}
+
+.booked-rate-marker-label {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.booked-rate-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.booked-notice {
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.booked-notice.color-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.booked-notice.color-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.booked-notice.color-success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.booked-notice p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* ==========================================================================
+   EMPLOYEE PERFORMANCE CARDS
+   ========================================================================== */
+
+.booked-employee-card {
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.booked-employee-name {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.booked-employee-stats {
+    text-align: center;
+    background: #dbeafe;
+    padding: 12px 24px;
+    border-radius: 8px;
+}
+
+.booked-employee-count {
+    font-size: 32px;
+    color: #1e40af;
+}
+
+.booked-employee-count-label {
+    font-size: 12px;
+    color: #1e40af;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   WEBHOOK LOGS
+   ========================================================================== */
+
+.booked-log-summary-stats {
+    display: flex;
+    gap: 32px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.booked-log-summary-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.booked-log-summary-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.booked-log-summary-stat-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.booked-logs-table code.booked-log-event-code {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    color: #374151;
+}
+
+.booked-log-http-code {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.booked-log-http-code.code-success {
+    color: #059669;
+    background: #d1fae5;
+}
+
+.booked-log-http-code.code-error {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.booked-log-details-pane {
+    margin: 8px 0;
+}
+
+.booked-log-detail-heading {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 8px;
+}
+
+.booked-log-error-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #dc2626;
+    font-size: 13px;
+}
+
+.booked-code-block {
+    max-height: 300px;
+    overflow: auto;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #374151;
+}
+
+/* ==========================================================================
+   CALENDAR VIEWS
+   ========================================================================== */
+
+/* Calendar Layout */
+.booked-calendar-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+}
+
+/* Calendar Header */
+.booked-calendar-header {
+    margin-bottom: 24px;
+}
+
+.booked-calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.booked-view-switcher {
+    display: flex;
+    gap: 8px;
+}
+
+.booked-view-switcher .btn.active {
+    background: #0d78f2;
+    color: white;
+}
+
+/* Mini Calendar */
+.mini-calendar {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.mini-calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.mini-calendar-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.mini-calendar-nav {
+    padding: 4px 8px;
+    min-width: auto;
+}
+
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    text-align: center;
+}
+
+.mini-calendar-day-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 4px 0;
+}
+
+.mini-calendar-day-empty {
+    padding: 6px;
+    font-size: 12px;
+}
+
+.mini-calendar-day {
+    display: block;
+    padding: 6px 2px;
+    font-size: 12px;
+    text-decoration: none;
+    border-radius: 4px;
+    position: relative;
+    color: #374151;
+    transition: background-color 0.15s ease;
+}
+
+.mini-calendar-day:hover {
+    background-color: #f3f4f6;
+}
+
+.mini-calendar-day.is-today {
+    background: #dbeafe;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.mini-calendar-day.is-selected {
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+}
+
+.mini-calendar-day.is-selected:hover {
+    background: #2563eb;
+}
+
+.mini-calendar-indicator {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: #3b82f6;
+    border-radius: 50%;
+}
+
+.mini-calendar-day.is-today .mini-calendar-indicator,
+.mini-calendar-day.is-selected .mini-calendar-indicator {
+    background: currentColor;
+}
+
+.mini-calendar-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.mini-calendar-today-btn {
+    width: 100%;
+    text-align: center;
+    display: block;
+}
+
+.mini-calendar-summary {
+    margin-top: 12px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.mini-calendar-summary strong {
+    color: #374151;
+}
+
+/* Month View Calendar Grid */
+.booked-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #e5e7eb;
+}
+
+.booked-month-header-cell {
+    background: #f3f4f6;
+    padding: 8px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.booked-month-day-cell {
+    background: white;
+    padding: 8px;
+    min-height: 100px;
+    border: 1px solid #e5e7eb;
+    position: relative;
+}
+
+.booked-month-day-cell.is-empty {
+    background: white;
+}
+
+.booked-month-day-number {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #374151;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.15s;
+}
+
+.booked-month-day-number:hover {
+    background-color: #f3f4f6;
+}
+
+.booked-month-more {
+    font-size: 10px;
+    color: #6b7280;
+    margin-top: 4px;
+    padding-left: 4px;
+}
+
+/* Week View */
+.booked-week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+}
+
+.booked-week-day {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.booked-week-day-header {
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.booked-week-day-number {
+    font-size: 20px;
+}
+
+.booked-week-day-content {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+}
+
+.booked-week-empty {
+    text-align: center;
+    color: #9ca3af;
+    padding: 20px 0;
+    font-size: 12px;
+}
+
+/* Day View */
+.booked-day-schedule {
+    max-width: 800px;
+}
+
+.booked-day-hour-row {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    min-height: 60px;
+}
+
+.booked-day-hour-label {
+    width: 80px;
+    padding: 12px;
+    font-weight: bold;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.booked-day-hour-content {
+    flex: 1;
+    padding: 8px;
+}
+
+.booked-day-available {
+    color: #d1d5db;
+    padding: 12px;
+    font-style: italic;
+    font-size: 13px;
+}
+
+/* Calendar Booking Cards */
+.calendar-booking {
+    padding: 4px 6px;
+    margin: 2px 0;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+}
+
+.calendar-booking:hover {
+    opacity: 0.9;
+    transform: translateX(2px);
+}
+
+.calendar-booking-hidden {
+    display: none !important;
+}
+
+.calendar-booking-time {
+    font-weight: 600;
+    color: #111827;
+}
+
+.calendar-booking-name {
+    color: #374151;
+    font-size: 10px;
+    margin-top: 1px;
+}
+
+.calendar-booking-service {
+    color: #6b7280;
+    font-size: 9px;
+    margin-top: 1px;
+}
+
+/* Booking status colors */
+.calendar-booking.status-confirmed,
+.booked-reservation-card.status-confirmed {
+    background: #d1fae5;
+    border-left: 3px solid #10b981;
+}
+
+.calendar-booking.status-pending,
+.booked-reservation-card.status-pending {
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+}
+
+.calendar-booking.status-cancelled,
+.booked-reservation-card.status-cancelled {
+    background: #fee2e2;
+    border-left: 3px solid #ef4444;
+}
+
+.booked-reservation-card {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+}
+
+.booked-reservation-card.status-default {
+    background: #e5e7eb;
+    border-left: 4px solid #9ca3af;
+}
+
+.booked-reservation-time {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.booked-reservation-customer {
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.booked-reservation-service {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.booked-reservation-actions {
+    margin-top: 6px;
+}
+
+/* Calendar Legend */
+.calendar-legend {
+    margin-top: 24px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.calendar-legend h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.calendar-legend-items {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.calendar-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    user-select: none;
+}
+
+.calendar-legend-item:hover {
+    background-color: #f3f4f6;
+}
+
+.calendar-legend-item.calendar-legend-inactive {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+.calendar-legend-color {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.calendar-legend-color.status-confirmed {
+    background: #d1fae5;
+    border: 1px solid #10b981;
+}
+
+.calendar-legend-color.status-cancelled {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+}
+
+.calendar-legend-label {
+    font-size: 13px;
+    color: #374151;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .booked-grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .booked-grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .booked-calendar-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .booked-grid-2,
+    .booked-grid-3,
+    .booked-grid-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .booked-flex-between {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+}
+
+/* ==========================================================================
+   TEST CONNECTION RESULTS
+   ========================================================================== */
+
+.test-result {
+    display: inline-block;
+    margin-left: 12px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.test-result.test-success {
+    color: #059669;
+}
+
+.test-result.test-error {
+    color: #dc2626;
+}
+
+/* ==========================================================================
+   DASHBOARD - NEXT UP BANNER
+   ========================================================================== */
+
+.booked-next-up {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.booked-next-up-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.booked-next-up-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.85;
+    font-weight: 600;
+}
+
+.booked-next-up-countdown {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.booked-next-up-divider {
+    width: 1px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.booked-next-up-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.booked-next-up-service {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.booked-next-up-meta {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.booked-next-up-action .btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.booked-next-up-action .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.booked-next-up-empty {
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    color: #6b7280;
+    margin-bottom: 24px;
+}
+
+.booked-next-up-empty-text {
+    font-size: 15px;
+}
+
+/* Shared dashboard card base (12px radius) */
+.booked-kpi-card-enhanced,
+.booked-avg-value-card,
+.booked-quick-actions-card,
+.booked-widget-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+/* ==========================================================================
+   DASHBOARD - KPI CARDS WITH SPARKLINES
+   ========================================================================== */
+
+.booked-kpi-card-enhanced {
+    display: flex;
+    flex-direction: column;
+    min-height: 140px;
+}
+
+.booked-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.booked-kpi-label {
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.booked-kpi-main {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.booked-kpi-value-lg {
+    font-size: 36px;
+    line-height: 1;
+    color: #111827;
+}
+
+.booked-kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.booked-kpi-trend.trend-up {
+    color: #059669;
+    background: #d1fae5;
+}
+
+.booked-kpi-trend.trend-down {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.booked-kpi-trend.trend-neutral {
+    color: #6b7280;
+    background: #f3f4f6;
+}
+
+.booked-kpi-trend-arrow {
+    font-size: 10px;
+}
+
+.booked-kpi-sparkline {
+    flex-grow: 1;
+    display: flex;
+    align-items: flex-end;
+    min-height: 32px;
+}
+
+.booked-kpi-sparkline svg {
+    width: 100%;
+    height: 32px;
+}
+
+.booked-kpi-footer-link {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.booked-kpi-footer-link a {
+    color: #3b82f6;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.booked-kpi-footer-link a:hover {
+    text-decoration: underline;
+}
+
+/* Pending card special styling */
+.booked-kpi-card-enhanced.kpi-pending {
+    border-color: #fbbf24;
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.booked-kpi-card-enhanced.kpi-pending .booked-kpi-value-lg {
+    color: #d97706;
+}
+
+/* ==========================================================================
+   DASHBOARD - SPARKLINE COLORS
+   ========================================================================== */
+
+.sparkline-bookings {
+    stroke: #3b82f6;
+    fill: url(#sparkline-gradient-blue);
+}
+
+.sparkline-revenue {
+    stroke: #059669;
+    fill: url(#sparkline-gradient-green);
+}
+
+/* ==========================================================================
+   DASHBOARD - AVERAGE VALUE CARD
+   ========================================================================== */
+
+.booked-avg-value-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.booked-avg-value-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.booked-avg-value-content {
+    flex: 1;
+}
+
+.booked-avg-value-label {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.booked-avg-value-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* ==========================================================================
+   DASHBOARD - QUICK ACTIONS CARD
+   ========================================================================== */
+
+.booked-quick-actions-title {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.booked-quick-actions-grid {
+    display: flex;
+    gap: 8px;
+}
+
+.booked-quick-actions-grid .btn {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   DASHBOARD - WIDGET IMPROVEMENTS
+   ========================================================================== */
+
+.booked-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.booked-widget-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+/* ==========================================================================
+   FIX: Horizontal scroll on KPI cards
+   ========================================================================== */
+
+.booked-kpi-card,
+.booked-kpi-card-enhanced {
+    overflow: hidden;
+}
+
+.booked-kpi-value,
+.booked-kpi-value-xl,
+.booked-kpi-value-lg {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   BOOKINGS INDEX
+   ========================================================================== */
+
+.booked-bookings-table {
+    margin: 14px 0;
+}
+
+/* ==========================================================================
+   BOOKING VIEW / DETAIL PAGE
+   ========================================================================== */
+
+.booked-detail-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.booked-detail-main {
+    flex: 2;
+}
+
+.booked-detail-sidebar {
+    flex: 1;
+    min-width: 250px;
+}
+
+.booked-detail-section {
+    margin-bottom: 0;
+}
+
+.booked-detail-section + .booked-detail-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.booked-detail-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.booked-detail-value {
+    font-size: 14px;
+    color: #111827;
+    line-height: 1.5;
+}
+
+.booked-detail-value strong {
+    font-weight: 600;
+}
+
+.booked-detail-value a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.booked-detail-value a:hover {
+    text-decoration: underline;
+}
+
+/* Token/Code display */
+.booked-token {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    background: #f3f4f6;
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* Status display inline */
+.booked-status-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Sidebar select */
+.booked-sidebar-select {
+    width: 100%;
+}
+
+.booked-sidebar-select select {
+    width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .booked-detail-layout {
+        flex-direction: column;
+    }
+
+    .booked-detail-sidebar {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+/* ==========================================================================
+   BOOKINGS INDEX
+   ========================================================================== */
+
+/* ==========================================================================
+   DAY-OF-WEEK HEATMAP
+   ========================================================================== */
+
+.booked-heatmap-grid {
+    display: grid;
+    grid-template-columns: 70px repeat(7, 1fr);
+    gap: 2px;
+}
+
+.booked-heatmap-cell {
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 3px;
+    color: #374151;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.booked-heatmap-cell[style*="rgba"] {
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.booked-heatmap-cell[style*="rgba(139, 92, 246, 0)"],
+.booked-heatmap-cell[style*="rgba(139, 92, 246, 0.0)"] {
+    color: #374151;
+    text-shadow: none;
+}
+
+.booked-heatmap-header {
+    font-weight: 600;
+    font-size: 12px;
+    color: #6b7280;
+    background: transparent;
+}
+
+.booked-heatmap-hour {
+    font-weight: 600;
+    font-size: 12px;
+    color: #374151;
+    justify-content: flex-end;
+    padding-right: 8px;
+}
+
+#bookings-filter-form {
+    margin-bottom: 14px;
+}
+
+/* ==========================================================================
+   BOOKING EDIT PAGE
+   ========================================================================== */
+
+/* Field headings */
+.booked-booking-edit #fields h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0 0 16px 0;
+    padding-top: 8px;
+}
+
+.booked-booking-edit #fields h2:not(:first-child) {
+    margin-top: 8px;
+}
+
+.booked-booking-edit #fields hr {
+    margin: 24px 0;
+    border: none;
+    border-top: 1px solid var(--hairline-color);
+}
+
+/* Flex field rows */
+.booked-booking-edit .flex-fields {
+    display: flex;
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.booked-booking-edit .flex-fields:first-child {
+    margin-top: 0;
+}
+
+.booked-booking-edit .flex-fields > .field {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Booking details card */
+.booked-booking-edit #booking-details {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.booked-booking-edit #booking-details h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 16px 0;
+}
+
+.booked-booking-edit .booking-card {
+    background: var(--gray-050);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.booked-booking-edit .booking-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--gray-200);
+}
+
+.booked-booking-edit .booking-item {
+    background: var(--gray-050);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.booked-booking-edit .booking-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.booked-booking-edit .booking-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.booked-booking-edit .booking-meta {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.booked-booking-edit .booking-section {
+    padding: 16px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.booked-booking-edit .booking-section .booking-label {
+    display: block;
+    margin-bottom: 12px;
+}
+
+/* Extras table */
+.booked-booking-edit .booking-extras-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.booked-booking-edit .booking-extras-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 13px;
+}
+
+.booked-booking-edit .booking-extras-table tr:last-child td {
+    border-bottom: none;
+}
+
+.booked-booking-edit .booking-extras-table .extra-name {
+    color: var(--text-color);
+}
+
+.booked-booking-edit .booking-extras-table .extra-qty {
+    color: var(--gray-500);
+    margin-left: 6px;
+    font-size: 12px;
+}
+
+.booked-booking-edit .booking-extras-table .extra-price {
+    text-align: right;
+    color: var(--gray-600);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Price summary */
+.booked-booking-edit .booking-summary {
+    background: white;
+    padding: 16px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.booked-booking-edit .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+.booked-booking-edit .summary-row.total {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.booked-booking-edit .summary-row.total span:last-child {
+    color: #27ae60;
+}
+
+/* Meta info bar */
+.booked-booking-edit .booking-meta-info {
+    margin-top: 12px;
+    padding: 0 4px;
+    font-size: 12px;
+    color: var(--gray-500);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.booked-booking-edit .booking-meta-info .separator {
+    color: var(--gray-300);
+}
+
+.booked-booking-edit .booking-meta-info code {
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: var(--mono-font);
+}
+
+/* Read-only mode */
+.booked-booking-edit.booked-readonly #fields input,
+.booked-booking-edit.booked-readonly #fields select,
+.booked-booking-edit.booked-readonly #fields textarea {
+    pointer-events: none;
+    opacity: 0.7;
+}

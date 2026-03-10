@@ -1,0 +1,226 @@
+{#
+/**
+ * Employee Schedule Management Template
+ * 
+ * Frontend template for employees to manage their schedules
+ * Supports both employee self-service and admin dashboard modes
+ * 
+ * Accessed via: /employee/schedule or /employee/schedule/<employeeId>
+ */
+#}
+
+{% extends "_layout" %}
+
+{% set bodyClass = 'page-employee-schedule' %}
+
+{% block content %}
+<main id="main" class="main-content" role="main">
+    <div class="booked-schedule-management">
+        
+        {% if craft.app.session.hasFlash('notice') %}
+            <div class="booked-flash-notice">
+                <p>{{ craft.app.session.getFlash('notice') }}</p>
+            </div>
+        {% endif %}
+
+        {% if craft.app.session.hasFlash('error') %}
+            <div class="booked-flash-error">
+                <p>{{ craft.app.session.getFlash('error') }}</p>
+            </div>
+        {% endif %}
+
+        <div class="booked-schedule-header">
+            {% if isAdminMode %}
+                <h1>{{ 'frontend.scheduleManagement'|t('booked') }}</h1>
+                
+                {% if employee %}
+                    <div class="booked-employee-info">
+                        <p>
+                            <strong>{{ 'frontend.managingScheduleFor'|t('booked') }}:</strong>
+                            <a href="{{ url('employee/schedule') }}">{{ employee.title }}</a>
+                        </p>
+                        <a href="{{ url('employee/schedule') }}" class="btn btn-secondary">
+                            {{ 'frontend.viewAllEmployees'|t('booked') }}
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="booked-employee-selector">
+                        <label for="employee-select">{{ 'frontend.selectEmployee'|t('booked') }}:</label>
+                        <select id="employee-select" class="booked-employee-select">
+                            <option value="">{{ 'frontend.selectEmployeePlaceholder'|t('booked') }}</option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.id }}" {% if selectedEmployeeId == emp.id %}selected{% endif %}>
+                                    {{ emp.title }} {% if emp.getUser() %}({{ emp.getUser().getName() }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+            {% else %}
+                <h1>{{ 'frontend.mySchedule'|t('booked') }}</h1>
+                {% if employee %}
+                    <p class="booked-employee-name">{{ employee.title }}</p>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if employee %}
+            <div class="booked-schedule-content">
+                <div class="booked-schedule-actions">
+                    <button type="button" id="add-schedule-btn" class="btn btn-primary">
+                        {{ 'frontend.addSchedule'|t('booked') }}
+                    </button>
+                </div>
+
+                <div id="schedules-list" class="booked-schedules-list">
+                    <p class="booked-loading">{{ 'frontend.loadingSchedules'|t('booked') }}</p>
+                </div>
+            </div>
+        {% elseif isAdminMode %}
+            <div class="booked-no-employee">
+                <p>{{ 'frontend.selectEmployeePrompt'|t('booked') }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div id="schedule-modal" class="booked-modal" style="display: none;">
+        <div class="booked-modal-overlay"></div>
+        <div class="booked-modal-content">
+            <div class="booked-modal-header">
+                <h2 id="modal-title">{{ 'frontend.addSchedule'|t('booked') }}</h2>
+                <button type="button" class="booked-modal-close" aria-label="{{ 'labels.close'|t('booked') }}">&times;</button>
+            </div>
+            <form id="schedule-form" class="booked-modal-body">
+                <input type="hidden" id="schedule-id" name="id" value="">
+                
+                <div class="booked-field">
+                    <label for="schedule-title-input">{{ 'labels.title'|t('booked') }}</label>
+                    <input type="text" id="schedule-title-input" name="title" class="booked-input" placeholder="{{ 'frontend.scheduleTitlePlaceholder'|t('booked') }}">
+                </div>
+
+                <div class="booked-field">
+                    <label>
+                        <input type="checkbox" id="schedule-enabled-input" name="enabled" checked>
+                        {{ 'labels.enabled'|t('booked') }}
+                    </label>
+                </div>
+
+                <div class="booked-field-group">
+                    <div class="booked-field">
+                        <label for="schedule-start-date">{{ 'labels.startDate'|t('booked') }} <small>{{ 'labels.optional'|t('booked') }}</small></label>
+                        <input type="date" id="schedule-start-date" name="startDate" class="booked-input">
+                    </div>
+
+                    <div class="booked-field">
+                        <label for="schedule-end-date">{{ 'labels.endDate'|t('booked') }} <small>{{ 'labels.optional'|t('booked') }}</small></label>
+                        <input type="date" id="schedule-end-date" name="endDate" class="booked-input">
+                    </div>
+                </div>
+
+                <div class="booked-field">
+                    <label>{{ 'schedule.workingHours'|t('booked') }}</label>
+                    <div class="booked-working-hours-table-wrapper">
+                        <table class="booked-working-hours-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ 'labels.day'|t('booked') }}</th>
+                                    <th>{{ 'labels.working'|t('booked') }}</th>
+                                    <th>{{ 'labels.start'|t('booked') }}</th>
+                                    <th>{{ 'labels.end'|t('booked') }}</th>
+                                    <th>{{ 'schedule.breakStart'|t('booked') }}</th>
+                                    <th>{{ 'schedule.breakEnd'|t('booked') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="working-hours-tbody">
+                                {% for dayNum, dayName in days %}
+                                    <tr data-day="{{ dayNum }}">
+                                        <td><strong>{{ dayName }}</strong></td>
+                                        <td>
+                                            <input type="checkbox" 
+                                                   name="workingHours[{{ dayNum }}][enabled]" 
+                                                   data-day="{{ dayNum }}"
+                                                   class="day-enabled">
+                                        </td>
+                                        <td>
+                                            <input type="time" 
+                                                   name="workingHours[{{ dayNum }}][start]" 
+                                                   value="09:00"
+                                                   class="booked-input booked-time-input"
+                                                   disabled>
+                                        </td>
+                                        <td>
+                                            <input type="time" 
+                                                   name="workingHours[{{ dayNum }}][end]" 
+                                                   value="17:00"
+                                                   class="booked-input booked-time-input"
+                                                   disabled>
+                                        </td>
+                                        <td>
+                                            <input type="time" 
+                                                   name="workingHours[{{ dayNum }}][breakStart]" 
+                                                   value=""
+                                                   class="booked-input booked-time-input"
+                                                   disabled>
+                                        </td>
+                                        <td>
+                                            <input type="time" 
+                                                   name="workingHours[{{ dayNum }}][breakEnd]" 
+                                                   value=""
+                                                   class="booked-input booked-time-input"
+                                                   disabled>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="booked-modal-footer">
+                    <button type="button" class="btn btn-secondary booked-modal-cancel">
+                        {{ 'labels.cancel'|t('booked') }}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        {{ 'frontend.saveSchedule'|t('booked') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{# Config data must be loaded before the script #}
+{% js at head %}
+    window.bookedScheduleData = {
+        employeeId: {{ employee ? employee.id : 'null' }},
+        isAdminMode: {{ isAdminMode ? 'true' : 'false' }},
+        actionUrl: {
+            getSchedules: '{{ actionUrl("booked/employee-schedule/get-schedules") }}',
+            saveSchedule: '{{ actionUrl("booked/employee-schedule/save-schedule") }}',
+            deleteSchedule: '{{ actionUrl("booked/employee-schedule/delete-schedule") }}',
+            listEmployees: '{{ actionUrl("booked/employee-schedule/list-employees") }}'
+        },
+        csrf: {
+            name: '{{ craft.app.request.csrfParam }}',
+            value: '{{ craft.app.request.csrfToken }}'
+        },
+        days: {{ days|json_encode|raw }},
+        schedules: {{ schedules|json_encode|raw }},
+        strings: {
+            untitledSchedule: {{ 'frontend.untitledSchedule'|t('booked')|json_encode|raw }},
+            edit: {{ 'labels.edit'|t('booked')|json_encode|raw }},
+            deleteLabel: {{ 'labels.delete'|t('booked')|json_encode|raw }},
+            statusLabel: {{ 'labels.status'|t('booked')|json_encode|raw }},
+            enabled: {{ 'labels.enabled'|t('booked')|json_encode|raw }},
+            disabled: {{ 'labels.disabled'|t('booked')|json_encode|raw }},
+            activeDaysLabel: {{ 'frontend.activeDays'|t('booked')|json_encode|raw }},
+            hoursLabel: {{ 'frontend.hours'|t('booked')|json_encode|raw }},
+            dateRangeLabel: {{ 'frontend.dateRange'|t('booked')|json_encode|raw }},
+            confirmDelete: {{ 'frontend.confirmDeleteSchedule'|t('booked')|json_encode|raw }}
+        }
+    };
+{% endjs %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedEmployeeScheduleAsset") %}
+{% endblock %}

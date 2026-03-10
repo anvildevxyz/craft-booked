@@ -1,0 +1,82 @@
+{% extends "_layouts/cp" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCalendarViewAsset") %}
+
+{% set selectedSubnavItem = 'calendar' %}
+{% set title = 'calendar.dayDate'|t('booked', { date: date|date('short') }) %}
+{% set currentView = 'day' %}
+
+{% set prevDay = date.format('Y-m-d')|date_modify('-1 day') %}
+{% set nextDay = date.format('Y-m-d')|date_modify('+1 day') %}
+
+{% block content %}
+    <div class="booked-calendar-layout">
+        <div>
+            {% include 'booked/calendar/_mini-calendar' with {
+                selectedDate: selectedDate,
+                view: currentView,
+                bookingCounts: bookingCounts
+            } %}
+        </div>
+
+        <div>
+            <div class="booked-calendar-header">
+                <div class="booked-calendar-nav">
+                    <div>
+                        <a href="{{ url('booked/calendar-view/day', { date: prevDay|date('Y-m-d') }) }}" class="btn">{{ 'calendar.previousDay'|t('booked') }}</a>
+                        <a href="{{ url('booked/calendar-view/day') }}" class="btn">{{ 'calendar.today'|t('booked') }}</a>
+                        <a href="{{ url('booked/calendar-view/day', { date: nextDay|date('Y-m-d') }) }}" class="btn">{{ 'calendar.nextDay'|t('booked') }}</a>
+                    </div>
+
+                    <div class="booked-view-switcher">
+                        <a href="{{ url('booked/calendar-view/month', { year: date|date('Y'), month: date|date('m') }) }}"
+                           class="btn{% if currentView == 'month' %} active{% endif %}">
+                            {{ 'calendar.month'|t('booked') }}
+                        </a>
+                        <a href="{{ url('booked/calendar-view/week', { date: date|date('Y-m-d') }) }}"
+                           class="btn{% if currentView == 'week' %} active{% endif %}">
+                            {{ 'calendar.week'|t('booked') }}
+                        </a>
+                        <a href="{{ url('booked/calendar-view/day', { date: date|date('Y-m-d') }) }}"
+                           class="btn{% if currentView == 'day' %} active{% endif %}">
+                            {{ 'calendar.day'|t('booked') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="booked-day-schedule">
+                {% for hour, reservations in hourlySlots %}
+                    <div class="booked-day-hour-row">
+                        <div class="booked-day-hour-label">{{ hour }}</div>
+
+                        <div class="booked-day-hour-content">
+                            {% if reservations|length > 0 %}
+                                {% for reservation in reservations %}
+                                    <div class="booked-reservation-card status-{{ reservation.status }}">
+                                        <div class="booked-reservation-time">
+                                            {{ reservation.startTime }} - {{ reservation.endTime }}
+                                        </div>
+                                        <div class="booked-reservation-customer">
+                                            {{ 'calendar.customer'|t('booked', { name: reservation.customerEmail }) }}
+                                        </div>
+                                        {% if reservation.serviceId %}
+                                            <div class="booked-reservation-service">
+                                                {{ 'calendar.serviceId'|t('booked', { id: reservation.serviceId }) }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="booked-reservation-actions">
+                                            <a href="{{ url('booked/bookings/' ~ reservation.id) }}" class="btn small">{{ 'calendar.viewDetails'|t('booked') }}</a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="booked-day-available">{{ 'calendar.available'|t('booked') }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

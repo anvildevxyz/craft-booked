@@ -1,0 +1,287 @@
+{% extends "_layouts/cp" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "dashboard.title"|t('booked') %}
+
+{% macro sparkline(data, colorClass) %}
+    {% if data|length > 1 %}
+        {% set maxVal = max(data) > 0 ? max(data) : 1 %}
+        {% set width = 100 %}
+        {% set height = 32 %}
+        {% set pointCount = data|length %}
+        {% set points = [] %}
+        {% for i, val in data %}
+            {% set x = (i / (pointCount - 1)) * width %}
+            {% set y = height - ((val / maxVal) * (height - 4)) - 2 %}
+            {% set points = points|merge([x ~ ',' ~ y]) %}
+        {% endfor %}
+        <svg viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="sparkline-gradient-{{ colorClass }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:currentColor;stop-opacity:0.3" />
+                    <stop offset="100%" style="stop-color:currentColor;stop-opacity:0.05" />
+                </linearGradient>
+            </defs>
+            <polygon
+                points="0,{{ height }} {{ points|join(' ') }} {{ width }},{{ height }}"
+                fill="url(#sparkline-gradient-{{ colorClass }})"
+                class="sparkline-{{ colorClass }}"
+            />
+            <polyline
+                points="{{ points|join(' ') }}"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="sparkline-{{ colorClass }}"
+            />
+        </svg>
+    {% elseif data|length == 1 %}
+        {# Single data point - show a flat line #}
+        <svg viewBox="0 0 100 32" preserveAspectRatio="none">
+            <line x1="0" y1="16" x2="100" y2="16" stroke="currentColor" stroke-width="2" stroke-dasharray="4,4" />
+        </svg>
+    {% endif %}
+{% endmacro %}
+
+{% macro trend(value, suffix) %}
+    {% if value > 0 %}
+        <span class="booked-kpi-trend trend-up">
+            <span class="booked-kpi-trend-arrow">&#9650;</span>
+            {{ value|number_format(0) }}%{{ suffix|default('') }}
+        </span>
+    {% elseif value < 0 %}
+        <span class="booked-kpi-trend trend-down">
+            <span class="booked-kpi-trend-arrow">&#9660;</span>
+            {{ value|abs|number_format(0) }}%{{ suffix|default('') }}
+        </span>
+    {% else %}
+        <span class="booked-kpi-trend trend-neutral">
+            &mdash; 0%
+        </span>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+    <div class="dashboard">
+        {% if nextBooking %}
+            <div class="booked-next-up">
+                <div class="booked-next-up-content">
+                    <div>
+                        <div class="booked-next-up-label">{{ "dashboard.nextUp"|t('booked') }}</div>
+                        <div class="booked-next-up-countdown">{{ nextBooking.countdown }}</div>
+                    </div>
+                    <div class="booked-next-up-divider"></div>
+                    <div class="booked-next-up-details">
+                        <div class="booked-next-up-service">{{ nextBooking.serviceName }}</div>
+                        <div class="booked-next-up-meta">
+                            {% if nextBooking.isToday %}
+                                {{ "dashboard.today"|t('booked') }} {{ "labels.at"|t('booked') }} {{ nextBooking.time }}
+                            {% else %}
+                                {{ nextBooking.date|date('D, M j') }} {{ "labels.at"|t('booked') }} {{ nextBooking.time }}
+                            {% endif %}
+                            &middot; {{ nextBooking.customerName }}
+                        </div>
+                    </div>
+                </div>
+                <div class="booked-next-up-action">
+                    <a href="{{ url('booked/bookings/' ~ nextBooking.id) }}" class="btn">{{ "dashboard.viewDetails"|t('booked') }} &rarr;</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="booked-next-up-empty">
+                <div class="booked-next-up-empty-text">{{ "dashboard.noUpcoming"|t('booked') }}</div>
+            </div>
+        {% endif %}
+
+        <div class="booked-grid-4 booked-mb-24">
+            <div class="booked-kpi-card-enhanced">
+                <div class="booked-kpi-header">
+                    <div class="booked-kpi-label">{{ "dashboard.todaysBookings"|t('booked') }}</div>
+                </div>
+                <div class="booked-kpi-main">
+                    <div class="booked-kpi-value-lg">{{ todayBookings }}</div>
+                    {{ _self.trend(todayVsAvg, ' vs avg') }}
+                </div>
+                <div class="booked-kpi-sparkline" style="color: #3b82f6;">
+                    {{ _self.sparkline(todaySparkline, 'blue') }}
+                </div>
+                <div class="booked-kpi-footer-link">
+                    <a href="{{ url('booked/calendar-view/day') }}">{{ "dashboard.viewToday"|t('booked') }} &rarr;</a>
+                </div>
+            </div>
+
+            <div class="booked-kpi-card-enhanced">
+                <div class="booked-kpi-header">
+                    <div class="booked-kpi-label">{{ "dashboard.next7Days"|t('booked') }}</div>
+                </div>
+                <div class="booked-kpi-main">
+                    <div class="booked-kpi-value-lg">{{ upcomingBookings }}</div>
+                    {{ _self.trend(weeklyChange, ' vs last') }}
+                </div>
+                <div class="booked-kpi-sparkline" style="color: #3b82f6;">
+                    {{ _self.sparkline(weeklySparkline, 'blue') }}
+                </div>
+                <div class="booked-kpi-footer-link">
+                    <a href="{{ url('booked/calendar-view/week') }}">{{ "dashboard.viewWeek"|t('booked') }} &rarr;</a>
+                </div>
+            </div>
+
+            <div class="booked-kpi-card-enhanced">
+                <div class="booked-kpi-header">
+                    <div class="booked-kpi-label">{{ "dashboard.repeatCustomers"|t('booked') }}</div>
+                </div>
+                <div class="booked-kpi-main">
+                    <div class="booked-kpi-value-lg">{{ repeatCustomers }}</div>
+                    {{ _self.trend(repeatCustomerChange) }}
+                </div>
+                <div class="booked-kpi-sparkline" style="color: #7c3aed;">
+                    {{ _self.sparkline(repeatCustomerSparkline, 'purple') }}
+                </div>
+                <div class="booked-kpi-footer-link">
+                    <a href="{{ url('booked/bookings') }}">{{ "dashboard.viewBookingsLink"|t('booked') }} &rarr;</a>
+                </div>
+            </div>
+
+            <div class="booked-kpi-card-enhanced">
+                <div class="booked-kpi-header">
+                    <div class="booked-kpi-label">{{ "dashboard.thisWeekRevenue"|t('booked') }}</div>
+                </div>
+                <div class="booked-kpi-main">
+                    <div class="booked-kpi-value-lg">{{ weeklyRevenue|number_format(0) }} {{ craft.app.locale.getCurrencySymbol(currency) }}</div>
+                    {{ _self.trend(revenueChange, '') }}
+                </div>
+                <div class="booked-kpi-sparkline" style="color: #059669;">
+                    {{ _self.sparkline(revenueSparkline, 'green') }}
+                </div>
+                <div class="booked-kpi-footer-link">
+                    <a href="{{ url('booked/reports/revenue') }}">{{ "dashboard.viewReport"|t('booked') }} &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="booked-grid-2 booked-mb-24">
+            <div class="booked-widget-card">
+                <div class="booked-widget-header">
+                    <h3 class="booked-widget-title">{{ "labels.recentActivity"|t('booked') }}</h3>
+                    <a href="{{ url('booked/bookings') }}" class="btn small">{{ "dashboard.viewAll"|t('booked') }}</a>
+                </div>
+
+                <div class="booked-scrollable">
+                    {% if recentActivity|length > 0 %}
+                        {% for reservation in recentActivity %}
+                            <div class="booked-activity-item">
+                                <div>
+                                    <div class="booked-activity-email">{{ reservation.userName ?? reservation.userEmail }}</div>
+                                    <div class="booked-activity-date">
+                                        {{ reservation.bookingDate|date('M j') }} {{ "labels.at"|t('booked') }} {{ reservation.startTime }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="booked-status-badge status-{{ reservation.status }}">
+                                        {{ reservation.status|upper }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="booked-empty-state">
+                            {{ "dashboard.noRecentActivity"|t('booked') }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="booked-widget-card">
+                <div class="booked-widget-header">
+                    <h3 class="booked-widget-title">{{ "dashboard.popularServices"|t('booked') }}</h3>
+                    <a href="{{ url('booked/services') }}" class="btn small">{{ "labels.manage"|t('booked') }}</a>
+                </div>
+
+                {% if popularServices|length > 0 %}
+                    {% for service in popularServices %}
+                        <div class="booked-list-item">
+                            <div class="booked-flex-between booked-mb-12">
+                                <div class="booked-font-medium booked-text-base">{{ service.name }}</div>
+                                <div class="booked-text-lg booked-font-bold booked-color-primary">{{ service.bookings }}</div>
+                            </div>
+                            <div class="booked-progress-bar size-sm">
+                                <div class="booked-progress-fill color-primary" style="width: {{ (service.bookings / popularServices[0].bookings * 100)|round }}%;"></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="booked-empty-state">
+                        {{ "dashboard.noServicesData"|t('booked') }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="booked-mb-24">
+            <div class="booked-widget-card">
+                <div class="booked-widget-header">
+                    <h3 class="booked-widget-title">{{ "dashboard.upcomingEvents"|t('booked') }}</h3>
+                </div>
+
+                {% if upcomingEvents|length > 0 %}
+                    {% for event in upcomingEvents %}
+                        <div class="booked-list-item">
+                            <div class="booked-flex-between booked-mb-12">
+                                <div>
+                                    <div class="booked-font-medium booked-text-base">{{ event.title }}</div>
+                                    <div class="booked-activity-date">
+                                        {{ event.date|date('D, M j') }}{% if event.startTime %} &middot; {{ event.startTime }}{% endif %}{% if event.locationName %} &middot; {{ event.locationName }}{% endif %}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    {% if event.isFullyBooked %}
+                                        <span class="booked-status-badge status-cancelled">{{ "dashboard.soldOut"|t('booked') }}</span>
+                                    {% elseif event.capacity is not null %}
+                                        <div class="booked-text-lg booked-font-bold booked-color-primary">{{ event.booked }} / {{ event.capacity }}</div>
+                                    {% else %}
+                                        <div class="booked-text-lg booked-font-bold booked-color-primary">{{ event.booked }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if event.capacity %}
+                                <div class="booked-progress-bar size-sm">
+                                    <div class="booked-progress-fill {{ event.isFullyBooked ? 'color-danger' : 'color-primary' }}" style="width: {{ min(((event.booked / event.capacity) * 100)|round, 100) }}%;"></div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="booked-empty-state">
+                        {{ "dashboard.noUpcomingEvents"|t('booked') }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="booked-grid-2">
+            <div class="booked-avg-value-card">
+                <div class="booked-avg-value-icon">
+                    &#36;
+                </div>
+                <div class="booked-avg-value-content">
+                    <div class="booked-avg-value-label">{{ "dashboard.avgBookingValue"|t('booked') }}</div>
+                    <div class="booked-flex" style="align-items: baseline; gap: 12px;">
+                        <div class="booked-avg-value-amount">{{ averageBookingValue|number_format(2) }} {{ craft.app.locale.getCurrencySymbol(currency) }}</div>
+                        {{ _self.trend(avgValueChange, '') }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="booked-quick-actions-card">
+                <div class="booked-quick-actions-title">{{ "dashboard.quickActions"|t('booked') }}</div>
+                <div class="booked-quick-actions-grid">
+                    <a href="{{ url('booked/bookings/new') }}" class="btn submit">{{ "labels.newBooking"|t('booked') }}</a>
+                    <a href="{{ url('booked/calendar-view/month') }}" class="btn">{{ "dashboard.calendarAction"|t('booked') }}</a>
+                    <a href="{{ url('booked/reports') }}" class="btn">{{ "dashboard.reportsAction"|t('booked') }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

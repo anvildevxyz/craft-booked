@@ -1,0 +1,102 @@
+{% extends 'booked/emails/_base' %}
+
+{% set title = 'emails.waitlist.title'|t('booked') %}
+{% set headerIcon = '🔔' %}
+{% set headerColor = '#10B981' %}
+{% set preheader = 'emails.waitlist.preheader'|t('booked', { service: serviceName }) %}
+
+{% block header %}
+<div class="email-header">
+    <div style="
+        width: 64px;
+        height: 64px;
+        background: #10B981;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    ">
+        <svg viewBox="0 0 24 24" style="width: 36px; height: 36px; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+    </div>
+    <h1 class="header-title">{{ title }}</h1>
+    <p class="header-subtitle">{{ siteName }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+    <p style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">
+        {{ 'emails.hello'|t('booked', { name: entry.userName }) }}
+    </p>
+    <p>
+        {{ 'emails.waitlist.message'|t('booked') }}
+    </p>
+
+    <div class="section">
+        <div class="info-grid">
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.service'|t('booked') }}</span>
+                <span class="info-value">{{ serviceName }}</span>
+            </div>
+            {% if formattedDate %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.date'|t('booked') }}</span>
+                <span class="info-value">{{ formattedDate }}</span>
+            </div>
+            {% endif %}
+            {% if startTime %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.time'|t('booked') }}</span>
+                <span class="info-value">{{ startTime }}{% if endTime %} – {{ endTime }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% if service and service.duration %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.duration'|t('booked') }}</span>
+                <span class="info-value">{{ service.duration }} {{ 'labels.minutes'|t('booked') }}</span>
+            </div>
+            {% endif %}
+            {% set employee = entry.getEmployee() %}
+            {% if employee %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.staff'|t('booked') }}</span>
+                <span class="info-value">{{ employee.title }}</span>
+            </div>
+            {% endif %}
+            {% set location = entry.getLocation() %}
+            {% if location %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.location'|t('booked') }}</span>
+                <span class="info-value">{{ location.title }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if conversionToken is defined and conversionToken and settings.bookingPageUrl %}
+    {% set conversionUrl = settings.bookingPageUrl ~ ('?' in settings.bookingPageUrl ? '&' : '?') ~ 'waitlist=' ~ conversionToken %}
+    <div style="text-align: center; margin: 32px 0;">
+        <a href="{{ conversionUrl }}" class="btn btn-primary">{{ 'emails.waitlist.bookNow'|t('booked') }}</a>
+    </div>
+    {% if settings.waitlistConversionMinutes > 0 %}
+    <p style="color: #666; font-size: 13px; text-align: center; margin-top: 8px;">
+        {{ 'emails.waitlist.conversionExpiry'|t('booked', { minutes: settings.waitlistConversionMinutes }) }}
+    </p>
+    {% endif %}
+    {% endif %}
+
+    <p style="color: #666; font-size: 14px; margin-top: 24px;">
+        {{ 'emails.waitlist.ignoreNotice'|t('booked') }}
+    </p>
+{% endblock %}
+
+{% block footer %}
+    <p style="margin: 0; color: #999999; font-size: 12px;">
+        {{ 'emails.waitlist.footerNotice'|t('booked', { service: serviceName }) }}
+    </p>
+    <p style="margin: 8px 0 0 0; color: #999999; font-size: 12px;">
+        {{ siteName }}
+    </p>
+{% endblock %}

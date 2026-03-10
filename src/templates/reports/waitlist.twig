@@ -1,0 +1,106 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.waitlist.reportTitle"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/reports') }}" class="btn">← {{ "reports.backToReports"|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="booked-summary-card summary-amber booked-mb-24">
+        <div class="booked-summary-label">{{ "reports.waitlist.conversionRate"|t('booked') }}</div>
+        <div class="booked-summary-value">{{ conversionRate }}%</div>
+        <div class="booked-summary-date">{{ (startDate ?? '')|date('M d, Y') }} – {{ (endDate ?? '')|date('M d, Y') }}</div>
+    </div>
+
+    <form method="get" class="booked-report-toolbar">
+        {{ forms.dateField({
+            label: "labels.startDate"|t('booked'),
+            name: "startDate",
+            value: startDate ?? '',
+        }) }}
+
+        {{ forms.dateField({
+            label: "labels.endDate"|t('booked'),
+            name: "endDate",
+            value: endDate ?? '',
+        }) }}
+
+        <button type="submit" class="btn submit">{{ "labels.filter"|t('booked') }}</button>
+
+        <div class="booked-toolbar-spacer"></div>
+
+        <div class="booked-report-actions">
+            <a href="{{ url('booked/reports/waitlist', {startDate: startDate ?? '', endDate: endDate ?? '', format: 'csv'}) }}" class="btn">{{ "labels.downloadCsv"|t('booked') }}</a>
+        </div>
+    </form>
+
+    <div class="booked-grid-4 booked-mb-24">
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.waitlist.totalEntries"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg color-primary">{{ total }}</div>
+        </div>
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.waitlist.converted"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg color-success">{{ converted }}</div>
+        </div>
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.waitlist.conversionRate"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg {% if conversionRate >= 50 %}color-success{% elseif conversionRate >= 25 %}color-warning{% else %}color-danger{% endif %}">{{ conversionRate }}%</div>
+        </div>
+        <div class="booked-kpi-card-enhanced booked-text-center">
+            <div class="booked-kpi-label">{{ "reports.waitlist.expiredRate"|t('booked') }}</div>
+            <div class="booked-kpi-value-lg color-warning">{{ total > 0 ? ((expired / total) * 100)|number_format(1) : 0 }}%</div>
+        </div>
+    </div>
+
+    <div class="booked-widget-card booked-mb-24">
+        <div class="booked-widget-header">
+            <h3 class="booked-widget-title">{{ "reports.waitlist.statusBreakdown"|t('booked') }}</h3>
+        </div>
+        <div class="booked-grid-auto">
+            <div class="booked-p-16 booked-text-center"><span class="booked-text-2xl booked-font-bold color-primary">{{ active }}</span><br><span class="booked-text-sm booked-text-muted">{{ "reports.waitlist.active"|t('booked') }}</span></div>
+            <div class="booked-p-16 booked-text-center"><span class="booked-text-2xl booked-font-bold color-warning">{{ notified }}</span><br><span class="booked-text-sm booked-text-muted">{{ "reports.waitlist.notified"|t('booked') }}</span></div>
+            <div class="booked-p-16 booked-text-center"><span class="booked-text-2xl booked-font-bold color-success">{{ converted }}</span><br><span class="booked-text-sm booked-text-muted">{{ "reports.waitlist.converted"|t('booked') }}</span></div>
+            <div class="booked-p-16 booked-text-center"><span class="booked-text-2xl booked-font-bold color-danger">{{ expired }}</span><br><span class="booked-text-sm booked-text-muted">{{ "reports.waitlist.expired"|t('booked') }}</span></div>
+            <div class="booked-p-16 booked-text-center"><span class="booked-text-2xl booked-font-bold booked-text-muted">{{ cancelled }}</span><br><span class="booked-text-sm booked-text-muted">{{ "reports.waitlist.cancelled"|t('booked') }}</span></div>
+        </div>
+    </div>
+
+    {% if byService|length > 0 %}
+        <div class="booked-widget-card" style="padding: 0;">
+            <div class="booked-widget-header" style="padding: 20px 20px 0;">
+                <h3 class="booked-widget-title">{{ "reports.waitlist.byService"|t('booked', {default: 'By Service'}) }}</h3>
+            </div>
+            <div class="booked-table-wrapper" style="border: none; border-radius: 0;">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ "labels.service"|t('booked') }}</th>
+                        <th>{{ "reports.waitlist.totalEntries"|t('booked') }}</th>
+                        <th>{{ "reports.waitlist.converted"|t('booked') }}</th>
+                        <th>{{ "reports.waitlist.conversionRate"|t('booked') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for serviceId, data in byService %}
+                        <tr>
+                            <td>{{ data.service ? data.service.title : 'Service #' ~ serviceId }}</td>
+                            <td>{{ data.total }}</td>
+                            <td>{{ data.converted }}</td>
+                            <td>
+                                <span class="{% if data.conversionRate >= 50 %}color-success{% elseif data.conversionRate >= 25 %}color-warning{% else %}color-danger{% endif %}">
+                                    {{ data.conversionRate|number_format(1) }}%
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

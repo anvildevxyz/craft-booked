@@ -1,0 +1,9 @@
+{# Empty state for account booking lists. Pass `message` and optionally `showBookButton` (default true). #}
+<div class="booked-empty">
+    <p>{{ message }}</p>
+    {% if showBookButton|default(true) %}
+        <a href="{{ craft.booked.getSettings().bookingPageUrl ?? '/' }}" class="booked-btn booked-btn-primary">
+            {{ 'frontend.bookNow'|t('booked') }}
+        </a>
+    {% endif %}
+</div>

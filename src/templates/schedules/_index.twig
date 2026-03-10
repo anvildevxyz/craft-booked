@@ -1,0 +1,8 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\Schedule' %}
+{% set title = 'labels.schedules'|t('booked') %}
+{% set selectedSubnavItem = 'schedules' %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="{{ url('booked/schedules/new') }}">{{ 'schedule.new'|t('booked') }}</a>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWebhooksAsset") %}
+
+{% set title = 'webhook.index.title'|t('booked') %}
+{% set selectedSubnavItem = 'webhooks' %}
+
+{% block actionButton %}
+    <a href="{{ url('booked/webhooks/new') }}" class="btn submit add icon">{{ 'webhook.index.newWebhook'|t('booked') }}</a>
+{% endblock %}
+
+{% block content %}
+<div class="booked-webhooks-index">
+    {% if not settings.webhooksEnabled %}
+        <div class="pane">
+            <div class="zilch">
+                <p>{{ 'webhook.index.disabled'|t('booked') }}</p>
+                <a href="{{ cpUrl('booked/settings/webhooks') }}" class="btn">{{ 'webhook.index.enableWebhooks'|t('booked') }}</a>
+            </div>
+        </div>
+    {% else %}
+        {% if webhooks|length %}
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th class="thin"></th>
+                        <th>{{ 'webhook.index.name'|t('booked') }}</th>
+                        <th>{{ 'webhook.index.url'|t('booked') }}</th>
+                        <th>{{ 'webhook.index.events'|t('booked') }}</th>
+                        <th>{{ 'webhook.index.successRate'|t('booked') }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for webhook in webhooks %}
+                        {% set stats = webhookStats[webhook.id] ?? {} %}
+                        <tr data-webhook-id="{{ webhook.id }}">
+                            <td class="thin webhook-status" title="{{ webhook.enabled ? 'webhook.index.statusEnabled'|t('booked') : 'webhook.index.statusDisabled'|t('booked') }}">
+                                <span class="status {{ webhook.enabled ? 'green' : '' }}"></span>
+                            </td>
+                            <td>
+                                <a href="{{ cpUrl('booked/webhooks/' ~ webhook.id) }}">
+                                    <strong>{{ webhook.name }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <code class="small">{{ webhook.url|slice(0, 50) }}{{ webhook.url|length > 50 ? '...' : '' }}</code>
+                            </td>
+                            <td>
+                                {% set events = webhook.eventsArray %}
+                                {% if events|length <= 2 %}
+                                    {{ events|join(', ') }}
+                                {% else %}
+                                    {{ events|slice(0, 2)|join(', ') }} +{{ events|length - 2 }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if stats.total > 0 %}
+                                    <span class="status {{ stats.successRate >= 90 ? 'green' : (stats.successRate >= 50 ? 'orange' : 'red') }}"></span>
+                                    {{ stats.successRate }}% ({{ stats.success }}/{{ stats.total }})
+                                {% else %}
+                                    <span class="light">{{ 'webhook.index.noDeliveries'|t('booked') }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="thin action">
+                                <a class="settings icon menubtn" title="{{ 'Actions'|t('app') }}" role="button"></a>
+                                <div class="menu">
+                                    <ul>
+                                        <li><a href="{{ cpUrl('booked/webhooks/' ~ webhook.id) }}">{{ 'webhook.index.edit'|t('booked') }}</a></li>
+                                        <li><a href="{{ cpUrl('booked/webhooks/' ~ webhook.id ~ '/logs') }}">{{ 'webhook.index.viewLogs'|t('booked') }}</a></li>
+                                        <li>
+                                            <form method="post">
+                                                {{ csrfInput() }}
+                                                {{ actionInput('booked/cp/webhooks/test') }}
+                                                <input type="hidden" name="id" value="{{ webhook.id }}">
+                                                <button type="submit" class="formsubmit">{{ 'webhook.index.sendTest'|t('booked') }}</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                    <hr>
+                                    <ul>
+                                        <li><a class="webhook-toggle-action" role="button" data-webhook-id="{{ webhook.id }}">{{ webhook.enabled ? 'webhook.index.disable'|t('booked') : 'webhook.index.enable'|t('booked') }}</a></li>
+                                    </ul>
+                                    <hr>
+                                    <ul>
+                                        <li><a class="error webhook-delete-action" role="button" data-webhook-id="{{ webhook.id }}">{{ 'webhook.index.delete'|t('booked') }}</a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="pane">
+                <div class="zilch">
+                    <p>{{ 'webhook.index.noWebhooks'|t('booked') }}</p>
+                    <a href="{{ cpUrl('booked/webhooks/new') }}" class="btn submit">
+                        {{ 'webhook.index.createFirst'|t('booked') }}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% endblock %}

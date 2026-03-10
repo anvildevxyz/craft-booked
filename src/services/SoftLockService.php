@@ -1,0 +1,226 @@
+<?php
+
+namespace anvildev\booked\services;
+
+use anvildev\booked\Booked;
+use anvildev\booked\records\SoftLockRecord;
+use Craft;
+use craft\base\Component;
+use craft\helpers\Db;
+use DateTime;
+use DateTimeZone;
+use yii\db\ActiveQuery;
+
+/**
+ * Manages temporary slot reservations (soft locks) to prevent race conditions.
+ *
+ * When a customer begins the booking flow, a time-limited lock is placed on the
+ * slot. This prevents double-booking when multiple users attempt to reserve the
+ * same time concurrently. Locks expire automatically and are garbage-collected
+ * on each new lock creation.
+ */
+class SoftLockService extends Component
+{
+    /** @return string|false Token if successful */
+    public function createLock(array $data, int $durationMinutes = 5): string|false
+    {
+        if (empty($data['date']) || empty($data['startTime']) || empty($data['serviceId'])) {
+            return false;
+        }
+
+        $this->deleteExpiredRecords();
+
+        $employeeId = $data['employeeId'] ?? null;
+        $quantity = max(1, (int)($data['quantity'] ?? 1));
+        $capacity = isset($data['capacity']) ? (int)$data['capacity'] : null;
+
+        try {
+            $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+        } catch (\Throwable) {
+            $siteId = 1;
+        }
+        $lockKey = 'booked-softlock-' . $siteId . '-' . $data['date'] . '-' . $data['startTime'] . '-' . $data['serviceId'] . '-' . ($employeeId ?? 'any');
+        $mutex = $this->getMutex();
+
+        if (!$mutex->acquire($lockKey, 5)) {
+            return false;
+        }
+
+        try {
+            if ($this->isLocked($data['date'], $data['startTime'], $data['serviceId'], $employeeId, $data['endTime'] ?? null, $data['locationId'] ?? null, null, $quantity, $capacity)) {
+                return false;
+            }
+
+            $token = bin2hex(random_bytes(16));
+            $expiresAt = new DateTime('now', new DateTimeZone('UTC'));
+            $expiresAt->modify("+{$durationMinutes} minutes");
+
+            $record = $this->createRecord();
+            $record->token = $token;
+            $record->sessionHash = $this->getSessionHash();
+            $record->serviceId = $data['serviceId'];
+            $record->employeeId = $employeeId;
+            $record->locationId = $data['locationId'] ?? null;
+            $record->date = $data['date'];
+            $record->startTime = $data['startTime'];
+            $record->endTime = $data['endTime'] ?? null;
+            $record->quantity = $quantity;
+            $record->expiresAt = Db::prepareDateForDb($expiresAt);
+
+            return $this->saveRecord($record) ? $token : false;
+        } finally {
+            $mutex->release($lockKey);
+        }
+    }
+
+    public function isLocked(string $date, string $startTime, int $serviceId, ?int $employeeId = null, ?string $slotEndTime = null, ?int $locationId = null, ?string $excludeToken = null, int $quantity = 1, ?int $capacity = null): bool
+    {
+        $query = $this->buildLockQuery($date, $startTime, $serviceId, $employeeId, $slotEndTime, $locationId);
+
+        if ($excludeToken !== null && $excludeToken !== '') {
+            $query->andWhere(['!=', 'token', $excludeToken]);
+        }
+
+        // When capacity is provided, compare total held quantity against it
+        if ($capacity !== null) {
+            $heldQuantity = (int)$query->sum('quantity');
+            $isLocked = ($heldQuantity + $quantity) > $capacity;
+        } else {
+            $isLocked = $query->exists();
+        }
+
+        if ($isLocked && $excludeToken && Craft::$app->getConfig()->getGeneral()->devMode) {
+            $debugQuery = $this->buildLockQuery($date, $startTime, $serviceId, $employeeId, $slotEndTime, $locationId);
+
+            $allLocks = $debugQuery->all();
+            $lockInfo = array_map(
+                fn($lock) => "lock_id=" . substr(hash('sha256', $lock->token), 0, 8) . " time={$lock->startTime}-{$lock->endTime} location={$lock->locationId} qty={$lock->quantity}",
+                $allLocks,
+            );
+            Craft::debug("Slot is locked even after excluding lock_id=" . substr(hash('sha256', $excludeToken), 0, 8) . ". Existing locks: " . implode(', ', $lockInfo), __METHOD__);
+        }
+
+        return $isLocked;
+    }
+
+    /** @return SoftLockRecord[] */
+    public function getActiveSoftLocksForDate(string $date, int $serviceId, ?string $excludeToken = null): array
+    {
+        $query = $this->getRecordQuery()
+            ->where(['date' => $date, 'serviceId' => $serviceId])
+            ->andWhere(['>', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))]);
+
+        if ($excludeToken !== null && $excludeToken !== '') {
+            $query->andWhere(['!=', 'token', $excludeToken]);
+        }
+
+        return $query->all();
+    }
+
+    public function releaseLock(string $token, ?string $sessionHash = null): bool
+    {
+        $record = $this->getRecordByToken($token);
+        if (!$record) {
+            return false;
+        }
+
+        // If the lock has a session hash, verify it matches
+        if ($record->sessionHash && !hash_equals($record->sessionHash, $sessionHash ?? '')) {
+            Craft::warning("Soft lock release denied: session mismatch for token (lock_id=" . substr(hash('sha256', $token), 0, 8) . ")", __METHOD__);
+            return false;
+        }
+
+        return (bool)$this->deleteRecord($record);
+    }
+
+    public function cleanupExpiredLocks(): int
+    {
+        return $this->deleteExpiredRecords();
+    }
+
+    public function countExpiredLocks(): int
+    {
+        return (int)$this->getRecordQuery()
+            ->where(['<=', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))])
+            ->count();
+    }
+
+    public function getSessionHash(): string
+    {
+        $request = Craft::$app->getRequest();
+        $sessionId = !$request->getIsConsoleRequest()
+            ? (Craft::$app->getSession()->getId() ?: '')
+            : 'console_' . getmypid();
+        try {
+            $salt = Craft::$app->getConfig()->getGeneral()->securityKey ?? '';
+        } catch (\Throwable) {
+            $salt = '';
+        }
+        return hash('sha256', $salt . '|' . $sessionId);
+    }
+
+    private function buildLockQuery(string $date, string $startTime, int $serviceId, ?int $employeeId, ?string $endTime, ?int $locationId): ActiveQuery
+    {
+        $query = $this->getRecordQuery()
+            ->where(['date' => $date, 'serviceId' => $serviceId])
+            ->andWhere(['>', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))]);
+
+        if ($employeeId !== null) {
+            $query->andWhere(['or', ['employeeId' => $employeeId], ['employeeId' => null]]);
+        }
+        // When employeeId is null (any available), do NOT filter by employeeId
+        // so we check ALL locks (employee-specific and employee-less) for this slot
+        if ($locationId !== null) {
+            $query->andWhere(['locationId' => $locationId]);
+        }
+
+        if ($endTime !== null) {
+            // Overlap detection: match locks that overlap the requested time range.
+            // Also match locks with null endTime that share the same startTime.
+            $query->andWhere(['or',
+                ['and', ['<', 'startTime', $endTime], ['>', 'endTime', $startTime]],
+                ['and', ['endTime' => null], ['startTime' => $startTime]],
+            ]);
+        } else {
+            $query->andWhere(['startTime' => $startTime]);
+        }
+
+        return $query;
+    }
+
+    protected function createRecord()
+    {
+        return new SoftLockRecord();
+    }
+
+    protected function getRecordQuery(): ActiveQuery
+    {
+        return SoftLockRecord::find();
+    }
+
+    /** @return SoftLockRecord|null */
+    public function getRecordByToken(string $token)
+    {
+        return SoftLockRecord::findOne(['token' => $token]);
+    }
+
+    protected function saveRecord($record): bool
+    {
+        return $record->save();
+    }
+
+    protected function deleteRecord($record): int
+    {
+        return $record->delete();
+    }
+
+    protected function deleteExpiredRecords(): int
+    {
+        return SoftLockRecord::deleteAll(['<=', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))]);
+    }
+
+    protected function getMutex(): \yii\mutex\Mutex
+    {
+        return Booked::getInstance()->mutex->get();
+    }
+}

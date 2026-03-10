@@ -1,0 +1,237 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWaitlistAsset") %}
+
+{% set title = 'waitlist.title'|t('booked') %}
+{% set selectedSubnavItem = 'waitlist' %}
+
+{% set statusColors = {
+    'active': 'green',
+    'notified': 'blue',
+    'converted': 'purple',
+    'expired': 'light',
+    'cancelled': 'red',
+} %}
+
+{% set filterParams = {} %}
+{% if currentStatus and currentStatus != '*' %}
+    {% set filterParams = filterParams|merge({ status: currentStatus }) %}
+{% endif %}
+{% if search %}
+    {% set filterParams = filterParams|merge({ search: search }) %}
+{% endif %}
+{% if currentServiceId %}
+    {% set filterParams = filterParams|merge({ serviceId: currentServiceId }) %}
+{% endif %}
+{% if currentEmployeeId %}
+    {% set filterParams = filterParams|merge({ employeeId: currentEmployeeId }) %}
+{% endif %}
+{% if sort and sort != 'dateCreated' %}
+    {% set filterParams = filterParams|merge({ sort: sort }) %}
+{% endif %}
+{% if dir and dir != 'desc' %}
+    {% set filterParams = filterParams|merge({ dir: dir }) %}
+{% endif %}
+{% set filterParams = filterParams|merge({ limit: pagination.limit }) %}
+
+{% block actionButton %}
+    <div class="btngroup">
+        <form method="post" class="inline-block" style="display: inline;">
+            {{ csrfInput() }}
+            <input type="hidden" name="action" value="booked/cp/waitlist/cleanup">
+            {{ redirectInput(craft.app.request.url) }}
+            <button type="submit" class="btn" title="{{ 'waitlist.index.cleanupTooltip'|t('booked') }}">
+                {{ 'waitlist.index.cleanupExpired'|t('booked') }}
+            </button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="tableview" id="waitlist-tableview">
+        <form method="get" action="{{ url('booked/waitlist') }}" id="waitlist-filter-form">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="dir" value="{{ dir }}">
+            <input type="hidden" name="limit" value="{{ pagination.limit }}">
+
+            <div class="toolbar flex flex-nowrap">
+                <div class="select">
+                    <select name="status" class="autosubmit">
+                        <option value="*">{{ 'status.all'|t('booked') }}</option>
+                        {% for statusKey, statusLabel in statuses %}
+                            <option value="{{ statusKey }}" {{ currentStatus == statusKey ? 'selected' : '' }}>{{ statusLabel }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow texticon search icon clearable">
+                    <input type="text"
+                           name="search"
+                           id="search-input"
+                           class="text fullwidth"
+                           placeholder="{{ 'waitlist.index.searchPlaceholder'|t('booked') }}"
+                           value="{{ search }}"
+                           autocomplete="off">
+                    {% if search %}
+                        <button type="button" class="clear-btn" id="search-clear-btn" title="{{ 'buttons.clear'|t('booked') }}"></button>
+                    {% endif %}
+                </div>
+
+                {% if serviceOptions|length %}
+                    <div class="select">
+                        <select name="serviceId" class="autosubmit" style="max-width: 180px;">
+                            <option value="">{{ 'columns.service'|t('booked') }}</option>
+                            {% for service in serviceOptions %}
+                                <option value="{{ service.id }}" {{ currentServiceId == service.id ? 'selected' : '' }}>{{ service.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {% if employeeOptions|length %}
+                    <div class="select">
+                        <select name="employeeId" class="autosubmit" style="max-width: 180px;">
+                            <option value="">{{ 'columns.employee'|t('booked') }}</option>
+                            {% for employee in employeeOptions %}
+                                <option value="{{ employee.id }}" {{ currentEmployeeId == employee.id ? 'selected' : '' }}>{{ employee.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+
+        <div style="margin-top: 14px;"></div>
+
+        {% if entries|length %}
+            {% macro sortLink(column, label, currentSort, currentDir, filterParams) %}
+                {% if currentSort == column %}
+                    {% set nextDir = currentDir == 'asc' ? 'desc' : 'asc' %}
+                {% else %}
+                    {% set nextDir = 'asc' %}
+                {% endif %}
+                {% set linkParams = filterParams|merge({ sort: column, dir: nextDir }) %}
+                <a href="{{ url('booked/waitlist', linkParams) }}">
+                    {{ label }}
+                    {% if currentSort == column %}
+                        {% if currentDir == 'asc' %}
+                            <span data-icon="upangle" aria-hidden="true"></span>
+                        {% else %}
+                            <span data-icon="downangle" aria-hidden="true"></span>
+                        {% endif %}
+                    {% endif %}
+                </a>
+            {% endmacro %}
+
+            <div style="overflow-x: auto;">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ _self.sortLink('userName', 'labels.name'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ 'labels.email'|t('booked') }}</th>
+                        <th>{{ 'columns.service'|t('booked') }} / {{ 'columns.event'|t('booked') }}</th>
+                        <th>{{ 'columns.employee'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('status', 'columns.status'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ _self.sortLink('preferredDate', 'waitlist.preferredDate'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ _self.sortLink('dateCreated', 'waitlist.dateCreated'|t('booked'), sort, dir, filterParams) }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                        <tr>
+                            <td>
+                                <a href="{{ cpUrl('booked/waitlist/' ~ entry.id) }}">{{ entry.userName }}</a>
+                            </td>
+                            <td>
+                                <a href="mailto:{{ entry.userEmail }}">{{ entry.userEmail }}</a>
+                            </td>
+                            <td>
+                                {% set service = entry.getService() %}
+                                {% set eventDateEntry = entry.getEventDate() %}
+                                {% if service %}
+                                    {{ service.title }}
+                                {% elseif eventDateEntry %}
+                                    {{ eventDateEntry.title }}
+                                {% else %}
+                                    –
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set employee = entry.getEmployee() %}
+                                {{ employee ? employee.title : '–' }}
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <span class="status {{ statusColors[entry.status] ?? '' }}"></span>
+                                {{ entry.getStatusLabel() }}
+                            </td>
+                            <td>
+                                {% if entry.preferredDate %}
+                                    {{ entry.preferredDate|date('M j, Y') }}
+                                {% else %}
+                                    <span class="light">{{ 'waitlist.anyDate'|t('booked') }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.dateCreated|date('M j, Y g:i A') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            <div class="flex pagination" style="align-items: center;">
+                <div class="page-info">
+                    {{ '{first, number}-{last, number} of {total, number}'|t('app', {
+                        first: pagination.first,
+                        last: pagination.last,
+                        total: pagination.totalCount,
+                    }) }}
+                </div>
+
+                <div class="select" style="margin-left: 14px;">
+                    <select id="per-page-select" aria-label="{{ 'waitlist.index.perPage'|t('booked') }}">
+                        {% for opt in [10, 20, 50, 100, 200] %}
+                            <option value="{{ opt }}" {{ pagination.limit == opt ? 'selected' : '' }}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if pagination.totalPages > 1 %}
+                    <nav class="flex" aria-label="{{ 'Pagination'|t('app') }}">
+                        {% if pagination.currentPage > 1 %}
+                            <a class="page-link prev-page"
+                               href="{{ url('booked/waitlist', filterParams|merge({ page: pagination.currentPage - 1 })) }}"
+                               title="{{ 'buttons.previous'|t('booked') }}"
+                               aria-label="{{ 'buttons.previous'|t('booked') }}"></a>
+                        {% else %}
+                            <button class="page-link prev-page disabled"
+                                    title="{{ 'buttons.previous'|t('booked') }}"
+                                    aria-label="{{ 'buttons.previous'|t('booked') }}"
+                                    disabled></button>
+                        {% endif %}
+
+                        {% if pagination.currentPage < pagination.totalPages %}
+                            <a class="page-link next-page"
+                               href="{{ url('booked/waitlist', filterParams|merge({ page: pagination.currentPage + 1 })) }}"
+                               title="{{ 'buttons.next'|t('booked') }}"
+                               aria-label="{{ 'buttons.next'|t('booked') }}"></a>
+                        {% else %}
+                            <button class="page-link next-page disabled"
+                                    title="{{ 'buttons.next'|t('booked') }}"
+                                    aria-label="{{ 'buttons.next'|t('booked') }}"
+                                    disabled></button>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="zilch">
+                {% if search %}
+                    <p>{{ 'waitlist.index.noSearchResults'|t('booked') }}</p>
+                {% else %}
+                    <p>{{ 'waitlist.index.noEntries'|t('booked') }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

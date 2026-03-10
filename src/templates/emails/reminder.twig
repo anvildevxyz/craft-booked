@@ -1,0 +1,146 @@
+{% extends 'booked/emails/_base' %}
+
+{% set title = 'emails.subject.reminder'|t('booked') %}
+{% set headerIcon = '🔔' %}
+{% set headerColor = '#000000' %}
+{% set preheader = 'emails.reminder.title'|t('booked', { date: formattedDateTime }) %}
+
+{% block header %}
+<div class="email-header">
+    <div style="
+        width: 64px;
+        height: 64px;
+        background: #000000;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    ">
+        <svg viewBox="0 0 24 24" style="width: 32px; height: 32px; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+    </div>
+    <h1 class="header-title">{{ title }}</h1>
+    <p class="header-subtitle">{{ siteName }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+    <p style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">
+        {{ 'emails.hello'|t('booked', { name: userName }) }}
+    </p>
+    <p>
+        {{ 'emails.reminder.message'|t('booked') }}
+    </p>
+
+    <div class="highlight-box">
+        <div class="highlight-primary">📅 {{ formattedDateTime }}</div>
+        {% if serviceName is defined and serviceName %}
+        <div class="highlight-secondary">{{ serviceName }}</div>
+        {% endif %}
+        {% if reservation is defined %}
+            {% set reservationExtras = reservation.getExtras() %}
+            {% if reservationExtras|length %}
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 2px solid #000000;">
+                <div style="font-size: 11px; color: #000000; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 800;">
+                    {{ 'emails.reminder.includingExtras'|t('booked') }}:
+                </div>
+                {% for item in reservationExtras %}
+                    {% set extra = item.extra %}
+                    {% set qty = item.quantity %}
+                    <div style="font-size: 14px; color: #000000; font-weight: 700; margin: 8px 0;">
+                        {{ extra.title }}{% if qty > 1 %} ({{ qty }}×){% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="section-title">{{ 'labels.bookingDetails'|t('booked') }}</div>
+        <div class="info-grid">
+            <div class="info-row">
+                <span class="info-label">{{ 'emails.confirmation.bookingNumber'|t('booked') }}</span>
+                <span class="info-value"><span class="badge badge-primary">#{{ bookingId }}</span></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.date'|t('booked') }}</span>
+                <span class="info-value">{{ formattedBookingDate }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.time'|t('booked') }}</span>
+                <span class="info-value">{{ formattedStartTime }} – {{ formattedEndTime }}</span>
+            </div>
+            {% if employeeName is defined and employeeName %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.staff'|t('booked') }}</span>
+                <span class="info-value">{{ employeeName }}</span>
+            </div>
+            {% endif %}
+            {% if locationName is defined and locationName %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.location'|t('booked') }}</span>
+                <span class="info-value">{{ locationName }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if reservation is defined %}
+        {% set reservationExtras = reservation.getExtras() %}
+        {% if reservationExtras|length %}
+        <div class="section">
+            <div class="section-title">{{ 'emails.confirmation.serviceExtras'|t('booked') }}</div>
+            <div class="info-grid">
+                {% for item in reservationExtras %}
+                    {% set extra = item.extra %}
+                    {% set qty = item.quantity %}
+                    <div class="info-row">
+                        <span class="info-label">
+                            {{ extra.title }}
+                            {% if qty > 1 %}<span style="font-weight: 400;">({{ qty }}×)</span>{% endif %}
+                        </span>
+                        <span class="info-value">{{ (extra.price * qty)|currency }}</span>
+                    </div>
+                {% endfor %}
+                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                    <span class="info-label">{{ 'emails.confirmation.extrasTotal'|t('booked') }}</span>
+                    <span class="info-value">{{ reservation.getExtrasPrice()|currency }}</span>
+                </div>
+                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                    <span class="info-label" style="font-size: 16px;">{{ 'labels.totalPrice'|t('booked') }}</span>
+                    <span class="info-value" style="font-size: 20px;">{{ reservation.getTotalPrice()|currency }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    {% if isVirtual is defined and isVirtual %}
+    <div class="highlight-box" style="border-color: #000000;">
+        <div class="highlight-primary">🎥 {{ 'account.virtualMeeting'|t('booked') }}</div>
+        <p style="color: #000000; margin: 16px 0; font-size: 14px; font-weight: 700;">
+            {{ 'emails.reminder.joinMeeting'|t('booked', { provider: virtualMeetingProvider|capitalize }) }}
+        </p>
+        <a href="{{ virtualMeetingUrl }}" class="btn btn-success" style="margin: 8px 0;">
+            {{ 'emails.common.joinMeeting'|t('booked') }}
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="btn-container">
+        <a href="{{ managementUrl }}" class="btn btn-primary">{{ 'emails.common.manageBooking'|t('booked') }}</a>
+        <a href="{{ icsUrl }}" class="btn btn-secondary">{{ 'account.addToCalendar'|t('booked') }}</a>
+        {% if cancelUrl is defined and cancelUrl %}
+        <a href="{{ cancelUrl }}" class="btn btn-secondary">{{ 'account.cancelBooking'|t('booked') }}</a>
+        {% endif %}
+    </div>
+
+    <p style="font-size: 14px; color: #000000; text-align: center; margin-top: 32px; font-weight: 800;">
+        {{ 'emails.reminder.cancelInAdvance'|t('booked') }}
+    </p>
+{% endblock %}

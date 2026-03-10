@@ -1,0 +1,63 @@
+{#
+/**
+ * Account Dashboard
+ * 
+ * Shows overview stats and upcoming bookings.
+ */
+#}
+
+{% extends "booked/frontend/account/_layout" %}
+
+{% set currentPage = 'dashboard' %}
+
+{% block pageTitle %}{{ 'account.myAccount'|t('booked') }}{% endblock %}
+
+{% block accountContent %}
+    <div class="booked-stats-grid">
+        <div class="booked-stat-card bg-light">
+            <p class="booked-stat-value">{{ stats.total }}</p>
+            <p class="booked-stat-label">{{ 'labels.totalBookings'|t('booked') }}</p>
+        </div>
+        <div class="booked-stat-card bg-green">
+            <p class="booked-stat-value">{{ stats.upcoming }}</p>
+            <p class="booked-stat-label">{{ 'account.upcoming'|t('booked') }}</p>
+        </div>
+        <div class="booked-stat-card bg-gray">
+            <p class="booked-stat-value">{{ stats.completed }}</p>
+            <p class="booked-stat-label">{{ 'status.completed'|t('booked') }}</p>
+        </div>
+        <div class="booked-stat-card bg-red">
+            <p class="booked-stat-value">{{ stats.cancelled }}</p>
+            <p class="booked-stat-label">{{ 'status.cancelled'|t('booked') }}</p>
+        </div>
+    </div>
+
+    <div class="booked-section">
+        <h4 class="booked-section-title">
+            {{ 'account.upcomingBookings'|t('booked') }}
+            {% if upcoming|length %}<span>({{ upcoming|length }})</span>{% endif %}
+        </h4>
+
+        {% if upcoming|length %}
+            {% for booking in upcoming %}
+                {% include 'booked/frontend/account/_booking-card' with { booking: booking } %}
+            {% endfor %}
+        {% else %}
+            <div class="booked-empty">
+                <p>{{ 'account.noUpcomingBookings'|t('booked') }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if recent|length %}
+        <div class="booked-section section-plain">
+            <h4 class="booked-section-title-sm">
+                {{ 'labels.recentActivity'|t('booked') }}
+            </h4>
+
+            {% for booking in recent %}
+                {% include 'booked/frontend/account/_booking-card' with { booking: booking, compact: true } %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

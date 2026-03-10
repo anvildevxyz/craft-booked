@@ -1,0 +1,75 @@
+{% extends "_layouts/cp" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCalendarViewAsset") %}
+
+{% set selectedSubnavItem = 'calendar' %}
+{% set title = 'calendar.weekOfDate'|t('booked', { date: startDate|date('short') }) %}
+{% set currentView = 'week' %}
+
+{% set prevWeek = startDate.format('Y-m-d')|date_modify('-7 days') %}
+{% set nextWeek = startDate.format('Y-m-d')|date_modify('+7 days') %}
+
+{% block content %}
+    <div class="booked-calendar-layout">
+        <div>
+            {% include 'booked/calendar/_mini-calendar' with {
+                selectedDate: selectedDate,
+                view: currentView,
+                bookingCounts: bookingCounts
+            } %}
+        </div>
+
+        <div>
+            <div class="booked-calendar-header">
+                <div class="booked-calendar-nav">
+                    <div>
+                        <a href="{{ url('booked/calendar-view/week', { date: prevWeek|date('Y-m-d') }) }}" class="btn">{{ 'calendar.previousWeek'|t('booked') }}</a>
+                        <a href="{{ url('booked/calendar-view/week') }}" class="btn">{{ 'calendar.thisWeek'|t('booked') }}</a>
+                        <a href="{{ url('booked/calendar-view/week', { date: nextWeek|date('Y-m-d') }) }}" class="btn">{{ 'calendar.nextWeek'|t('booked') }}</a>
+                    </div>
+
+                    <div class="booked-view-switcher">
+                        <a href="{{ url('booked/calendar-view/month', { year: startDate|date('Y'), month: startDate|date('m') }) }}"
+                           class="btn{% if currentView == 'month' %} active{% endif %}">
+                            {{ 'calendar.month'|t('booked') }}
+                        </a>
+                        <a href="{{ url('booked/calendar-view/week', { date: startDate|date('Y-m-d') }) }}"
+                           class="btn{% if currentView == 'week' %} active{% endif %}">
+                            {{ 'calendar.week'|t('booked') }}
+                        </a>
+                        <a href="{{ url('booked/calendar-view/day', { date: selectedDate|date('Y-m-d') }) }}"
+                           class="btn{% if currentView == 'day' %} active{% endif %}">
+                            {{ 'calendar.day'|t('booked') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="booked-week-grid">
+                {% for dayKey, dayData in reservationsByDay %}
+                    <div class="booked-week-day">
+                        <div class="booked-week-day-header">
+                            {{ dayData.date|date('D') }}<br>
+                            <span class="booked-week-day-number">{{ dayData.date|date('d') }}</span>
+                        </div>
+
+                        <div class="booked-week-day-content">
+                            {% if dayData.reservations|length > 0 %}
+                                {% for reservation in dayData.reservations %}
+                                    <div class="calendar-booking status-{{ reservation.status }}">
+                                        <div class="calendar-booking-time">{{ reservation.startTime }}</div>
+                                        <div class="calendar-booking-name">
+                                            {{ reservation.customerEmail|slice(0, 20) }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="booked-week-empty">{{ 'calendar.noBookings'|t('booked') }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

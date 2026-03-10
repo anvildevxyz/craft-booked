@@ -1,0 +1,116 @@
+{% extends "_layouts/cp" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = "reports.title"|t('booked') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block content %}
+    <div class="reports-index">
+        <div class="booked-summary-card summary-blue booked-mb-24">
+            <div class="booked-summary-value" style="font-size: 32px;">{{ "reports.title"|t('booked') }}</div>
+        </div>
+
+        <div class="booked-grid-auto">
+            <a href="{{ url('booked/reports/revenue') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-green">💰</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.revenue.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.revenue.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/by-service') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-blue">📊</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.byService.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.byService.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/by-employee') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-yellow">👥</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.byEmployee.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.byEmployee.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/cancellations') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-red">❌</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.cancellations.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.cancellations.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/peak-hours') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-purple">⏰</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.peakHours.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.peakHours.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/utilization') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-orange">📈</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.utilization.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.utilization.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/by-location') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-teal">📍</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.byLocation.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.byLocation.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+
+            <a href="{{ url('booked/reports/day-of-week') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-cyan">🗓</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.dayOfWeek.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.dayOfWeek.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/waitlist') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-amber">⏳</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.waitlist.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.waitlist.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{{ url('booked/reports/event-attendance') }}" class="report-card">
+                <div class="report-card-content">
+                    <div class="report-card-icon bg-pink">🎟</div>
+                    <div>
+                        <h3 class="report-card-title">{{ "reports.eventAttendance.title"|t('booked') }}</h3>
+                        <p class="report-card-desc">{{ "reports.eventAttendance.description"|t('booked') }}</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+{% endblock %}

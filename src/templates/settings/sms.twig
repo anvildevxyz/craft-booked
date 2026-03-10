@@ -1,0 +1,446 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'sms' %}
+{% set title = 'settings.sms.title'|t('booked') %}
+
+{% block sidebar %}
+	{% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% block content %}
+	<form method="post" accept-charset="UTF-8" id="settings-form">
+		{{ csrfInput() }}
+		<input type="hidden" name="action" value="booked/cp/settings/save">
+		<input type="hidden" name="tab" value="sms">
+		{{ redirectInput('booked/settings/sms') }}
+
+		<h2 class="first">{{ 'settings.sms.title'|t('booked') }}</h2>
+		<p class="light">{{ 'settings.sms.description'|t('booked') }}</p>
+		<hr>
+		{{ forms.lightswitchField({
+            label: 'settings.sms.enable'|t('booked'),
+            instructions: 'settings.sms.enableInstructions'|t('booked'),
+            id: 'smsEnabled',
+            name: 'settings[smsEnabled]',
+            on: settings.smsEnabled,
+            toggle: '#sms-settings',
+        }) }}
+
+		<div
+			id="sms-settings" class="{% if not settings.smsEnabled %}hidden{% endif %}">
+			{# Twilio Configuration - auto-set provider since only Twilio is supported #}
+			<input type="hidden" name="settings[smsProvider]" value="twilio">
+
+			<hr>
+
+			<h3>{{ 'settings.sms.twilioConfig'|t('booked') }}</h3>
+			<p class="light">{{ 'settings.sms.twilioCredentials'|t('booked') }}
+				<a href="https://console.twilio.com" target="_blank">console.twilio.com</a>
+			</p>
+
+			{{ forms.textField({
+                label: 'settings.sms.accountSid'|t('booked'),
+                id: 'twilioAccountSid',
+                name: 'settings[twilioAccountSid]',
+                value: settings.twilioAccountSid
+            }) }}
+
+			{{ forms.passwordField({
+                label: 'settings.sms.authToken'|t('booked'),
+                id: 'twilioAuthToken',
+                name: 'settings[twilioAuthToken]',
+                value: settings.twilioAuthToken
+            }) }}
+
+			{{ forms.textField({
+                label: 'settings.sms.phoneNumber'|t('booked'),
+                instructions: 'settings.sms.phoneNumberInstructions'|t('booked'),
+                id: 'twilioPhoneNumber',
+                name: 'settings[twilioPhoneNumber]',
+                value: settings.twilioPhoneNumber,
+                placeholder: '+1234567890'
+            }) }}
+
+			{# Complete list of countries with dial codes - searchable via Craft's selectize #}
+			{% set countryOptions = [
+                { label: 'Afghanistan (+93)', value: 'AF' },
+                { label: 'Albania (+355)', value: 'AL' },
+                { label: 'Algeria (+213)', value: 'DZ' },
+                { label: 'American Samoa (+1-684)', value: 'AS' },
+                { label: 'Andorra (+376)', value: 'AD' },
+                { label: 'Angola (+244)', value: 'AO' },
+                { label: 'Anguilla (+1-264)', value: 'AI' },
+                { label: 'Antigua and Barbuda (+1-268)', value: 'AG' },
+                { label: 'Argentina (+54)', value: 'AR' },
+                { label: 'Armenia (+374)', value: 'AM' },
+                { label: 'Aruba (+297)', value: 'AW' },
+                { label: 'Australia (+61)', value: 'AU' },
+                { label: 'Austria (+43)', value: 'AT' },
+                { label: 'Azerbaijan (+994)', value: 'AZ' },
+                { label: 'Bahamas (+1-242)', value: 'BS' },
+                { label: 'Bahrain (+973)', value: 'BH' },
+                { label: 'Bangladesh (+880)', value: 'BD' },
+                { label: 'Barbados (+1-246)', value: 'BB' },
+                { label: 'Belarus (+375)', value: 'BY' },
+                { label: 'Belgium (+32)', value: 'BE' },
+                { label: 'Belize (+501)', value: 'BZ' },
+                { label: 'Benin (+229)', value: 'BJ' },
+                { label: 'Bermuda (+1-441)', value: 'BM' },
+                { label: 'Bhutan (+975)', value: 'BT' },
+                { label: 'Bolivia (+591)', value: 'BO' },
+                { label: 'Bosnia and Herzegovina (+387)', value: 'BA' },
+                { label: 'Botswana (+267)', value: 'BW' },
+                { label: 'Brazil (+55)', value: 'BR' },
+                { label: 'British Virgin Islands (+1-284)', value: 'VG' },
+                { label: 'Brunei (+673)', value: 'BN' },
+                { label: 'Bulgaria (+359)', value: 'BG' },
+                { label: 'Burkina Faso (+226)', value: 'BF' },
+                { label: 'Burundi (+257)', value: 'BI' },
+                { label: 'Cambodia (+855)', value: 'KH' },
+                { label: 'Cameroon (+237)', value: 'CM' },
+                { label: 'Canada (+1)', value: 'CA' },
+                { label: 'Cape Verde (+238)', value: 'CV' },
+                { label: 'Cayman Islands (+1-345)', value: 'KY' },
+                { label: 'Central African Republic (+236)', value: 'CF' },
+                { label: 'Chad (+235)', value: 'TD' },
+                { label: 'Chile (+56)', value: 'CL' },
+                { label: 'China (+86)', value: 'CN' },
+                { label: 'Colombia (+57)', value: 'CO' },
+                { label: 'Comoros (+269)', value: 'KM' },
+                { label: 'Congo (+242)', value: 'CG' },
+                { label: 'Congo, Democratic Republic (+243)', value: 'CD' },
+                { label: 'Cook Islands (+682)', value: 'CK' },
+                { label: 'Costa Rica (+506)', value: 'CR' },
+                { label: 'Croatia (+385)', value: 'HR' },
+                { label: 'Cuba (+53)', value: 'CU' },
+                { label: 'Curaçao (+599)', value: 'CW' },
+                { label: 'Cyprus (+357)', value: 'CY' },
+                { label: 'Czech Republic (+420)', value: 'CZ' },
+                { label: 'Denmark (+45)', value: 'DK' },
+                { label: 'Djibouti (+253)', value: 'DJ' },
+                { label: 'Dominica (+1-767)', value: 'DM' },
+                { label: 'Dominican Republic (+1-809)', value: 'DO' },
+                { label: 'Ecuador (+593)', value: 'EC' },
+                { label: 'Egypt (+20)', value: 'EG' },
+                { label: 'El Salvador (+503)', value: 'SV' },
+                { label: 'Equatorial Guinea (+240)', value: 'GQ' },
+                { label: 'Eritrea (+291)', value: 'ER' },
+                { label: 'Estonia (+372)', value: 'EE' },
+                { label: 'Eswatini (+268)', value: 'SZ' },
+                { label: 'Ethiopia (+251)', value: 'ET' },
+                { label: 'Falkland Islands (+500)', value: 'FK' },
+                { label: 'Faroe Islands (+298)', value: 'FO' },
+                { label: 'Fiji (+679)', value: 'FJ' },
+                { label: 'Finland (+358)', value: 'FI' },
+                { label: 'France (+33)', value: 'FR' },
+                { label: 'French Guiana (+594)', value: 'GF' },
+                { label: 'French Polynesia (+689)', value: 'PF' },
+                { label: 'Gabon (+241)', value: 'GA' },
+                { label: 'Gambia (+220)', value: 'GM' },
+                { label: 'Georgia (+995)', value: 'GE' },
+                { label: 'Germany (+49)', value: 'DE' },
+                { label: 'Ghana (+233)', value: 'GH' },
+                { label: 'Gibraltar (+350)', value: 'GI' },
+                { label: 'Greece (+30)', value: 'GR' },
+                { label: 'Greenland (+299)', value: 'GL' },
+                { label: 'Grenada (+1-473)', value: 'GD' },
+                { label: 'Guadeloupe (+590)', value: 'GP' },
+                { label: 'Guam (+1-671)', value: 'GU' },
+                { label: 'Guatemala (+502)', value: 'GT' },
+                { label: 'Guernsey (+44-1481)', value: 'GG' },
+                { label: 'Guinea (+224)', value: 'GN' },
+                { label: 'Guinea-Bissau (+245)', value: 'GW' },
+                { label: 'Guyana (+592)', value: 'GY' },
+                { label: 'Haiti (+509)', value: 'HT' },
+                { label: 'Honduras (+504)', value: 'HN' },
+                { label: 'Hong Kong (+852)', value: 'HK' },
+                { label: 'Hungary (+36)', value: 'HU' },
+                { label: 'Iceland (+354)', value: 'IS' },
+                { label: 'India (+91)', value: 'IN' },
+                { label: 'Indonesia (+62)', value: 'ID' },
+                { label: 'Iran (+98)', value: 'IR' },
+                { label: 'Iraq (+964)', value: 'IQ' },
+                { label: 'Ireland (+353)', value: 'IE' },
+                { label: 'Isle of Man (+44-1624)', value: 'IM' },
+                { label: 'Israel (+972)', value: 'IL' },
+                { label: 'Italy (+39)', value: 'IT' },
+                { label: 'Ivory Coast (+225)', value: 'CI' },
+                { label: 'Jamaica (+1-876)', value: 'JM' },
+                { label: 'Japan (+81)', value: 'JP' },
+                { label: 'Jersey (+44-1534)', value: 'JE' },
+                { label: 'Jordan (+962)', value: 'JO' },
+                { label: 'Kazakhstan (+7)', value: 'KZ' },
+                { label: 'Kenya (+254)', value: 'KE' },
+                { label: 'Kiribati (+686)', value: 'KI' },
+                { label: 'Kosovo (+383)', value: 'XK' },
+                { label: 'Kuwait (+965)', value: 'KW' },
+                { label: 'Kyrgyzstan (+996)', value: 'KG' },
+                { label: 'Laos (+856)', value: 'LA' },
+                { label: 'Latvia (+371)', value: 'LV' },
+                { label: 'Lebanon (+961)', value: 'LB' },
+                { label: 'Lesotho (+266)', value: 'LS' },
+                { label: 'Liberia (+231)', value: 'LR' },
+                { label: 'Libya (+218)', value: 'LY' },
+                { label: 'Liechtenstein (+423)', value: 'LI' },
+                { label: 'Lithuania (+370)', value: 'LT' },
+                { label: 'Luxembourg (+352)', value: 'LU' },
+                { label: 'Macau (+853)', value: 'MO' },
+                { label: 'Madagascar (+261)', value: 'MG' },
+                { label: 'Malawi (+265)', value: 'MW' },
+                { label: 'Malaysia (+60)', value: 'MY' },
+                { label: 'Maldives (+960)', value: 'MV' },
+                { label: 'Mali (+223)', value: 'ML' },
+                { label: 'Malta (+356)', value: 'MT' },
+                { label: 'Marshall Islands (+692)', value: 'MH' },
+                { label: 'Martinique (+596)', value: 'MQ' },
+                { label: 'Mauritania (+222)', value: 'MR' },
+                { label: 'Mauritius (+230)', value: 'MU' },
+                { label: 'Mayotte (+262)', value: 'YT' },
+                { label: 'Mexico (+52)', value: 'MX' },
+                { label: 'Micronesia (+691)', value: 'FM' },
+                { label: 'Moldova (+373)', value: 'MD' },
+                { label: 'Monaco (+377)', value: 'MC' },
+                { label: 'Mongolia (+976)', value: 'MN' },
+                { label: 'Montenegro (+382)', value: 'ME' },
+                { label: 'Montserrat (+1-664)', value: 'MS' },
+                { label: 'Morocco (+212)', value: 'MA' },
+                { label: 'Mozambique (+258)', value: 'MZ' },
+                { label: 'Myanmar (+95)', value: 'MM' },
+                { label: 'Namibia (+264)', value: 'NA' },
+                { label: 'Nauru (+674)', value: 'NR' },
+                { label: 'Nepal (+977)', value: 'NP' },
+                { label: 'Netherlands (+31)', value: 'NL' },
+                { label: 'New Caledonia (+687)', value: 'NC' },
+                { label: 'New Zealand (+64)', value: 'NZ' },
+                { label: 'Nicaragua (+505)', value: 'NI' },
+                { label: 'Niger (+227)', value: 'NE' },
+                { label: 'Nigeria (+234)', value: 'NG' },
+                { label: 'Niue (+683)', value: 'NU' },
+                { label: 'Norfolk Island (+672)', value: 'NF' },
+                { label: 'North Korea (+850)', value: 'KP' },
+                { label: 'North Macedonia (+389)', value: 'MK' },
+                { label: 'Northern Mariana Islands (+1-670)', value: 'MP' },
+                { label: 'Norway (+47)', value: 'NO' },
+                { label: 'Oman (+968)', value: 'OM' },
+                { label: 'Pakistan (+92)', value: 'PK' },
+                { label: 'Palau (+680)', value: 'PW' },
+                { label: 'Palestine (+970)', value: 'PS' },
+                { label: 'Panama (+507)', value: 'PA' },
+                { label: 'Papua New Guinea (+675)', value: 'PG' },
+                { label: 'Paraguay (+595)', value: 'PY' },
+                { label: 'Peru (+51)', value: 'PE' },
+                { label: 'Philippines (+63)', value: 'PH' },
+                { label: 'Poland (+48)', value: 'PL' },
+                { label: 'Portugal (+351)', value: 'PT' },
+                { label: 'Puerto Rico (+1-787)', value: 'PR' },
+                { label: 'Qatar (+974)', value: 'QA' },
+                { label: 'Réunion (+262)', value: 'RE' },
+                { label: 'Romania (+40)', value: 'RO' },
+                { label: 'Russia (+7)', value: 'RU' },
+                { label: 'Rwanda (+250)', value: 'RW' },
+                { label: 'Saint Barthélemy (+590)', value: 'BL' },
+                { label: 'Saint Helena (+290)', value: 'SH' },
+                { label: 'Saint Kitts and Nevis (+1-869)', value: 'KN' },
+                { label: 'Saint Lucia (+1-758)', value: 'LC' },
+                { label: 'Saint Martin (+590)', value: 'MF' },
+                { label: 'Saint Pierre and Miquelon (+508)', value: 'PM' },
+                { label: 'Saint Vincent and the Grenadines (+1-784)', value: 'VC' },
+                { label: 'Samoa (+685)', value: 'WS' },
+                { label: 'San Marino (+378)', value: 'SM' },
+                { label: 'São Tomé and Príncipe (+239)', value: 'ST' },
+                { label: 'Saudi Arabia (+966)', value: 'SA' },
+                { label: 'Senegal (+221)', value: 'SN' },
+                { label: 'Serbia (+381)', value: 'RS' },
+                { label: 'Seychelles (+248)', value: 'SC' },
+                { label: 'Sierra Leone (+232)', value: 'SL' },
+                { label: 'Singapore (+65)', value: 'SG' },
+                { label: 'Sint Maarten (+1-721)', value: 'SX' },
+                { label: 'Slovakia (+421)', value: 'SK' },
+                { label: 'Slovenia (+386)', value: 'SI' },
+                { label: 'Solomon Islands (+677)', value: 'SB' },
+                { label: 'Somalia (+252)', value: 'SO' },
+                { label: 'South Africa (+27)', value: 'ZA' },
+                { label: 'South Korea (+82)', value: 'KR' },
+                { label: 'South Sudan (+211)', value: 'SS' },
+                { label: 'Spain (+34)', value: 'ES' },
+                { label: 'Sri Lanka (+94)', value: 'LK' },
+                { label: 'Sudan (+249)', value: 'SD' },
+                { label: 'Suriname (+597)', value: 'SR' },
+                { label: 'Sweden (+46)', value: 'SE' },
+                { label: 'Switzerland (+41)', value: 'CH' },
+                { label: 'Syria (+963)', value: 'SY' },
+                { label: 'Taiwan (+886)', value: 'TW' },
+                { label: 'Tajikistan (+992)', value: 'TJ' },
+                { label: 'Tanzania (+255)', value: 'TZ' },
+                { label: 'Thailand (+66)', value: 'TH' },
+                { label: 'Timor-Leste (+670)', value: 'TL' },
+                { label: 'Togo (+228)', value: 'TG' },
+                { label: 'Tokelau (+690)', value: 'TK' },
+                { label: 'Tonga (+676)', value: 'TO' },
+                { label: 'Trinidad and Tobago (+1-868)', value: 'TT' },
+                { label: 'Tunisia (+216)', value: 'TN' },
+                { label: 'Turkey (+90)', value: 'TR' },
+                { label: 'Turkmenistan (+993)', value: 'TM' },
+                { label: 'Turks and Caicos Islands (+1-649)', value: 'TC' },
+                { label: 'Tuvalu (+688)', value: 'TV' },
+                { label: 'Uganda (+256)', value: 'UG' },
+                { label: 'Ukraine (+380)', value: 'UA' },
+                { label: 'United Arab Emirates (+971)', value: 'AE' },
+                { label: 'United Kingdom (+44)', value: 'GB' },
+                { label: 'United States (+1)', value: 'US' },
+                { label: 'Uruguay (+598)', value: 'UY' },
+                { label: 'US Virgin Islands (+1-340)', value: 'VI' },
+                { label: 'Uzbekistan (+998)', value: 'UZ' },
+                { label: 'Vanuatu (+678)', value: 'VU' },
+                { label: 'Vatican City (+39-06)', value: 'VA' },
+                { label: 'Venezuela (+58)', value: 'VE' },
+                { label: 'Vietnam (+84)', value: 'VN' },
+                { label: 'Wallis and Futuna (+681)', value: 'WF' },
+                { label: 'Yemen (+967)', value: 'YE' },
+                { label: 'Zambia (+260)', value: 'ZM' },
+                { label: 'Zimbabwe (+263)', value: 'ZW' },
+            ] %}
+
+			{{ forms.selectField({
+                label: 'settings.sms.defaultCountryCode'|t('booked'),
+                instructions: 'settings.sms.defaultCountryCodeInstructions'|t('booked'),
+                id: 'defaultCountryCode',
+                name: 'settings[defaultCountryCode]',
+                value: settings.defaultCountryCode ?? 'US',
+                options: countryOptions
+            }) }}
+
+			<div class="field booked-mt-16">
+				<div class="heading">
+					<label>{{ 'settings.sms.testConnection'|t('booked') }}</label>
+					<div class="instructions">
+						<p>{{ 'settings.sms.testConnectionInstructions'|t('booked') }}</p>
+					</div>
+				</div>
+				<div class="input">
+					<button type="button" id="test-twilio-btn" class="btn">{{ 'settings.sms.testTwilioButton'|t('booked') }}</button>
+					<div id="twilio-test-result" class="booked-test-result">
+						<pre></pre>
+					</div>
+				</div>
+			</div>
+
+			<hr>
+
+			<h3>{{ 'settings.sms.notificationTypes'|t('booked') }}</h3>
+
+			{{ forms.lightswitchField({
+                label: 'settings.sms.enableConfirmations'|t('booked'),
+                instructions: 'settings.sms.enableConfirmationsInstructions'|t('booked'),
+                id: 'smsConfirmationEnabled',
+                name: 'settings[smsConfirmationEnabled]',
+                on: settings.smsConfirmationEnabled ?? false
+            }) }}
+
+			{{ forms.lightswitchField({
+                label: 'settings.sms.enableReminders'|t('booked'),
+                instructions: 'settings.sms.enableRemindersInstructions'|t('booked'),
+                id: 'smsRemindersEnabled',
+                name: 'settings[smsRemindersEnabled]',
+                on: settings.smsRemindersEnabled,
+                toggle: '#sms-reminder-settings',
+            }) }}
+
+			<div id="sms-reminder-settings" class="{% if not settings.smsRemindersEnabled %}hidden{% endif %}">
+				{{ forms.textField({
+                    label: 'settings.sms.reminderHours'|t('booked'),
+                    instructions: 'settings.sms.reminderHoursInstructions'|t('booked'),
+                    id: 'smsReminderHoursBefore',
+                    name: 'settings[smsReminderHoursBefore]',
+                    value: settings.smsReminderHoursBefore,
+                    type: 'number',
+                    min: 1,
+                    max: 168
+                }) }}
+			</div>
+
+			{{ forms.lightswitchField({
+                label: 'settings.sms.enableCancellations'|t('booked'),
+                instructions: 'settings.sms.enableCancellationsInstructions'|t('booked'),
+                id: 'smsCancellationEnabled',
+                name: 'settings[smsCancellationEnabled]',
+                on: settings.smsCancellationEnabled ?? false
+            }) }}
+
+			<hr>
+
+			<h3>{{ 'settings.sms.messageTemplates'|t('booked') }}</h3>
+
+			{{ forms.textareaField({
+                label: 'settings.sms.confirmationTemplate'|t('booked'),
+                instructions: 'settings.sms.confirmationTemplateInstructions'|t('booked'),
+                id: 'smsConfirmationTemplate',
+                name: 'settings[smsConfirmationTemplate]',
+                value: settings.smsConfirmationTemplate,
+                rows: 3,
+                placeholder: 'sms.confirmation'|t('booked')
+            }) }}
+
+			{{ forms.textareaField({
+                label: 'settings.sms.reminderTemplate'|t('booked'),
+                instructions: 'settings.sms.reminderTemplateInstructions'|t('booked'),
+                id: 'smsReminderTemplate',
+                name: 'settings[smsReminderTemplate]',
+                value: settings.smsReminderTemplate,
+                rows: 3,
+                placeholder: 'sms.reminder'|t('booked')
+            }) }}
+
+			{{ forms.textareaField({
+                label: 'settings.sms.cancellationTemplate'|t('booked'),
+                instructions: 'settings.sms.cancellationTemplateInstructions'|t('booked'),
+                id: 'smsCancellationTemplate',
+                name: 'settings[smsCancellationTemplate]',
+                value: settings.smsCancellationTemplate,
+                rows: 3,
+                placeholder: 'sms.cancellation'|t('booked')
+            }) }}
+
+			<hr>
+
+			<h3>{{ 'settings.sms.advancedSettings'|t('booked') }}</h3>
+
+			{{ forms.textField({
+                label: 'settings.sms.maxRetries'|t('booked'),
+                instructions: 'settings.sms.maxRetriesInstructions'|t('booked'),
+                id: 'smsMaxRetries',
+                name: 'settings[smsMaxRetries]',
+                value: settings.smsMaxRetries ?? 3,
+                type: 'number',
+                min: 1,
+                max: 10
+            }) }}
+
+		</div>
+	</form>
+
+	{# Config for notification-settings.js #}
+	{% js %}
+	window.BookedNotificationSettings = {
+	            toggles: [
+	                { toggleId: 'smsEnabled', settingsId: 'sms-settings' },
+	                { toggleId: 'smsRemindersEnabled', settingsId: 'sms-reminder-settings' }
+	            ]
+	        };
+	
+	        // Config for sms-settings.js (Twilio test connection)
+	        window.BookedSmsSettings = {
+	            testUrl: '{{ actionUrl('booked/cp/settings/test-twilio') }}',
+	            csrfToken: '{{ craft.app.request.csrfToken }}',
+	            strings: {
+	                testing: '{{ "settings.sms.testing"|t('booked') }}',
+	                testButton: '{{ "settings.sms.testTwilioButton"|t('booked') }}'
+	            }
+	        };
+	{% endjs %}
+{% endblock %}

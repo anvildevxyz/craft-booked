@@ -1,0 +1,3180 @@
+/**
+ * Booked Plugin Frontend Styles
+ * Minimal white/black design with strong typography
+ */
+
+/* ============================================================================
+   RESET & BASE
+   ============================================================================ */
+
+.booked-wizard * {
+    box-sizing: border-box;
+}
+
+/* Alpine.js x-cloak - hide elements until Alpine is initialized */
+[x-cloak] {
+    display: none !important;
+}
+
+/* ============================================================================
+   CONTAINER & BASE LAYOUT
+   ============================================================================ */
+
+.booked-wizard {
+    /* Design tokens */
+    --bk-black: #000000;
+    --bk-white: #ffffff;
+    --bk-dark: #1a1a1a;
+    --bk-hover: #333333;
+    --bk-muted: #666666;
+    --bk-placeholder: #999999;
+    --bk-disabled: #cccccc;
+    --bk-border-light: #e0e0e0;
+    --bk-bg-light: #f0f0f0;
+    --bk-bg-lighter: #f5f5f5;
+    --bk-bg-soft: #fafafa;
+    --bk-red: #dc2626;
+    --bk-red-dark: #991b1b;
+    --bk-red-bg: #fef2f2;
+    --bk-green: #16a34a;
+    --bk-green-dark: #166534;
+    --bk-green-bg: #f0fdf4;
+    --bk-green-hover: #dcfce7;
+    --bk-gray-bg: #f3f4f6;
+    --bk-gray-border: #e5e7eb;
+    --bk-gray-text: #9ca3af;
+
+    width: 100%;
+    max-width: 720px;
+    margin: 32px auto;
+    padding: 0;
+    background: var(--bk-white);
+    border: 2px solid var(--bk-black);
+    box-shadow: none;
+    container-type: inline-size;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: var(--bk-black);
+    display: block;
+    clear: both;
+}
+
+/* ============================================================================
+   SHARED BASE PATTERNS
+   ============================================================================ */
+
+/* Button base: shared by all themed buttons */
+.booked-wizard .btn,
+.booked-waitlist-btn,
+.booked-waitlist-btn-secondary,
+.booked-waitlist-btn-primary,
+.booked-btn,
+.booked-btn-danger-outline {
+    text-transform: uppercase;
+    letter-spacing: var(--bk-tracking, 0.05em);
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 2px solid var(--bk-black, #000000);
+    font-family: inherit;
+}
+
+/* Primary dark hover */
+.booked-wizard .btn-primary:hover,
+.booked-waitlist-btn:hover,
+.booked-waitlist-btn-primary:hover {
+    background: var(--bk-hover, #333333);
+    border-color: var(--bk-hover, #333333);
+}
+
+/* Primary disabled */
+.booked-wizard .btn-primary:disabled,
+.booked-waitlist-btn-primary:disabled {
+    background: var(--bk-disabled, #cccccc);
+    border-color: var(--bk-disabled, #cccccc);
+    color: var(--bk-muted, #666666);
+    cursor: not-allowed;
+}
+
+/* Invert-on-hover: white bg elements that flip to black on hover */
+.booked-card:not(.booked-card-disabled):hover,
+.booked-slot:hover,
+.booked-wizard .btn:hover,
+.booked-btn:hover {
+    background: var(--bk-black, #000000);
+    color: var(--bk-white, #ffffff);
+}
+
+/* ============================================================================
+   STEP INDICATOR
+   ============================================================================ */
+
+.booked-step-indicator {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    margin: 0;
+    padding: 12px 16px;
+    border-bottom: 2px solid #000000;
+    gap: 0;
+    background: #000000;
+    overflow-x: auto;
+}
+
+.booked-step {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+    position: relative;
+    transition: all 0.2s;
+    border-right: 1px solid #333333;
+}
+
+.booked-step:last-child {
+    border-right: none;
+}
+
+.booked-step:not(.active) {
+    color: #999999;
+}
+
+.booked-step.active {
+    color: #ffffff;
+    background: #1a1a1a;
+}
+
+.booked-step.active::after {
+    display: none;
+}
+
+/* ============================================================================
+   STEP CONTENT
+   ============================================================================ */
+
+.booked-wizard>div[x-show] {
+    padding: 32px 24px;
+}
+
+/* Event wizard: steps are nested inside a managementMode wrapper — remove padding from wrapper, apply to inner steps */
+.booked-event-wizard>div[x-show]>div[x-show] {
+    padding: 32px 24px;
+}
+
+.booked-event-wizard>div[x-show] {
+    padding: 0;
+}
+
+/* Smooth transitions for step changes */
+.booked-wizard>div[x-show]:not([x-cloak]) {
+    animation: booked-fade-in 0.2s ease-out;
+}
+
+@keyframes booked-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .booked-wizard>div[x-show]:not([x-cloak]),
+    .booked-slots,
+    .booked-no-slots-container {
+        animation: none;
+    }
+
+    .booked-spinner {
+        animation: none;
+        border-top-color: #666666;
+    }
+
+    .booked-wizard .flatpickr-day.booked-loading {
+        animation: none;
+    }
+
+    .booked-wizard *,
+    .booked-wizard *::before,
+    .booked-wizard *::after {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.booked-wizard h3 {
+    margin: 0 0 32px 0;
+    font-size: 1.75rem;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+/* ============================================================================
+   GRID LAYOUTS
+   ============================================================================ */
+
+.booked-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 0;
+}
+
+@container (min-width: 500px) {
+    .booked-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ============================================================================
+   CARDS
+   ============================================================================ */
+
+.booked-card {
+    background: var(--bk-white);
+    padding: 24px 28px;
+    border: 2px solid var(--bk-black);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
+}
+
+.booked-card:hover {
+    transform: none;
+}
+
+.booked-card h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.3;
+    color: inherit;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.booked-card:not(.booked-card-disabled):hover h4 {
+    color: #ffffff;
+}
+
+.booked-card p {
+    margin: 0 0 16px 0;
+    color: inherit;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.6;
+    flex-grow: 1;
+}
+
+.booked-card:not(.booked-card-disabled):hover p {
+    color: #ffffff;
+}
+
+/* Ensure utility text colors also invert on card hover for a11y */
+.booked-card:not(.booked-card-disabled):hover .text-gray-600,
+.booked-card:not(.booked-card-disabled):hover .text-gray-500,
+.booked-card:not(.booked-card-disabled):hover .text-xs {
+    color: var(--bk-disabled);
+}
+
+.booked-card:not(.booked-card-disabled):hover .text-red-500 {
+    color: #fca5a5;
+}
+
+.booked-card .light {
+    color: var(--bk-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: auto;
+}
+
+.booked-card:not(.booked-card-disabled):hover .light {
+    color: var(--bk-disabled);
+}
+
+/* Card States */
+.booked-card-disabled {
+    cursor: default;
+    background: var(--bk-white);
+    border-color: var(--bk-border-light);
+    border-style: solid;
+    color: var(--bk-disabled);
+    position: relative;
+}
+
+.booked-card-disabled h4 {
+    color: var(--bk-placeholder);
+}
+
+.booked-card-disabled .light {
+    color: var(--bk-disabled);
+}
+
+.booked-card-disabled:hover {
+    background: var(--bk-white);
+    border-color: var(--bk-border-light);
+    color: var(--bk-disabled);
+    transform: none;
+}
+
+.booked-card-any {
+    border-style: dashed;
+}
+
+.booked-fully-booked-badge {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 4px 12px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bk-placeholder);
+    background: transparent;
+    border: 1.5px solid var(--bk-disabled);
+}
+
+/* Waitlist button inside sold-out cards */
+.booked-card-disabled .booked-waitlist-join-btn {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 6px 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bk-black);
+    background: transparent;
+    border: 2px solid var(--bk-black);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.booked-card-disabled .booked-waitlist-join-btn:hover {
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+/* Capacity bar for event cards */
+.booked-capacity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.booked-capacity-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--bk-border-light);
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.booked-capacity-fill {
+    height: 100%;
+    background: var(--bk-black);
+    transition: width 0.3s ease;
+}
+
+.booked-card-disabled .booked-capacity-fill {
+    background: var(--bk-disabled);
+}
+
+.booked-capacity-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bk-muted);
+    white-space: nowrap;
+}
+
+.booked-card-disabled .booked-capacity-text {
+    color: var(--bk-disabled);
+}
+
+/* Sold-out footer layout */
+.booked-soldout-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+/* ============================================================================
+   DATE & TIME SELECTION
+   ============================================================================ */
+
+.booked-date-label,
+.booked-time-label {
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 800;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #000000;
+}
+
+.booked-time-section {
+    margin-top: 8px;
+    /* Minimum height prevents layout shift when slots appear/disappear */
+    min-height: 200px;
+    /* Smooth content transitions */
+    transition: min-height 0.2s ease-out;
+}
+
+.booked-step-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.booked-quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.booked-loading-slots {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    color: #666666;
+    /* Match minimum height of slots area to prevent layout shift */
+    min-height: 180px;
+}
+
+.booked-loading-slots p {
+    margin: 16px 0 0 0;
+    font-size: 0.9375rem;
+}
+
+.booked-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e0e0e0;
+    border-top-color: #000000;
+    border-radius: 50%;
+    animation: booked-spin 0.8s linear infinite;
+}
+
+/* Screen-reader only text for spinners */
+.booked-spinner[role="status"]::after {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+@keyframes booked-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================================================
+   SLOTS
+   ============================================================================ */
+
+.booked-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    animation: booked-fade-in 0.2s ease-out;
+}
+
+.booked-slot {
+    padding: 16px 12px;
+    background: var(--bk-white);
+    border: 2px solid var(--bk-black);
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.booked-slot:hover {
+    border-color: var(--bk-black);
+}
+
+.booked-slot.selected {
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+.booked-slot-container {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.booked-slot-container.selected {
+    z-index: 10;
+}
+
+.booked-slot-time {
+    display: block;
+    font-weight: 700;
+    font-size: 0.9375rem;
+}
+
+.booked-slot-capacity {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+.booked-slot-container.selected .booked-slot {
+    background: #000000;
+    color: #ffffff;
+}
+
+.booked-slot-container.selected .booked-slot-capacity {
+    color: #ffffff;
+    opacity: 0.9;
+}
+
+.booked-slot-quantity {
+    padding: 20px 24px;
+    background: #f9f9f9;
+    border: 2px solid #000000;
+    margin-top: 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.booked-slot-quantity label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 12px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.booked-slot-quantity .flex,
+.booked-slot-quantity .booked-quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.booked-slot-quantity .btn-sm {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 2px solid #000000;
+    background: #ffffff;
+    color: #000000;
+    transition: all 0.15s;
+    border-radius: 0;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.booked-slot-quantity .btn-sm:hover:not(:disabled) {
+    background: #000000;
+    color: #ffffff;
+}
+
+.booked-slot-quantity .btn-sm:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f0f0f0;
+    border-color: #cccccc;
+}
+
+.booked-slot-quantity input[type="number"] {
+    width: 60px;
+    padding: 6px 4px;
+    text-align: center;
+    border: 2px solid #000000;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+    height: 32px;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.booked-slot-quantity input[type="number"]::-webkit-outer-spin-button,
+.booked-slot-quantity input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.booked-slot-quantity .text-xs {
+    font-size: 0.75rem;
+    color: #666666;
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ============================================================================
+   FORMS
+   ============================================================================ */
+
+.form-group {
+    margin-bottom: 28px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 800;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #000000;
+}
+
+.form-group .required {
+    color: #000000;
+}
+
+.text-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--bk-black);
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    background: var(--bk-white);
+    color: var(--bk-black);
+    font-family: inherit;
+}
+
+.text-input:focus {
+    outline: none;
+    background: var(--bk-bg-soft);
+}
+
+.text-input:focus-visible {
+    outline: 3px solid var(--bk-black);
+    outline-offset: -3px;
+    background: var(--bk-bg-soft);
+}
+
+.text-input.border-red-500,
+.text-input:invalid:not(:placeholder-shown) {
+    border-color: var(--bk-red);
+    background-color: var(--bk-red-bg);
+}
+
+.text-input::placeholder {
+    color: var(--bk-placeholder);
+    font-weight: 400;
+}
+
+textarea.text-input {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.booked-wizard .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 32px;
+    font-weight: 800;
+    background: var(--bk-white);
+    color: var(--bk-black);
+    font-size: 0.9375rem;
+    text-decoration: none;
+}
+
+.booked-wizard .btn-primary {
+    background: var(--bk-black);
+    color: var(--bk-white);
+    border-color: var(--bk-black);
+}
+
+.booked-wizard .btn-sm {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+}
+
+/* ============================================================================
+   SUMMARY
+   ============================================================================ */
+
+.booked-summary {
+    padding: 32px;
+    background: var(--bk-bg-soft);
+    border: 2px solid var(--bk-black);
+    margin-bottom: 32px;
+}
+
+.booked-summary p {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.booked-summary p:last-child {
+    margin-bottom: 0;
+}
+
+.booked-summary strong {
+    font-weight: 800;
+    color: #000000;
+}
+
+.booked-summary hr {
+    border: none;
+    border-top: 1px solid #000000;
+    margin: 24px 0;
+}
+
+.booked-summary ul {
+    margin: 12px 0;
+    padding-left: 24px;
+}
+
+.booked-summary li {
+    margin: 8px 0;
+    font-size: 0.9375rem;
+}
+
+/* ============================================================================
+   SUCCESS
+   ============================================================================ */
+
+.booked-success {
+    padding: 48px 32px;
+    text-align: center;
+}
+
+.booked-success svg {
+    margin: 0 auto 24px;
+    color: #000000;
+}
+
+.booked-success h3 {
+    margin-bottom: 16px;
+}
+
+.booked-success-details {
+    padding: 32px;
+    background: var(--bk-bg-soft);
+    border: 2px solid var(--bk-black);
+    margin: 32px 0;
+    text-align: left;
+}
+
+.booked-success-details p {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.booked-success-details .bg-blue-50 {
+    background: #f0f0f0 !important;
+    border-left: 4px solid #000000 !important;
+    padding: 16px;
+    margin-top: 24px;
+}
+
+.booked-success-details .bg-blue-50 .font-semibold {
+    font-weight: 800;
+    color: #000000;
+    margin-bottom: 8px;
+}
+
+.booked-success-details .bg-blue-50 p {
+    color: #000000;
+    font-size: 0.9375rem;
+    margin: 0;
+}
+
+/* ============================================================================
+   EXTRAS
+   ============================================================================ */
+
+.booked-extra-card {
+    padding: 24px 28px;
+}
+
+/* Extra card hover: full inversion with all child text handled */
+.booked-extra-card:hover .text-gray-600,
+.booked-extra-card:hover .text-gray-500,
+.booked-extra-card:hover .text-xs,
+.booked-extra-card:hover .text-red-500,
+.booked-extra-card:hover .booked-extra-price {
+    color: var(--bk-white);
+}
+
+/* Selected extra: on-theme black/white instead of green */
+.booked-extra-selected {
+    background: var(--bk-black) !important;
+    border-color: var(--bk-black) !important;
+    color: var(--bk-white) !important;
+}
+
+.booked-extra-selected h4,
+.booked-extra-selected p,
+.booked-extra-selected .light,
+.booked-extra-selected .text-gray-600,
+.booked-extra-selected .text-gray-500,
+.booked-extra-selected .text-xs,
+.booked-extra-selected .booked-extra-price {
+    color: var(--bk-white) !important;
+}
+
+.booked-extra-selected .text-red-500 {
+    color: var(--bk-disabled) !important;
+}
+
+.booked-extra-selected:hover {
+    background: var(--bk-hover) !important;
+}
+
+.booked-extra-selected .btn-sm {
+    border-color: var(--bk-white);
+    color: var(--bk-white);
+    background: transparent;
+}
+
+.booked-extra-selected .btn-sm:hover:not(:disabled) {
+    background: var(--bk-white);
+    color: var(--bk-black);
+}
+
+.booked-extra-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.booked-extra-price {
+    font-weight: 800;
+    font-size: 1rem;
+    color: inherit;
+}
+
+.booked-extra-quantity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.booked-extra-quantity .btn-sm {
+    min-width: 36px;
+}
+
+.booked-extras-summary {
+    padding: 20px 28px;
+    background: var(--bk-bg-soft);
+    border: 2px solid var(--bk-black);
+    margin-top: 24px;
+    font-weight: 800;
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Screen-reader only utility */
+.booked-wizard .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus-visible styles for interactive elements */
+.booked-card:focus-visible,
+.booked-event-card:focus-visible,
+.booked-extra-card:focus-visible,
+.booked-slot:focus-visible {
+    outline: 3px solid var(--bk-black);
+    outline-offset: -3px;
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+.booked-wizard .btn:focus-visible {
+    outline: 3px solid var(--bk-black);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 2px var(--bk-white), 0 0 0 5px var(--bk-black);
+}
+
+.booked-wizard .btn-primary:focus-visible {
+    outline: 3px solid var(--bk-white);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 2px var(--bk-black), 0 0 0 5px var(--bk-white);
+}
+
+/* Flatpickr calendar day focus */
+.booked-wizard .flatpickr-day:focus-visible {
+    outline: 3px solid var(--bk-black);
+    outline-offset: -3px;
+    background: var(--bk-black);
+    color: var(--bk-white);
+    z-index: 1;
+}
+
+/* Flatpickr nav arrows focus */
+.booked-wizard .flatpickr-months .flatpickr-prev-month:focus-visible,
+.booked-wizard .flatpickr-months .flatpickr-next-month:focus-visible {
+    outline: 2px solid var(--bk-white);
+    outline-offset: -2px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Flatpickr calendar container focus (keyboard entry point) */
+.booked-wizard .flatpickr-calendar:focus-visible {
+    outline: 3px solid var(--bk-black);
+    outline-offset: 2px;
+}
+
+/* Step indicator as semantic list */
+ol.booked-step-indicator {
+    list-style: none;
+}
+
+/* ============================================================================
+   UTILITIES
+   ============================================================================ */
+
+.booked-wizard .mt-4 {
+    margin-top: 1.5rem;
+}
+
+.booked-wizard .mb-8 {
+    margin-bottom: 2rem;
+}
+
+.booked-wizard .gap-4 {
+    gap: 1rem;
+}
+
+.booked-wizard .gap-8 {
+    gap: 2rem;
+}
+
+.booked-wizard .flex {
+    display: flex;
+}
+
+.booked-wizard .justify-between {
+    justify-content: space-between;
+}
+
+.booked-wizard .justify-center {
+    justify-content: center;
+}
+
+.booked-wizard .w-1\/2 {
+    width: 50%;
+}
+
+.booked-wizard .w-48 {
+    width: 12rem;
+}
+
+.booked-wizard .text-center {
+    text-align: center;
+}
+
+.booked-wizard .text-left {
+    text-align: left;
+}
+
+.booked-wizard .py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.booked-wizard .p-4 {
+    padding: 1rem;
+}
+
+.booked-wizard .p-6 {
+    padding: 1.5rem;
+}
+
+.booked-wizard .mx-auto {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.booked-wizard .max-w-md {
+    max-width: 28rem;
+}
+
+/* Font Utilities */
+.booked-wizard .font-bold {
+    font-weight: 700;
+}
+
+.booked-wizard .text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+}
+
+.booked-wizard .text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+
+.booked-wizard .text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+}
+
+.booked-wizard .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.booked-wizard .text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.booked-wizard .mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.booked-wizard .mb-4 {
+    margin-bottom: 1rem;
+}
+
+.booked-wizard .mb-6 {
+    margin-bottom: 1.5rem;
+}
+
+.booked-wizard .my-2 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.booked-wizard .text-gray-600,
+.booked-wizard .text-gray-500 {
+    color: var(--bk-muted);
+}
+
+.booked-wizard .text-red-500 {
+    color: var(--bk-red);
+}
+
+.booked-wizard .list-disc {
+    list-style-type: disc;
+}
+
+.booked-wizard .list-inside {
+    list-style-position: inside;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+/* ============================================================================
+   NO SLOTS / WAITLIST
+   ============================================================================ */
+
+.booked-no-slots-container {
+    width: 100%;
+    animation: booked-fade-in 0.2s ease-out;
+}
+
+.booked-no-slots-card {
+    background: var(--bk-bg-soft);
+    border: 2px solid var(--bk-black);
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.booked-no-slots-icon {
+    margin-bottom: 20px;
+    color: var(--bk-muted);
+}
+
+.booked-no-slots-icon svg {
+    display: inline-block;
+}
+
+.booked-no-slots-title {
+    margin: 0 0 8px 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--bk-black);
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.booked-no-slots-desc {
+    margin: 0 0 24px 0;
+    color: var(--bk-muted);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+/* Waitlist Prompt */
+.booked-waitlist-prompt {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.booked-waitlist-prompt p {
+    margin: 0 0 16px 0;
+    color: #333333;
+    font-size: 0.9375rem;
+}
+
+.booked-waitlist-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-weight: 700;
+    background: var(--bk-black);
+    color: var(--bk-white);
+    font-size: 0.875rem;
+}
+
+.booked-waitlist-btn svg {
+    flex-shrink: 0;
+}
+
+/* Waitlist Form */
+.booked-waitlist-form {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e0e0e0;
+    text-align: left;
+}
+
+.booked-waitlist-form-header {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.booked-waitlist-form-header h5 {
+    margin: 0 0 8px 0;
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.booked-waitlist-form-header p {
+    margin: 0;
+    color: #666666;
+    font-size: 0.875rem;
+}
+
+.booked-waitlist-form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.booked-waitlist-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.booked-waitlist-field label {
+    font-weight: 700;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #000000;
+}
+
+.booked-waitlist-field label .required {
+    color: #dc2626;
+}
+
+.booked-waitlist-field .text-input {
+    width: 100%;
+}
+
+.booked-waitlist-form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.booked-waitlist-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    font-weight: 700;
+    background: var(--bk-white);
+    color: var(--bk-black);
+    font-size: 0.8125rem;
+}
+
+.booked-waitlist-btn-secondary:hover {
+    background: #f0f0f0;
+}
+
+.booked-waitlist-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    font-weight: 700;
+    background: var(--bk-black);
+    color: var(--bk-white);
+    font-size: 0.8125rem;
+}
+
+.booked-waitlist-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--bk-red-bg);
+    border: 2px solid var(--bk-red);
+    color: var(--bk-red-dark);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.booked-waitlist-error svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--bk-red);
+}
+
+/* Waitlist Success */
+.booked-waitlist-success {
+    background: var(--bk-green-bg);
+    border: 2px solid var(--bk-green);
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.booked-waitlist-success-icon {
+    margin-bottom: 20px;
+    color: var(--bk-green);
+}
+
+.booked-waitlist-success-icon svg {
+    display: inline-block;
+}
+
+.booked-waitlist-success h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--bk-green-dark);
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.booked-waitlist-success p {
+    margin: 0 0 24px 0;
+    color: var(--bk-green-dark);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+.booked-waitlist-success .booked-waitlist-btn {
+    background: var(--bk-green-dark);
+    border-color: var(--bk-green-dark);
+}
+
+.booked-waitlist-success .booked-waitlist-btn:hover {
+    background: #14532d;
+    border-color: #14532d;
+}
+
+/* ==========================================================================
+   ACCOUNT PORTAL STYLES
+   ========================================================================== */
+
+/* Flash Messages */
+.booked-flash {
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-left: none;
+    border-right: none;
+    padding: 16px 32px;
+    margin: 0;
+    text-align: center;
+}
+
+.booked-flash p {
+    color: #000000;
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.9375rem;
+}
+
+.booked-flash.flash-error {
+    border-color: var(--bk-red, #dc2626);
+}
+
+.booked-flash.flash-error p {
+    color: var(--bk-red, #dc2626);
+}
+
+/* ============================================================================
+   MANAGE BOOKING & CANCEL CONFIRMATION
+   Brutalist ticket/receipt design using the wizard's token system.
+   ============================================================================ */
+
+/* Header band — mirrors wizard step indicator (solid black bar) */
+.booked-manage-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+.booked-manage-bar--danger {
+    background: var(--bk-red, #dc2626);
+}
+
+.booked-manage-bar--success {
+    background: var(--bk-black);
+}
+
+.booked-manage-bar-label {
+    font-weight: 800;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.booked-manage-bar-id {
+    font-weight: 900;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Hero — centered focal point with date/time as the star */
+.booked-manage-hero {
+    padding: 40px 32px 32px;
+    text-align: center;
+    border-bottom: 2px solid var(--bk-black);
+    background: var(--bk-white);
+}
+
+/* Icon badge inside hero */
+.booked-manage-hero-icon {
+    width: 56px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    border: 2px solid var(--bk-black);
+    color: var(--bk-black);
+}
+
+.booked-manage-hero-icon--danger {
+    border-color: var(--bk-red, #dc2626);
+    color: var(--bk-red, #dc2626);
+}
+
+.booked-manage-hero-icon--success {
+    border-color: var(--bk-black);
+    color: var(--bk-black);
+}
+
+/* Large date/time display — the hero of the page */
+.booked-manage-datetime {
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: var(--bk-black);
+    margin-bottom: 8px;
+}
+
+/* Service name under date */
+.booked-manage-service {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--bk-muted, #666666);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+
+/* Subtitle text in hero */
+.booked-manage-hero-sub {
+    color: var(--bk-muted, #666666);
+    margin: 12px 0 0 0;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+/* Status badges — inline labels for cancelled/past */
+.booked-status-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    font-weight: 800;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 16px;
+}
+
+.booked-status-badge--cancelled {
+    border: 2px solid var(--bk-red, #dc2626);
+    color: var(--bk-red, #dc2626);
+}
+
+.booked-status-badge--past {
+    border: 2px solid var(--bk-muted, #666666);
+    color: var(--bk-muted, #666666);
+}
+
+/* Body — wraps sections and actions */
+.booked-manage-body {
+    padding: 24px;
+}
+
+/* Section — bordered box with structured content */
+.booked-manage-section {
+    background: var(--bk-bg-soft, #fafafa);
+    border: 2px solid var(--bk-black);
+    padding: 0;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.booked-manage-section:last-of-type {
+    margin-bottom: 0;
+}
+
+/* Section title — black band label (mini version of header) */
+.booked-manage-section-title {
+    font-weight: 900;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--bk-white);
+    background: var(--bk-black);
+    margin: 0;
+    padding: 10px 20px;
+    border: none;
+}
+
+/* Info grid — label/value rows */
+.booked-manage-grid {
+    padding: 4px 20px;
+}
+
+.booked-manage-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bk-border-light, #e0e0e0);
+    gap: 16px;
+}
+
+.booked-manage-row:last-child {
+    border-bottom: none;
+}
+
+.booked-manage-label {
+    font-weight: 800;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--bk-black);
+    flex-shrink: 0;
+}
+
+.booked-manage-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--bk-dark, #1a1a1a);
+    text-align: right;
+    word-break: break-word;
+}
+
+/* Checklist inside sections */
+.booked-manage-list {
+    margin: 0;
+    padding: 4px 20px;
+    list-style: none;
+}
+
+.booked-manage-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bk-border-light, #e0e0e0);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--bk-dark, #1a1a1a);
+    padding-left: 24px;
+    position: relative;
+}
+
+.booked-manage-list li:last-child {
+    border-bottom: none;
+}
+
+.booked-manage-list li::before {
+    content: "\2713";
+    position: absolute;
+    left: 0;
+    font-weight: 900;
+    color: var(--bk-black);
+}
+
+/* Heading inside summary box — kept for backwards compat */
+.booked-summary-heading {
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bk-black);
+    margin: 0 0 16px 0;
+}
+
+/* Struck-through text for cancelled date/times */
+.booked-struck {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    color: var(--bk-muted, #666666);
+}
+
+/* Actions row — full-width stacked on mobile, row on desktop */
+.booked-manage-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
+}
+
+.booked-manage-actions .btn,
+.booked-manage-actions .booked-btn-danger-outline {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+}
+
+/* Notice text for past bookings */
+.booked-manage-notice {
+    font-weight: 700;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bk-muted, #666666);
+    text-align: center;
+    width: 100%;
+    padding: 16px 0;
+}
+
+/* Danger button — filled red variant */
+.booked-btn-danger {
+    background: var(--bk-red, #dc2626) !important;
+    border-color: var(--bk-red, #dc2626) !important;
+    color: #ffffff !important;
+}
+
+.booked-btn-danger:hover {
+    background: var(--bk-red-dark, #991b1b) !important;
+    border-color: var(--bk-red-dark, #991b1b) !important;
+    color: #ffffff !important;
+}
+
+/* Danger outline button — outlined red variant for cancel */
+.booked-btn-danger-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 32px;
+    font-weight: 800;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    border-color: var(--bk-red, #dc2626);
+    background: var(--bk-white);
+    color: var(--bk-red, #dc2626);
+}
+
+.booked-btn-danger-outline:hover {
+    background: var(--bk-red, #dc2626);
+    color: var(--bk-white);
+}
+
+/* Textarea inside manage sections */
+.booked-manage-textarea {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-top: 1px solid var(--bk-border-light, #e0e0e0);
+    background: var(--bk-white);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--bk-black);
+    resize: vertical;
+    min-height: 80px;
+}
+
+.booked-manage-textarea:focus {
+    outline: none;
+    background: var(--bk-bg-lighter, #f5f5f5);
+}
+
+.booked-manage-textarea::placeholder {
+    color: var(--bk-placeholder, #999999);
+    font-weight: 400;
+}
+
+/* Staggered reveal animation for sections */
+.booked-manage-reveal {
+    animation: booked-manage-slide-up 0.3s ease-out both;
+}
+
+@keyframes booked-manage-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .booked-manage-reveal {
+        animation: none;
+    }
+}
+
+/* Quantity adjustment */
+.booked-quantity-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+.booked-quantity-input {
+    width: 80px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 1.125rem;
+    padding: 10px 12px;
+    border: 2px solid var(--bk-black);
+    background: var(--bk-white);
+    font-family: inherit;
+    -moz-appearance: textfield;
+}
+
+.booked-quantity-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--bk-black);
+}
+
+.booked-quantity-input::-webkit-outer-spin-button,
+.booked-quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.booked-quantity-error {
+    display: none;
+    color: var(--bk-red, #dc2626);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    margin: 0;
+    padding: 0 20px 12px;
+}
+
+/* Footnote text — muted, centered, below actions */
+.booked-manage-footnote {
+    color: var(--bk-muted, #666666);
+    font-size: 0.8125rem;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--bk-border-light, #e0e0e0);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* ============================================================================
+   ACCOUNT PORTAL
+   ============================================================================ */
+
+/* Account Navigation */
+.booked-account-nav {
+    background: var(--bk-black);
+    padding: 0;
+}
+
+.booked-account-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.booked-account-nav li {
+    flex: 1;
+}
+
+.booked-account-nav a {
+    display: block;
+    padding: 14px 8px;
+    color: var(--bk-placeholder);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+    transition: color 0.15s, background 0.15s;
+    border-right: 1px solid var(--bk-hover);
+}
+
+.booked-account-nav li:last-child a {
+    border-right: none;
+}
+
+.booked-account-nav a:hover {
+    color: var(--bk-white);
+    background: var(--bk-hover);
+}
+
+.booked-account-nav a.active {
+    color: var(--bk-black);
+    background: var(--bk-white);
+    font-weight: 800;
+}
+
+/* Account Header */
+.booked-account-header {
+    padding: 40px 32px 32px 32px;
+    border-bottom: 2px solid var(--bk-black);
+}
+
+.booked-account-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.booked-account-header p {
+    margin: 0;
+    color: var(--bk-muted);
+    font-size: 0.875rem;
+}
+
+/* Stats Grid */
+.booked-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 0;
+}
+
+.booked-stat-card {
+    padding: 24px 16px;
+    text-align: center;
+    border-bottom: 2px solid var(--bk-black);
+    border-right: 2px solid var(--bk-black);
+    background: var(--bk-white);
+    transition: background 0.15s;
+}
+
+.booked-stat-card:last-child {
+    border-right: none;
+}
+
+.booked-stat-card:hover {
+    background: var(--bk-bg-lighter);
+}
+
+.booked-stat-value {
+    margin: 0 0 6px 0;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--bk-black);
+    line-height: 1;
+}
+
+.booked-stat-label {
+    margin: 0;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--bk-muted);
+}
+
+/* Stat card accent — small top bar instead of full background color */
+.booked-stat-card.bg-light { border-top: 3px solid var(--bk-black); }
+.booked-stat-card.bg-green { border-top: 3px solid var(--bk-green); }
+.booked-stat-card.bg-gray  { border-top: 3px solid var(--bk-disabled); }
+.booked-stat-card.bg-red   { border-top: 3px solid var(--bk-red); }
+
+/* Booking Section */
+.booked-section {
+    background: var(--bk-white);
+    padding: 32px;
+    margin: 0;
+    border-bottom: 2px solid var(--bk-black);
+}
+
+.booked-section.section-soft {
+    background: var(--bk-bg-soft);
+}
+
+.booked-section.section-plain {
+    background: var(--bk-white);
+    border-bottom: none;
+    padding: 24px 32px 32px 32px;
+}
+
+.booked-section-title {
+    font-size: 0.8125rem;
+    margin: 0 0 20px 0;
+    color: var(--bk-black);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.booked-section-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--bk-black);
+}
+
+.booked-section-title span {
+    font-weight: 500;
+    font-size: 0.8125rem;
+    text-transform: none;
+    color: var(--bk-muted);
+}
+
+.booked-section-title-sm {
+    font-size: 0.75rem;
+    margin: 0 0 20px 0;
+    color: var(--bk-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--bk-border-light);
+}
+
+/* Booking Card */
+.booked-booking-card {
+    display: flex;
+    margin-bottom: 12px;
+    background: var(--bk-white);
+    border: 2px solid var(--bk-black);
+    transition: box-shadow 0.15s;
+}
+
+.booked-booking-card:hover {
+    box-shadow: 4px 4px 0 var(--bk-black);
+}
+
+.booked-booking-card.card-compact {
+    border-width: 1px;
+    border-color: var(--bk-border-light);
+}
+
+.booked-booking-card.card-compact:hover {
+    border-color: var(--bk-black);
+    box-shadow: 2px 2px 0 var(--bk-border-light);
+}
+
+.booked-booking-card.card-cancelled {
+    opacity: 0.55;
+}
+
+.booked-booking-card.card-cancelled:hover {
+    opacity: 0.8;
+}
+
+.booked-booking-card:last-child {
+    margin-bottom: 0;
+}
+
+/* Status stripe — left edge accent */
+.booked-card-stripe {
+    width: 4px;
+    flex-shrink: 0;
+}
+
+.booked-card-stripe.stripe-confirmed { background: var(--bk-black); }
+.booked-card-stripe.stripe-pending   { background: var(--bk-disabled); }
+.booked-card-stripe.stripe-cancelled { background: var(--bk-red); }
+.booked-card-stripe.stripe-completed { background: var(--bk-muted); }
+
+/* Card body */
+.booked-booking-card-body {
+    flex: 1;
+    padding: 20px;
+    min-width: 0;
+}
+
+.booked-booking-card.card-compact .booked-booking-card-body {
+    padding: 14px 16px;
+}
+
+/* Top row: service + badge */
+.booked-booking-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.booked-booking-service {
+    margin: 0;
+    font-weight: 900;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+}
+
+.booked-booking-card.card-compact .booked-booking-service {
+    font-size: 0.875rem;
+}
+
+.booked-booking-datetime {
+    margin: 0 0 8px 0;
+    color: var(--bk-black);
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+/* Meta tags row */
+.booked-booking-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.booked-booking-meta-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bk-muted);
+    border: 1px solid var(--bk-border-light);
+    background: var(--bk-bg-soft);
+}
+
+.booked-booking-meta {
+    margin: 4px 0 0 0;
+    color: var(--bk-muted);
+    font-size: 0.8125rem;
+}
+
+.booked-booking-count {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--bk-border-light);
+}
+
+.booked-booking-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--bk-border-light);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Status Badge */
+.booked-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 2px solid;
+}
+
+.booked-badge.badge-confirmed {
+    background: var(--bk-white);
+    color: var(--bk-black);
+    border-color: var(--bk-black);
+}
+
+.booked-badge.badge-pending {
+    background: var(--bk-white);
+    color: var(--bk-muted);
+    border-color: var(--bk-muted);
+    border-style: dashed;
+}
+
+.booked-badge.badge-cancelled {
+    background: var(--bk-white);
+    color: var(--bk-red);
+    border-color: var(--bk-red);
+}
+
+.booked-badge.badge-completed {
+    background: var(--bk-bg-lighter);
+    color: var(--bk-muted);
+    border-color: var(--bk-disabled);
+}
+
+/* Buttons */
+.booked-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bk-white);
+    color: var(--bk-black);
+    border: 2px solid var(--bk-black);
+    text-decoration: none;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+
+.booked-btn:hover {
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+.booked-btn-lg {
+    padding: 14px 32px;
+    font-size: 0.875rem;
+    font-weight: 800;
+}
+
+.booked-btn-primary {
+    background: var(--bk-black);
+    color: var(--bk-white);
+}
+
+.booked-btn-primary:hover {
+    background: var(--bk-hover);
+    border-color: var(--bk-hover);
+}
+
+.booked-btn-danger {
+    border-color: var(--bk-red);
+    color: var(--bk-red);
+}
+
+.booked-btn-danger:hover {
+    background: var(--bk-red);
+    color: var(--bk-white);
+}
+
+/* Empty State */
+.booked-empty {
+    text-align: center;
+    padding: 48px 32px;
+    border: 2px dashed var(--bk-disabled);
+}
+
+.booked-empty p {
+    margin: 0 0 20px 0;
+    color: var(--bk-muted);
+    font-size: 0.9375rem;
+}
+
+/* Booking Detail View */
+.booked-detail-card {
+    background: var(--bk-white);
+    border: 2px solid var(--bk-black);
+    padding: 32px;
+}
+
+.booked-detail-header {
+    margin-bottom: 20px;
+}
+
+.booked-detail-title {
+    margin: 0 0 24px 0;
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.booked-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0;
+    margin-bottom: 32px;
+    border: 2px solid var(--bk-black);
+}
+
+.booked-detail-grid > div {
+    padding: 16px;
+    border-bottom: 1px solid var(--bk-border-light);
+    border-right: 1px solid var(--bk-border-light);
+}
+
+.booked-detail-grid > div:last-child {
+    border-right: none;
+}
+
+.booked-detail-item-label {
+    margin: 0 0 4px 0;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bk-muted);
+    font-weight: 700;
+}
+
+.booked-detail-item-value {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.9375rem;
+}
+
+.booked-detail-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    border: 1px solid var(--bk-border-light);
+}
+
+.booked-detail-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 24px;
+    border-top: 2px solid var(--bk-black);
+}
+
+/* Virtual Meeting Box */
+.booked-meeting-box {
+    background: var(--bk-white);
+    border: 2px solid var(--bk-black);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.booked-meeting-box a {
+    color: var(--bk-black);
+    font-weight: 700;
+    word-break: break-all;
+    text-decoration: underline;
+}
+
+/* Back Link */
+.booked-back-link {
+    display: inline-block;
+    margin-bottom: 24px;
+    color: var(--bk-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 0.15s;
+}
+
+.booked-back-link:hover {
+    color: var(--bk-black);
+}
+
+/* Utility */
+.booked-text-right {
+    text-align: right;
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 640px) {
+    .booked-wizard {
+        max-width: 100%;
+        margin: 0;
+        border-left: none;
+        border-right: none;
+    }
+
+    .booked-wizard>div[x-show] {
+        padding: 24px 16px;
+    }
+
+    .booked-step-indicator {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+    }
+
+    .booked-step {
+        text-align: left;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #333333;
+        padding: 12px 16px;
+    }
+
+    .booked-step:last-child {
+        border-bottom: none;
+    }
+
+    .booked-wizard h3 {
+        font-size: 1.5rem;
+    }
+
+    .booked-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .booked-slots {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+
+    .booked-wizard .flex {
+        flex-direction: column;
+    }
+
+    .booked-wizard .w-1\/2 {
+        width: 100%;
+    }
+
+    .booked-wizard .gap-4,
+    .booked-wizard .gap-8 {
+        gap: 1rem;
+    }
+
+    /* Time section min-height for mobile */
+    .booked-time-section {
+        min-height: 100px;
+    }
+
+    /* Account portal responsive */
+    .booked-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .booked-stat-card:nth-child(2) {
+        border-right: none;
+    }
+
+    .booked-account-header {
+        padding: 32px 20px 24px 20px;
+    }
+
+    .booked-account-header h3 {
+        font-size: 1.25rem;
+    }
+
+    .booked-section,
+    .booked-section.section-plain {
+        padding: 24px 20px;
+    }
+
+    .booked-booking-card-top {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .booked-booking-actions {
+        justify-content: flex-start;
+    }
+
+    .booked-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .booked-detail-grid > div {
+        border-right: none;
+    }
+
+    .booked-detail-card {
+        padding: 24px 20px;
+    }
+
+    /* Waitlist responsive */
+    .booked-no-slots-card,
+    .booked-waitlist-success {
+        padding: 32px 20px;
+    }
+
+    .booked-waitlist-form-actions {
+        flex-direction: column;
+    }
+
+    .booked-waitlist-btn-secondary,
+    .booked-waitlist-btn-primary {
+        width: 100%;
+    }
+}
+
+/* ============================================================================
+   EMPLOYEE SCHEDULE MANAGEMENT
+   ============================================================================ */
+
+.booked-schedule-management {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 16px;
+}
+
+.booked-flash-notice,
+.booked-flash-error {
+    padding: 16px;
+    margin-bottom: 24px;
+    border: 2px solid;
+    text-align: center;
+}
+
+.booked-flash-notice {
+    background: #ffffff;
+    border-color: #000000;
+    color: #000000;
+}
+
+.booked-flash-error {
+    background: #ffffff;
+    border-color: var(--bk-red, #dc2626);
+    color: var(--bk-red, #dc2626);
+}
+
+.booked-schedule-header {
+    margin-bottom: 32px;
+}
+
+.booked-schedule-header h1 {
+    margin: 0 0 16px 0;
+    font-size: 2rem;
+}
+
+.booked-employee-selector {
+    margin-top: 24px;
+}
+
+.booked-employee-selector label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.booked-employee-select {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px;
+    border: 2px solid #000000;
+    font-size: 1rem;
+}
+
+.booked-employee-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding: 16px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+}
+
+.booked-schedule-content {
+    margin-top: 32px;
+}
+
+.booked-schedule-actions {
+    margin-bottom: 24px;
+}
+
+.booked-schedules-list {
+    margin-top: 24px;
+}
+
+.booked-schedule-item {
+    background: #ffffff;
+    border: 2px solid #000000;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.booked-schedule-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.booked-schedule-item h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.booked-schedule-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.booked-schedule-item-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.booked-schedule-item-meta-item {
+    padding: 12px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+}
+
+.booked-schedule-item-meta-item strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   MODALS
+   ============================================================================ */
+
+.booked-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+}
+
+.booked-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.booked-modal-content {
+    position: relative;
+    max-width: 900px;
+    max-height: 85vh;
+    margin: 5vh auto;
+    background: #ffffff;
+    border: 2px solid #000000;
+    display: flex;
+    flex-direction: column;
+    z-index: 1001;
+}
+
+.booked-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 2px solid #000000;
+}
+
+.booked-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.booked-modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.booked-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.booked-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 24px;
+    border-top: 2px solid #000000;
+    background: #f5f5f5;
+}
+
+/* ============================================================================
+   SCHEDULE FORM FIELDS
+   ============================================================================ */
+
+.booked-field {
+    margin-bottom: 24px;
+}
+
+.booked-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.booked-field input[type="text"],
+.booked-field input[type="date"],
+.booked-field input[type="time"],
+.booked-field select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #000000;
+    font-size: 1rem;
+}
+
+.booked-field-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ============================================================================
+   WORKING HOURS TABLE
+   ============================================================================ */
+
+.booked-working-hours-table-wrapper {
+    overflow-x: auto;
+}
+
+.booked-working-hours-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.booked-working-hours-table th,
+.booked-working-hours-table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.booked-working-hours-table th {
+    background: #f5f5f5;
+    font-weight: bold;
+}
+
+.booked-time-input {
+    min-width: 120px;
+}
+
+.booked-time-input:disabled {
+    background: #f5f5f5;
+    cursor: not-allowed;
+}
+
+/* ============================================================================
+   SCHEDULE MANAGEMENT BUTTONS
+   ============================================================================ */
+
+.booked-schedule-management .btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border: 2px solid #000000;
+    background: #ffffff;
+    color: #000000;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s;
+}
+
+.booked-schedule-management .btn:hover {
+    background: #000000;
+    color: #ffffff;
+}
+
+.booked-schedule-management .btn-primary {
+    background: #000000;
+    color: #ffffff;
+}
+
+.booked-schedule-management .btn-primary:hover {
+    background: #333333;
+}
+
+.booked-schedule-management .btn-secondary {
+    background: #ffffff;
+    color: #000000;
+}
+
+.booked-schedule-management .btn-small {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+}
+
+/* ============================================================================
+   SCHEDULE MANAGEMENT STATES
+   ============================================================================ */
+
+.booked-schedule-management.booked-loading {
+    text-align: center;
+    padding: 48px;
+    color: #666;
+}
+
+.booked-no-employee {
+    text-align: center;
+    padding: 48px;
+    background: #f5f5f5;
+    border: 2px solid #ddd;
+}
+
+/* ============================================================================
+   SCHEDULE MANAGEMENT RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .booked-modal-content {
+        margin: 0;
+        max-height: 100vh;
+    }
+
+    .booked-field-group {
+        grid-template-columns: 1fr;
+    }
+
+    .booked-working-hours-table {
+        font-size: 0.875rem;
+    }
+
+    .booked-working-hours-table th,
+    .booked-working-hours-table td {
+        padding: 8px;
+    }
+}
+
+/* ============================================================================
+   FLATPICKR DATEPICKER CUSTOMIZATION
+   ============================================================================ */
+
+/* Container styling */
+.booked-date-picker {
+    margin-bottom: 32px;
+    /* Prevent layout shift during calendar interactions */
+    min-height: 420px;
+}
+
+/* Hide the text input when using inline mode */
+.booked-datepicker-input {
+    display: none;
+}
+
+/* Make Flatpickr calendar fit the design */
+.booked-wizard .flatpickr-calendar {
+    width: 100% !important;
+    max-width: 100%;
+    border: 2px solid #000000;
+    border-radius: 0;
+    box-shadow: none;
+    font-family: inherit;
+    margin-top: 12px;
+    background: #ffffff;
+}
+
+.booked-wizard .flatpickr-calendar.inline {
+    top: 0;
+    position: relative;
+    display: block;
+}
+
+/* Inner container */
+.booked-wizard .flatpickr-innerContainer {
+    border: none;
+    background: #ffffff;
+}
+
+.booked-wizard .flatpickr-rContainer {
+    width: 100%;
+}
+
+/* Month navigation */
+.booked-wizard .flatpickr-months {
+    background: #000000;
+    padding: 8px 0;
+    height: auto;
+    align-items: center;
+}
+
+.booked-wizard .flatpickr-months .flatpickr-month {
+    background: #000000;
+    color: #ffffff;
+    height: 40px;
+    flex: 1;
+}
+
+.booked-wizard .flatpickr-current-month {
+    font-weight: 800;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+    padding: 0;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.booked-wizard .flatpickr-current-month .flatpickr-monthDropdown-months {
+    font-weight: 800;
+    color: #ffffff;
+    background: transparent;
+    border: none;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 8px;
+}
+
+.booked-wizard .flatpickr-current-month input.cur-year {
+    font-weight: 800;
+    color: #ffffff;
+    background: transparent;
+    border: none;
+}
+
+.booked-wizard .flatpickr-current-month .numInputWrapper {
+    width: 70px;
+}
+
+.booked-wizard .flatpickr-current-month .numInputWrapper span {
+    display: none;
+}
+
+.booked-wizard .flatpickr-months .flatpickr-prev-month,
+.booked-wizard .flatpickr-months .flatpickr-next-month {
+    fill: #ffffff;
+    color: #ffffff;
+    padding: 10px 16px;
+    position: static;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.booked-wizard .flatpickr-months .flatpickr-prev-month:hover,
+.booked-wizard .flatpickr-months .flatpickr-next-month:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.booked-wizard .flatpickr-months .flatpickr-prev-month svg,
+.booked-wizard .flatpickr-months .flatpickr-next-month svg {
+    fill: #ffffff;
+    width: 14px;
+    height: 14px;
+}
+
+/* Weekdays header */
+.booked-wizard .flatpickr-weekdays {
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    height: 40px;
+    padding: 0;
+}
+
+.booked-wizard .flatpickr-weekdaycontainer {
+    display: flex;
+    width: 100%;
+}
+
+.booked-wizard .flatpickr-weekday {
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666666;
+    background: #f5f5f5;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    line-height: 1;
+}
+
+/* Days grid */
+.booked-wizard .flatpickr-days {
+    width: 100% !important;
+    border: none;
+    border-top: none;
+}
+
+.booked-wizard .dayContainer {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 0;
+}
+
+.booked-wizard .flatpickr-day {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    border-radius: 0;
+    border: 2px solid transparent;
+    flex: 0 0 calc(100% / 7);
+    max-width: calc(100% / 7);
+    height: 48px;
+    line-height: 44px;
+    transition: all 0.15s;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.booked-wizard .flatpickr-day:hover {
+    background: #f0f0f0;
+    border-color: #000000;
+}
+
+.booked-wizard .flatpickr-day.selected,
+.booked-wizard .flatpickr-day.selected:hover {
+    background: #000000;
+    border-color: #000000;
+    color: #ffffff;
+}
+
+.booked-wizard .flatpickr-day.today {
+    border-color: #000000;
+    font-weight: 800;
+}
+
+.booked-wizard .flatpickr-day.today:hover {
+    background: #000000;
+    color: #ffffff;
+}
+
+/* Disabled days (past dates, etc.) */
+.booked-wizard .flatpickr-day.flatpickr-disabled,
+.booked-wizard .flatpickr-day.flatpickr-disabled:hover {
+    color: #d0d0d0;
+    background: transparent;
+    border-color: transparent;
+    cursor: not-allowed;
+}
+
+/* Previous/next month days - hide them for cleaner look */
+.booked-wizard .flatpickr-day.prevMonthDay,
+.booked-wizard .flatpickr-day.nextMonthDay {
+    color: #e0e0e0;
+    visibility: hidden;
+}
+
+/* ============================================================================
+   AVAILABILITY HIGHLIGHTING
+   ============================================================================ */
+
+/* Loading state - subtle pulse while fetching */
+.booked-wizard .flatpickr-day.booked-loading {
+    animation: booked-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes booked-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Available days - green indicator */
+.booked-wizard .flatpickr-day.booked-available {
+    position: relative;
+    background: var(--bk-green-bg);
+}
+
+.booked-wizard .flatpickr-day.booked-available::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: var(--bk-green);
+    border-radius: 50%;
+}
+
+.booked-wizard .flatpickr-day.booked-available:not(.flatpickr-disabled) {
+    color: var(--bk-green-dark);
+    font-weight: 700;
+}
+
+.booked-wizard .flatpickr-day.booked-available:not(.flatpickr-disabled):hover {
+    background: var(--bk-green-hover);
+    border-color: var(--bk-green);
+}
+
+.booked-wizard .flatpickr-day.booked-available.selected,
+.booked-wizard .flatpickr-day.booked-available.selected:hover {
+    background: var(--bk-green);
+    border-color: var(--bk-green);
+    color: var(--bk-white);
+}
+
+.booked-wizard .flatpickr-day.booked-available.selected::after {
+    background: #ffffff;
+}
+
+/* Unavailable days - no slots */
+.booked-wizard .flatpickr-day.booked-unavailable {
+    position: relative;
+    background: var(--bk-red-bg);
+}
+
+.booked-wizard .flatpickr-day.booked-unavailable::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: var(--bk-red);
+    border-radius: 50%;
+}
+
+.booked-wizard .flatpickr-day.booked-unavailable:not(.flatpickr-disabled) {
+    color: var(--bk-red-dark);
+}
+
+.booked-wizard .flatpickr-day.booked-unavailable:not(.flatpickr-disabled):hover {
+    background: #fee2e2;
+    border-color: var(--bk-red);
+    cursor: pointer;
+}
+
+/* Blacked out days */
+.booked-wizard .flatpickr-day.booked-blacked-out {
+    position: relative;
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+.booked-wizard .flatpickr-day.booked-blacked-out::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 2px;
+    background: #9ca3af;
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.booked-wizard .flatpickr-day.booked-blacked-out:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Ensure disabled days don't show availability indicators */
+.booked-wizard .flatpickr-day.flatpickr-disabled.booked-available::after,
+.booked-wizard .flatpickr-day.flatpickr-disabled.booked-unavailable::after {
+    opacity: 0.3;
+}
+
+.booked-wizard .flatpickr-day.flatpickr-disabled.booked-available,
+.booked-wizard .flatpickr-day.flatpickr-disabled.booked-unavailable {
+    background: transparent;
+}
+
+/* Legend */
+.booked-calendar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 0;
+    padding: 14px 16px;
+    background: #fafafa;
+    border: 2px solid #000000;
+    border-top: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.booked-calendar-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #333333;
+}
+
+.booked-calendar-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.booked-calendar-legend-dot.available {
+    background: var(--bk-green);
+}
+
+.booked-calendar-legend-dot.unavailable {
+    background: var(--bk-red);
+}
+
+.booked-calendar-legend-dot.blacked-out {
+    background: #999999;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .booked-wizard .flatpickr-months {
+        padding: 6px 0;
+    }
+
+    .booked-wizard .flatpickr-current-month {
+        font-size: 0.875rem;
+    }
+
+    .booked-wizard .flatpickr-months .flatpickr-prev-month,
+    .booked-wizard .flatpickr-months .flatpickr-next-month {
+        padding: 8px 12px;
+    }
+
+    .booked-wizard .flatpickr-weekday {
+        font-size: 0.6875rem;
+        height: 36px;
+    }
+
+    .booked-wizard .flatpickr-weekdays {
+        height: 36px;
+    }
+
+    .booked-wizard .dayContainer {
+        padding: 4px;
+    }
+
+    .booked-wizard .flatpickr-day {
+        height: 42px;
+        line-height: 38px;
+        font-size: 0.875rem;
+    }
+
+    .booked-wizard .flatpickr-day.booked-available::after,
+    .booked-wizard .flatpickr-day.booked-unavailable::after {
+        width: 5px;
+        height: 5px;
+        bottom: 4px;
+    }
+
+    .booked-calendar-legend {
+        flex-direction: row;
+        gap: 16px;
+        padding: 12px;
+        font-size: 0.75rem;
+    }
+
+    .booked-calendar-legend-dot {
+        width: 6px;
+        height: 6px;
+    }
+}
+
+/* Toast notifications */
+.booked-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.875rem;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s, transform 0.3s;
+    max-width: 360px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.booked-toast--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.booked-toast--success {
+    background: #16a34a;
+}
+
+.booked-toast--error {
+    background: #dc2626;
+}

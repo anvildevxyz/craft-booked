@@ -1,0 +1,86 @@
+{#
+/**
+ * Booking Cancelled Success Template
+ *
+ * Displays success message after booking is cancelled
+ * Accessed via: /booking/cancel/{token} (POST request, after cancellation)
+ *
+ * Variables:
+ * - reservation: ReservationInterface
+ */
+#}
+
+{% extends "_layout" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{% set bodyClass = 'page-booking-cancelled' %}
+{% set bookingPageUrl = craft.booked.getSettings().bookingPageUrl ?? '/' %}
+
+{% block content %}
+<div class="booked-wizard">
+
+    {# Success band #}
+    <div class="booked-manage-bar booked-manage-bar--success">
+        <span class="booked-manage-bar-label">{{ 'templates.bookingCancelled'|t('booked') }}</span>
+    </div>
+
+    {# Hero #}
+    <div class="booked-manage-hero">
+        <div class="booked-manage-hero-icon booked-manage-hero-icon--success">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="m9 12 2 2 4-4"></path>
+            </svg>
+        </div>
+        <div class="booked-manage-datetime booked-struck">{{ reservation.getFormattedDateTime() }}</div>
+        <p class="booked-manage-hero-sub">{{ 'templates.bookingCancelledSuccess'|t('booked') }}</p>
+    </div>
+
+    <div class="booked-manage-body">
+
+        {# Cancelled booking details #}
+        <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.05s">
+            <div class="booked-manage-section-title">{{ 'templates.cancelledDetails'|t('booked') }}</div>
+            <div class="booked-manage-grid">
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.dateTime'|t('booked') }}</span>
+                    <span class="booked-manage-value booked-struck">{{ reservation.getFormattedDateTime() }}</span>
+                </div>
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.name'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userName }}</span>
+                </div>
+                <div class="booked-manage-row">
+                    <span class="booked-manage-label">{{ 'templates.email'|t('booked') }}</span>
+                    <span class="booked-manage-value">{{ reservation.userEmail }}</span>
+                </div>
+            </div>
+        </div>
+
+        {# What's next #}
+        <div class="booked-manage-section booked-manage-reveal" style="animation-delay: 0.1s">
+            <div class="booked-manage-section-title">{{ 'templates.whatsNext'|t('booked') }}</div>
+            <ul class="booked-manage-list">
+                <li>{{ 'templates.confirmationEmailSent'|t('booked', { email: reservation.userEmail }) }}</li>
+                <li>{{ 'templates.noChargesApplied'|t('booked') }}</li>
+                <li>{{ 'templates.canBookNewAppointment'|t('booked') }}</li>
+            </ul>
+        </div>
+
+        {# Actions #}
+        <div class="booked-manage-actions booked-manage-reveal" style="animation-delay: 0.15s">
+            <a href="{{ bookingPageUrl }}" class="btn btn-primary">
+                {{ 'templates.bookAgain'|t('booked') }}
+            </a>
+            <a href="/" class="btn">
+                {{ 'templates.backToHome'|t('booked') }}
+            </a>
+        </div>
+
+        <p class="booked-manage-footnote">
+            {{ 'templates.contactUs'|t('booked', { email: craft.app.projectConfig.get('email.fromEmail') }) }}
+        </p>
+    </div>
+
+</div>
+{% endblock %}

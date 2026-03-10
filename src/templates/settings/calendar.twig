@@ -1,0 +1,94 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'calendar' %}
+{% set title = 'settings.calendar.title'|t('booked') %}
+
+{% block sidebar %}
+    {% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% block content %}
+    <form method="post" accept-charset="UTF-8" id="settings-form">
+        {{ csrfInput() }}
+        <input type="hidden" name="action" value="booked/cp/settings/save">
+        <input type="hidden" name="tab" value="calendar">
+        {{ redirectInput('booked/settings/calendar') }}
+
+        <h2 class="heading first">{{ 'settings.calendar.title'|t('booked') }}</h2>
+        <p class="light">{{ 'settings.calendar.description'|t('booked') }}</p>
+        <hr>
+        <fieldset>
+            {{ forms.lightswitchField({
+                label: 'settings.calendar.enableGoogle'|t('booked'),
+                id: 'googleCalendarEnabled',
+                name: 'settings[googleCalendarEnabled]',
+                on: settings.googleCalendarEnabled,
+                toggle: '#google-oauth-fields'
+            }) }}
+
+            <div id="google-oauth-fields" class="{% if not settings.googleCalendarEnabled %}hidden{% endif %}">
+                {{ forms.textField({
+                    label: 'settings.calendar.googleClientId'|t('booked'),
+                    instructions: 'settings.calendar.googleClientIdInstructions'|t('booked'),
+                    id: 'googleCalendarClientId',
+                    name: 'settings[googleCalendarClientId]',
+                    value: settings.googleCalendarClientId
+                }) }}
+
+                {{ forms.passwordField({
+                    label: 'settings.calendar.googleClientSecret'|t('booked'),
+                    instructions: 'settings.calendar.googleClientSecretInstructions'|t('booked'),
+                    id: 'googleCalendarClientSecret',
+                    name: 'settings[googleCalendarClientSecret]',
+                    value: settings.googleCalendarClientSecret
+                }) }}
+
+                <div class="field">
+                    <button type="button" class="btn" id="test-google-connection">
+                        {{ 'settings.calendar.testConnection'|t('booked') }}
+                    </button>
+                    <span id="google-test-result" class="test-result"></span>
+                </div>
+            </div>
+
+            <hr>
+            {{ forms.lightswitchField({
+                label: 'settings.calendar.enableOutlook'|t('booked'),
+                id: 'outlookCalendarEnabled',
+                name: 'settings[outlookCalendarEnabled]',
+                on: settings.outlookCalendarEnabled,
+                toggle: '#outlook-oauth-fields'
+            }) }}
+
+            <div id="outlook-oauth-fields" class="{% if not settings.outlookCalendarEnabled %}hidden{% endif %}">
+                {{ forms.textField({
+                    label: 'settings.calendar.outlookClientId'|t('booked'),
+                    instructions: 'settings.calendar.outlookClientIdInstructions'|t('booked'),
+                    id: 'outlookCalendarClientId',
+                    name: 'settings[outlookCalendarClientId]',
+                    value: settings.outlookCalendarClientId
+                }) }}
+
+                {{ forms.passwordField({
+                    label: 'settings.calendar.outlookClientSecret'|t('booked'),
+                    instructions: 'settings.calendar.outlookClientSecretInstructions'|t('booked'),
+                    id: 'outlookCalendarClientSecret',
+                    name: 'settings[outlookCalendarClientSecret]',
+                    value: settings.outlookCalendarClientSecret
+                }) }}
+
+                <div class="field">
+                    <button type="button" class="btn" id="test-outlook-connection">
+                        {{ 'settings.calendar.testConnection'|t('booked') }}
+                    </button>
+                    <span id="outlook-test-result" class="test-result"></span>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+{% endblock %}

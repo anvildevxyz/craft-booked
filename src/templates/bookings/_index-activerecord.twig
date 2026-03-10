@@ -1,0 +1,341 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedBookingsAsset") %}
+
+{% set title = 'titles.bookings'|t('booked') %}
+{% set selectedSubnavItem = 'bookings' %}
+
+{% set statusColors = {
+    'pending': 'orange',
+    'confirmed': 'green',
+    'cancelled': 'red',
+} %}
+
+{% set filterParams = {} %}
+{% if currentStatus and currentStatus != '*' %}
+    {% set filterParams = filterParams|merge({ status: currentStatus }) %}
+{% endif %}
+{% if search %}
+    {% set filterParams = filterParams|merge({ search: search }) %}
+{% endif %}
+{% if currentServiceId %}
+    {% set filterParams = filterParams|merge({ serviceId: currentServiceId }) %}
+{% endif %}
+{% if currentEmployeeId %}
+    {% set filterParams = filterParams|merge({ employeeId: currentEmployeeId }) %}
+{% endif %}
+{% if currentLocationId %}
+    {% set filterParams = filterParams|merge({ locationId: currentLocationId }) %}
+{% endif %}
+{% if currentEventDateId %}
+    {% set filterParams = filterParams|merge({ eventDateId: currentEventDateId }) %}
+{% endif %}
+{% if sort and sort != 'bookingDate' %}
+    {% set filterParams = filterParams|merge({ sort: sort }) %}
+{% endif %}
+{% if dir and dir != 'desc' %}
+    {% set filterParams = filterParams|merge({ dir: dir }) %}
+{% endif %}
+{% set filterParams = filterParams|merge({ limit: pagination.limit }) %}
+
+{% block actionButton %}
+    <div class="btngroup">
+        {% if canManage %}
+            <a class="btn submit add icon" href="{{ url('booked/bookings/new') }}">{{ 'buttons.newBooking'|t('booked') }}</a>
+        {% endif %}
+        <a class="btn" href="{{ url('booked/bookings/export', filterParams) }}">{{ 'buttons.export'|t('booked') }}</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="tableview" id="bookings-tableview"
+         data-text-selected="{{ 'selected'|t('booked') }}"
+         data-text-confirm-delete="{{ 'messages.confirmDeleteBooking'|t('booked') }}"
+         data-text-confirm-delete-multiple="{{ 'messages.confirmDeleteMultiple'|t('booked') }}">
+        <form method="get" action="{{ url('booked/bookings') }}" id="bookings-filter-form">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="dir" value="{{ dir }}">
+            <input type="hidden" name="limit" value="{{ pagination.limit }}">
+
+            <div class="toolbar flex flex-nowrap">
+                <div class="select">
+                    <select name="status" class="autosubmit">
+                        <option value="*">{{ 'status.all'|t('booked') }}</option>
+                        {% for statusKey, statusLabel in statuses %}
+                            <option value="{{ statusKey }}" {{ currentStatus == statusKey ? 'selected' : '' }}>{{ statusLabel }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow texticon search icon clearable">
+                    <input type="text"
+                           name="search"
+                           id="search-input"
+                           class="text fullwidth"
+                           placeholder="{{ 'placeholders.searchBookings'|t('booked') }}"
+                           value="{{ search }}"
+                           autocomplete="off">
+                    {% if search %}
+                        <button type="button" class="clear-btn" id="search-clear-btn" title="{{ 'buttons.clear'|t('booked') }}"></button>
+                    {% endif %}
+                </div>
+
+                {% if serviceOptions|length %}
+                    <div class="select">
+                        <select name="serviceId" class="autosubmit" style="max-width: 180px;">
+                            <option value="">{{ 'columns.service'|t('booked') }}</option>
+                            {% for service in serviceOptions %}
+                                <option value="{{ service.id }}" {{ currentServiceId == service.id ? 'selected' : '' }}>{{ service.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {% if employeeOptions|length %}
+                    <div class="select">
+                        <select name="employeeId" class="autosubmit" style="max-width: 180px;">
+                            <option value="">{{ 'columns.employee'|t('booked') }}</option>
+                            {% for employee in employeeOptions %}
+                                <option value="{{ employee.id }}" {{ currentEmployeeId == employee.id ? 'selected' : '' }}>{{ employee.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {% if locationOptions|length %}
+                    <div class="select">
+                        <select name="locationId" class="autosubmit" style="max-width: 180px;">
+                            <option value="">{{ 'columns.location'|t('booked') }}</option>
+                            {% for location in locationOptions %}
+                                <option value="{{ location.id }}" {{ currentLocationId == location.id ? 'selected' : '' }}>{{ location.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {% if eventDateOptions|length %}
+                    <div class="select">
+                        <select name="eventDateId" class="autosubmit" style="max-width: 200px;">
+                            <option value="">{{ 'columns.event'|t('booked') }}</option>
+                            {% for eventDate in eventDateOptions %}
+                                <option value="{{ eventDate.id }}" {{ currentEventDateId == eventDate.id ? 'selected' : '' }}>{{ eventDate.title }} ({{ eventDate.getFormattedDate() }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if canManage %}
+        <div id="bulk-actions-bar" class="toolbar hidden" style="padding: 10px 14px; background: var(--gray-100); border-radius: 4px;">
+            <div class="flex flex-nowrap" style="align-items: center; gap: 14px;">
+                <span id="selected-count" class="light">0 {{ 'selected'|t('booked') }}</span>
+                <button type="button" id="bulk-delete-btn" class="btn small">{{ 'buttons.deleteSelected'|t('booked') }}</button>
+                <button type="button" id="clear-selection-btn" class="btn small secondary">{{ 'buttons.clearSelection'|t('booked') }}</button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if reservations|length %}
+            {% macro sortLink(column, label, currentSort, currentDir, filterParams) %}
+                {% if currentSort == column %}
+                    {% set nextDir = currentDir == 'asc' ? 'desc' : 'asc' %}
+                {% else %}
+                    {% set nextDir = 'asc' %}
+                {% endif %}
+                {% set linkParams = filterParams|merge({ sort: column, dir: nextDir }) %}
+                <a href="{{ url('booked/bookings', linkParams) }}">
+                    {{ label }}
+                    {% if currentSort == column %}
+                        {% if currentDir == 'asc' %}
+                            <span data-icon="upangle" aria-hidden="true"></span>
+                        {% else %}
+                            <span data-icon="downangle" aria-hidden="true"></span>
+                        {% endif %}
+                    {% endif %}
+                </a>
+            {% endmacro %}
+
+            <div style="overflow-x: auto;">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        {% if canManage %}
+                        <th class="checkbox-cell thin">
+                            <input type="checkbox" id="select-all" class="checkbox" title="{{ 'Select all'|t('app') }}">
+                            <label for="select-all"></label>
+                        </th>
+                        {% endif %}
+                        <th class="thin">{{ 'columns.id'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('userName', 'columns.customer'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ 'columns.service'|t('booked') }}</th>
+                        <th>{{ 'columns.event'|t('booked') }}</th>
+                        <th>{{ 'columns.employee'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('bookingDate', 'columns.date'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ 'columns.time'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('dateCreated', 'columns.bookedOn'|t('booked'), sort, dir, filterParams) }}</th>
+                        <th>{{ _self.sortLink('status', 'columns.status'|t('booked'), sort, dir, filterParams) }}</th>
+                        {% if canManage %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reservation in reservations %}
+                        <tr data-id="{{ reservation.id }}">
+                            {% if canManage %}
+                            <td class="checkbox-cell thin">
+                                <input type="checkbox" id="row-{{ reservation.id }}" class="checkbox row-checkbox" value="{{ reservation.id }}">
+                                <label for="row-{{ reservation.id }}"></label>
+                            </td>
+                            {% endif %}
+                            <td class="thin">
+                                <a href="{{ url('booked/bookings/' ~ reservation.id) }}">{{ reservation.id }}</a>
+                            </td>
+                            <td>
+                                <a href="{{ url('booked/bookings/' ~ reservation.id) }}">
+                                    <strong>{{ reservation.userName }}</strong>
+                                </a>
+                                <div class="smalltext light">{{ reservation.userEmail }}</div>
+                                {% if reservation.userPhone %}
+                                    <div class="smalltext light">{{ reservation.userPhone }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set service = reservation.getService() %}
+                                {% if service %}
+                                    {{ service.title }}
+                                {% else %}
+                                    <span class="light">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set eventDate = reservation.getEventDate() %}
+                                {% if eventDate %}
+                                    {{ eventDate.title }}
+                                    <div class="smalltext light">{{ eventDate.getFormattedDate() }}</div>
+                                {% else %}
+                                    <span class="light">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set employee = reservation.getEmployee() %}
+                                {% if employee %}
+                                    {{ employee.title }}
+                                {% else %}
+                                    <span class="light">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ reservation.bookingDate|date('short') }}
+                            </td>
+                            <td>
+                                {{ reservation.startTime[:5] }}&ndash;{{ reservation.endTime[:5] }}
+                            </td>
+                            <td>
+                                {% if reservation.dateCreated %}
+                                    {{ reservation.dateCreated|date('short') }}
+                                    <div class="smalltext light">{{ reservation.dateCreated|time('short') }}</div>
+                                {% else %}
+                                    <span class="light">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <span class="status {{ statusColors[reservation.status] ?? '' }}"></span>
+                                {{ reservation.getStatusLabel() }}
+                            </td>
+                            {% if canManage %}
+                            <td class="thin action">
+                                <a class="settings icon menubtn" title="{{ 'Actions'|t('app') }}" role="button"></a>
+                                <div class="menu">
+                                    <ul>
+                                        <li><a href="{{ url('booked/bookings/' ~ reservation.id) }}">{{ 'buttons.edit'|t('booked') }}</a></li>
+                                    </ul>
+                                    <hr>
+                                    <ul>
+                                        <li><a class="error delete-single" data-id="{{ reservation.id }}" data-name="{{ reservation.userName }}">{{ 'buttons.delete'|t('booked') }}</a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            <div class="flex pagination" style="align-items: center;">
+                <div class="page-info">
+                    {{ '{first, number}-{last, number} of {total, number}'|t('app', {
+                        first: pagination.first,
+                        last: pagination.last,
+                        total: pagination.totalCount,
+                    }) }}
+                </div>
+
+                <div class="select" style="margin-left: 14px;">
+                    <select id="per-page-select" aria-label="{{ 'Per page'|t('booked') }}">
+                        {% for opt in [10, 20, 50, 100, 200] %}
+                            <option value="{{ opt }}" {{ pagination.limit == opt ? 'selected' : '' }}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if pagination.totalPages > 1 %}
+                    <nav class="flex" aria-label="{{ 'Pagination'|t('app') }}">
+                        {% if pagination.currentPage > 1 %}
+                            <a class="page-link prev-page"
+                               href="{{ url('booked/bookings', filterParams|merge({ page: pagination.currentPage - 1 })) }}"
+                               title="{{ 'buttons.previous'|t('booked') }}"
+                               aria-label="{{ 'buttons.previous'|t('booked') }}"></a>
+                        {% else %}
+                            <button class="page-link prev-page disabled"
+                                    title="{{ 'buttons.previous'|t('booked') }}"
+                                    aria-label="{{ 'buttons.previous'|t('booked') }}"
+                                    disabled></button>
+                        {% endif %}
+
+                        {% if pagination.currentPage < pagination.totalPages %}
+                            <a class="page-link next-page"
+                               href="{{ url('booked/bookings', filterParams|merge({ page: pagination.currentPage + 1 })) }}"
+                               title="{{ 'buttons.next'|t('booked') }}"
+                               aria-label="{{ 'buttons.next'|t('booked') }}"></a>
+                        {% else %}
+                            <button class="page-link next-page disabled"
+                                    title="{{ 'buttons.next'|t('booked') }}"
+                                    aria-label="{{ 'buttons.next'|t('booked') }}"
+                                    disabled></button>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="zilch">
+                {% if search %}
+                    <p>{{ 'messages.noSearchResults'|t('booked') }}</p>
+                {% else %}
+                    <p>{{ 'messages.noBookings'|t('booked') }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if canManage %}
+    <form id="bulk-delete-form" method="post" class="hidden">
+        {{ csrfInput() }}
+        {{ actionInput('booked/cp/bookings/bulk-delete') }}
+        <div id="bulk-delete-ids"></div>
+    </form>
+
+    <form id="single-delete-form" method="post" class="hidden">
+        {{ csrfInput() }}
+        {{ actionInput('booked/cp/bookings/delete') }}
+        <input type="hidden" name="id" id="single-delete-id">
+    </form>
+    {% endif %}
+
+    {% if devMode %}
+        <p class="light" style="margin-top: 24px; font-size: 11px;">
+            Mode: ActiveRecord (non-Commerce)
+        </p>
+    {% endif %}
+{% endblock %}

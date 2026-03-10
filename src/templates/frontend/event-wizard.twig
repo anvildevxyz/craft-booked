@@ -1,0 +1,614 @@
+{#
+/**
+ * Booked Event Wizard Template
+ *
+ * A lightweight wizard for event-based bookings (EventDates).
+ *
+ * FLOW:
+ * -----
+ * Step 1: Select Event
+ * Step 2: Enter Customer Info
+ * Step 3: Review & Confirm
+ * Step 4: Success
+ *
+ * USAGE:
+ * ------
+ *   {% include 'booked/frontend/event-wizard' %}
+ *
+ * Or with custom configuration:
+ *   {% include 'booked/frontend/event-wizard' with {
+ *       requirePhone: true,
+ *       showNotes: false,
+ *   } %}
+ *
+ * CONFIGURATION VARIABLES:
+ * Same label/behavior pattern as wizard.twig. See wizard.twig for full docs.
+ */
+#}
+
+{% set defaultLabels = {
+    selectEvent: 'wizard.selectEvent'|t('booked'),
+    enterInfo: 'wizard.enterInfo'|t('booked'),
+    confirmBooking: 'wizard.confirmBooking'|t('booked'),
+
+    noEvents: 'wizard.noEvents'|t('booked'),
+    noEventsDesc: 'wizard.noEventsDesc'|t('booked'),
+
+    fieldName: 'wizard.fieldName'|t('booked'),
+    fieldEmail: 'wizard.fieldEmail'|t('booked'),
+    fieldPhone: 'wizard.fieldPhone'|t('booked'),
+    fieldNotes: 'wizard.fieldNotes'|t('booked'),
+
+    summaryEvent: 'wizard.summaryEvent'|t('booked'),
+    summaryDate: 'wizard.summaryDate'|t('booked'),
+    summaryTime: 'wizard.summaryTime'|t('booked'),
+    summaryQuantity: 'wizard.summaryQuantity'|t('booked'),
+    summaryName: 'wizard.summaryName'|t('booked'),
+    summaryEmail: 'wizard.summaryEmail'|t('booked'),
+    summaryPhone: 'wizard.summaryPhone'|t('booked'),
+    summaryNotes: 'wizard.summaryNotes'|t('booked'),
+
+    stepEvent: 'wizard.stepEvent'|t('booked'),
+    stepInfo: 'wizard.stepInfo'|t('booked'),
+    stepConfirm: 'wizard.stepConfirm'|t('booked'),
+
+    btnBack: 'wizard.btnBack'|t('booked'),
+    btnNext: 'wizard.btnNext'|t('booked'),
+    btnBook: 'wizard.btnBook'|t('booked'),
+    btnAddToCart: 'wizard.btnAddToCart'|t('booked'),
+    btnProceedToCheckout: 'wizard.btnProceedToCheckout'|t('booked'),
+    btnProcessing: 'wizard.btnProcessing'|t('booked'),
+    btnNewBooking: 'wizard.btnNewBooking'|t('booked'),
+    btnHome: 'wizard.btnHome'|t('booked'),
+
+    successTitle: 'wizard.successTitle'|t('booked'),
+    successMessage: 'wizard.successMessage'|t('booked'),
+    successStatus: 'wizard.successStatus'|t('booked'),
+    successBookingId: 'wizard.successBookingId'|t('booked'),
+    successAppointment: 'wizard.successAppointment'|t('booked'),
+    successNextSteps: 'wizard.successNextSteps'|t('booked'),
+    successEmailNotePrefix: 'wizard.successEmailNotePrefix'|t('booked'),
+    successEmailNoteSuffix: 'wizard.successEmailNoteSuffix'|t('booked'),
+    statusConfirmed: 'wizard.statusConfirmed'|t('booked'),
+    statusPendingPayment: 'wizard.statusPendingPayment'|t('booked'),
+
+    bookingErrorTitle: 'wizard.bookingErrorTitle'|t('booked'),
+
+    spotsAvailable: 'wizard.spotsAvailable'|t('booked'),
+    fullyBooked: 'wizard.fullyBooked'|t('booked'),
+    loadingEvents: 'wizard.loadingEvents'|t('booked'),
+
+    paymentRequired: 'wizard.paymentRequired'|t('booked'),
+    paymentRequiredNote: 'wizard.paymentRequiredNote'|t('booked'),
+
+    bookingErrorDefault: 'wizard.bookingErrorDefault'|t('booked'),
+    unexpectedError: 'wizard.unexpectedError'|t('booked'),
+    bookingSuccessAnnouncement: 'wizard.bookingSuccessAnnouncement'|t('booked'),
+
+    waitlistJoin: 'wizard.waitlistBtnJoin'|t('booked'),
+    waitlistJoining: 'wizard.waitlistBtnJoining'|t('booked'),
+    waitlistSuccess: 'wizard.waitlistSuccessTitle'|t('booked'),
+    waitlistSuccessDesc: 'wizard.waitlistSuccess'|t('booked'),
+    waitlistCancel: 'wizard.waitlistBtnCancel'|t('booked'),
+
+    manageTitle: 'wizard.manageTitle'|t('booked'),
+    manageLoading: 'wizard.manageLoading'|t('booked'),
+    manageError: 'wizard.manageError'|t('booked'),
+    manageStatus: 'wizard.manageStatus'|t('booked'),
+    manageQuantity: 'wizard.manageQuantity'|t('booked'),
+    manageDate: 'wizard.manageDate'|t('booked'),
+    manageCancelBtn: 'wizard.manageCancelBtn'|t('booked'),
+    manageReduceBtn: 'wizard.manageReduceBtn'|t('booked'),
+    manageIncreaseBtn: 'wizard.manageIncreaseBtn'|t('booked'),
+    manageChangeAmount: 'wizard.manageChangeAmount'|t('booked'),
+    manageCancelled: 'wizard.manageCancelled'|t('booked'),
+    confirmCancel: 'wizard.confirmCancel'|t('booked'),
+    cancelSuccess: 'wizard.cancelSuccess'|t('booked'),
+} %}
+
+{% set labels = defaultLabels|merge(labels ?? {}) %}
+
+{% set requirePhone = requirePhone ?? false %}
+{% set showNotes = showNotes ?? true %}
+{% set showStepIndicator = showStepIndicator ?? true %}
+{% set defaultQuantity = defaultQuantity ?? 1 %}
+{% set homeUrl = homeUrl ?? '/' %}
+
+{% set cssPrefix = cssPrefix ?? 'booked' %}
+{% set cssWrapperClass = cssWrapperClass ?? '' %}
+{% set customStyles = customStyles ?? {} %}
+
+{# Resolve CAPTCHA settings from plugin if not passed explicitly #}
+{% set _bookedSettings = craft.booked.getSettings() %}
+{% set captchaEnabled = captchaEnabled ?? (_bookedSettings.enableCaptcha ?? false) %}
+{% set captchaProvider = captchaProvider ?? (_bookedSettings.captchaProvider ?? null) %}
+{% set captchaSiteKey = captchaSiteKey ?? (captchaEnabled ? ({
+    recaptcha: _bookedSettings.recaptchaSiteKey,
+    hcaptcha: _bookedSettings.hcaptchaSiteKey,
+    turnstile: _bookedSettings.turnstileSiteKey,
+}[captchaProvider] ?? null) : null) %}
+{% set honeypotFieldName = honeypotFieldName ?? (_bookedSettings.enableHoneypot ? _bookedSettings.honeypotFieldName : null) %}
+
+{% set wizardConfig = {
+    requirePhone: requirePhone,
+    showNotes: showNotes,
+    defaultQuantity: defaultQuantity,
+    captchaEnabled: captchaEnabled,
+    captchaProvider: captchaProvider,
+    captchaSiteKey: captchaSiteKey,
+    captchaAction: captchaAction ?? (_bookedSettings.recaptchaAction ?? 'booking'),
+    honeypotFieldName: honeypotFieldName,
+    siteHandle: craft.app.sites.currentSite.handle,
+    stepAnnouncements: {
+        '1': labels.selectEvent,
+        '2': labels.enterInfo,
+        '3': labels.confirmBooking,
+    },
+    messages: {
+        bookingSuccessAnnouncement: labels.bookingSuccessAnnouncement,
+        bookingErrorDefault: labels.bookingErrorDefault,
+        unexpectedError: labels.unexpectedError,
+    },
+    translations: {
+        confirmCancel: labels.confirmCancel,
+        cancelSuccess: labels.cancelSuccess,
+    },
+} %}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedAsset") %}
+
+{% if (captchaEnabled ?? false) and (captchaSiteKey ?? null) %}
+    {% if captchaProvider == 'recaptcha' %}
+        <script src="https://www.google.com/recaptcha/api.js?render={{ captchaSiteKey }}"></script>
+    {% elseif captchaProvider == 'hcaptcha' %}
+        <script src="https://js.hcaptcha.com/1/api.js?render=explicit" async defer></script>
+    {% elseif captchaProvider == 'turnstile' %}
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+    {% endif %}
+{% endif %}
+
+<div class="{{ cssPrefix }}-wizard {{ cssPrefix }}-event-wizard {{ cssWrapperClass }}"
+     {% if customStyles|length %}style="{% for prop, val in customStyles %}{{ prop }}: {{ val }};{% endfor %}"{% endif %}
+     x-data="eventWizard({{ wizardConfig|json_encode }})" :class="{ '{{ cssPrefix }}-loading': loading }" role="region" aria-label="{{ 'wizard.ariaEventWizard'|t('booked') }}">
+
+    <div class="sr-only" role="status" aria-live="polite" x-text="liveAnnouncement"></div>
+
+    {# Management Mode #}
+    <template x-if="managementMode">
+        <div class="{{ cssPrefix }}-management">
+            <template x-if="managementLoading">
+                <div class="{{ cssPrefix }}-loading-slots">
+                    <div class="{{ cssPrefix }}-spinner" role="status"></div>
+                    <p>{{ labels.manageLoading }}</p>
+                </div>
+            </template>
+
+            <template x-if="managementError && !managementLoading">
+                <div class="{{ cssPrefix }}-error p-4" role="alert">
+                    <h3>{{ labels.manageError }}</h3>
+                    <p x-text="managementError"></p>
+                </div>
+            </template>
+
+            <template x-if="managementData && !managementLoading">
+                <div>
+                    <h3>{{ labels.manageTitle }}</h3>
+
+                    <template x-if="managementSuccess">
+                        <div class="{{ cssPrefix }}-success-message p-3 mb-4" role="status" x-text="managementSuccess"></div>
+                    </template>
+
+                    <div class="{{ cssPrefix }}-detail-card">
+                        <div class="{{ cssPrefix }}-detail-row">
+                            <strong>{{ labels.manageStatus }}:</strong>
+                            <span x-text="managementData.status"></span>
+                        </div>
+                        <div class="{{ cssPrefix }}-detail-row">
+                            <strong>{{ labels.summaryEvent }}:</strong>
+                            <span x-text="managementData.eventTitle || managementData.serviceName || ''"></span>
+                        </div>
+                        <div class="{{ cssPrefix }}-detail-row">
+                            <strong>{{ labels.manageDate }}:</strong>
+                            <span x-text="managementData.formattedDateTime || (managementData.bookingDate + ' ' + managementData.startTime)"></span>
+                        </div>
+                        <div class="{{ cssPrefix }}-detail-row">
+                            <strong>{{ labels.manageQuantity }}:</strong>
+                            <span x-text="managementData.quantity"></span>
+                        </div>
+                    </div>
+
+                    <template x-if="managementData.status !== 'cancelled'">
+                        <div class="{{ cssPrefix }}-management-actions mt-4">
+                            <div class="mb-4">
+                                <button class="btn" @click="cancelBooking()" :disabled="managementLoading">
+                                    {{ labels.manageCancelBtn }}
+                                </button>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="font-semibold">{{ labels.manageChangeAmount }}:</label>
+                                <div class="{{ cssPrefix }}-quantity-controls mt-2">
+                                    <button type="button" class="btn btn-sm" @click="quantityChangeAmount > 1 && quantityChangeAmount--" :disabled="quantityChangeAmount <= 1">−</button>
+                                    <input type="number" x-model.number="quantityChangeAmount" min="1" class="text-input text-center" style="width: 60px;">
+                                    <button type="button" class="btn btn-sm" @click="quantityChangeAmount++">+</button>
+                                </div>
+
+                                <div class="flex gap-2 mt-2">
+                                    <button class="btn" @click="reduceBookingQuantity()" :disabled="managementLoading || managementData.quantity <= 1">
+                                        {{ labels.manageReduceBtn }}
+                                    </button>
+                                    <button class="btn" @click="increaseBookingQuantity()" :disabled="managementLoading">
+                                        {{ labels.manageIncreaseBtn }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="managementData.status === 'cancelled'">
+                        <div class="{{ cssPrefix }}-action-notice mt-4">
+                            <p>{{ labels.manageCancelled }}</p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <div x-show="!managementMode">
+    {% if showStepIndicator %}
+    <nav aria-label="{{ 'wizard.ariaStepNav'|t('booked') }}">
+        <ol class="{{ cssPrefix }}-step-indicator" role="list">
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 1 }" :aria-current="step === 1 ? 'step' : false">{{ labels.stepEvent }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 2 }" :aria-current="step === 2 ? 'step' : false">{{ labels.stepInfo }}</li>
+            <li class="{{ cssPrefix }}-step" :class="{ 'active': step >= 3 }" :aria-current="step === 3 ? 'step' : false">{{ labels.stepConfirm }}</li>
+        </ol>
+    </nav>
+    {% endif %}
+
+    {# Step 1: Select Event #}
+    <div x-show="step === 1" x-cloak>
+        <h3 tabindex="-1">{{ labels.selectEvent }}</h3>
+        <template x-if="loading && eventDates.length === 0">
+            <div class="{{ cssPrefix }}-loading-slots">
+                <div class="{{ cssPrefix }}-spinner" role="status" aria-label="{{ labels.loadingEvents }}"></div>
+                <p>{{ labels.loadingEvents }}</p>
+            </div>
+        </template>
+        <div class="{{ cssPrefix }}-grid" role="group" aria-label="{{ labels.selectEvent }}" x-show="!loading || eventDates.length > 0">
+            <template x-for="event in eventDates" :key="event.id">
+                <div class="{{ cssPrefix }}-card"
+                     :class="{ '{{ cssPrefix }}-card-disabled': event.isFullyBooked }"
+                     role="button" tabindex="0"
+                     @click="!event.isFullyBooked && selectEvent(event)"
+                     @keydown.enter.prevent="!event.isFullyBooked && selectEvent(event)"
+                     @keydown.space.prevent="!event.isFullyBooked && selectEvent(event)">
+                    <h4 x-text="event.title || '{{ labels.summaryEvent }}'"></h4>
+                    <p x-show="event.description" x-text="event.description"></p>
+                    <div class="light">
+                        <span x-text="event.formattedDate"></span>
+                        <span> · </span>
+                        <span x-text="event.formattedTimeRange"></span>
+                    </div>
+                    <template x-if="event.price > 0">
+                        <div class="{{ cssPrefix }}-event-price font-semibold mt-1" x-text="formatPrice(event.price)"></div>
+                    </template>
+                    <template x-if="event.capacity !== null">
+                        <div class="{{ cssPrefix }}-capacity-row">
+                            <div class="{{ cssPrefix }}-capacity-bar">
+                                <div class="{{ cssPrefix }}-capacity-fill"
+                                     :style="'width: ' + (event.capacity > 0 ? Math.round((event.remainingCapacity / event.capacity) * 100) : 0) + '%'"></div>
+                            </div>
+                            <span class="{{ cssPrefix }}-capacity-text"
+                                  x-text="event.remainingCapacity + ' / ' + event.capacity"></span>
+                        </div>
+                    </template>
+                    <template x-if="event.isFullyBooked && !event.waitlistEnabled">
+                        <div class="{{ cssPrefix }}-soldout-footer">
+                            <span class="{{ cssPrefix }}-fully-booked-badge">{{ labels.fullyBooked }}</span>
+                        </div>
+                    </template>
+                    <template x-if="event.isFullyBooked && event.waitlistEnabled">
+                        <div class="{{ cssPrefix }}-soldout-footer">
+                            <span class="{{ cssPrefix }}-fully-booked-badge">{{ labels.fullyBooked }}</span>
+                            <template x-if="waitlistEventId !== event.id">
+                                <button type="button" class="{{ cssPrefix }}-waitlist-join-btn" @click.stop="showWaitlistForm(event)">{{ labels.waitlistJoin }}</button>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="eventDates.length === 0 && !loading">
+                <div class="{{ cssPrefix }}-card {{ cssPrefix }}-card-disabled">
+                    <h4>{{ labels.noEvents }}</h4>
+                    <p>{{ labels.noEventsDesc }}</p>
+                </div>
+            </template>
+        </div>
+
+        {# Waitlist form — shown inline when user clicks "Join Waitlist" on a fully booked event #}
+        <template x-if="waitlistEventId && !waitlistSuccess">
+            <div class="{{ cssPrefix }}-summary mt-4 p-4">
+                <h4 x-text="'{{ labels.waitlistJoin }}: ' + (selectedEvent?.title || '')"></h4>
+
+                <template x-if="waitlistError">
+                    <div class="{{ cssPrefix }}-error mt-2 mb-2" role="alert">
+                        <p x-text="waitlistError"></p>
+                    </div>
+                </template>
+
+                <div class="form-group">
+                    <label for="waitlist-name">{{ labels.fieldName }} <span class="required" aria-hidden="true">*</span></label>
+                    <input type="text" id="waitlist-name" x-model="customerName" class="text-input" aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="waitlist-email">{{ labels.fieldEmail }} <span class="required" aria-hidden="true">*</span></label>
+                    <input type="email" id="waitlist-email" x-model="customerEmail" class="text-input" aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="waitlist-phone">{{ labels.fieldPhone }}</label>
+                    <input type="tel" id="waitlist-phone" x-model="customerPhone" class="text-input">
+                </div>
+
+                {% if honeypotFieldName ?? null %}
+                <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;">
+                    <input type="text" name="{{ honeypotFieldName }}" autocomplete="off" tabindex="-1">
+                </div>
+                {% endif %}
+
+                <div class="flex gap-2 mt-4">
+                    <button class="btn btn-primary" @click="joinEventWaitlist()" :disabled="waitlistLoading || !customerName || !customerEmail">
+                        <span x-show="!waitlistLoading">{{ labels.waitlistJoin }}</span>
+                        <span x-show="waitlistLoading">{{ labels.waitlistJoining }}</span>
+                    </button>
+                    <button class="btn" @click="hideWaitlistForm()">{{ labels.waitlistCancel }}</button>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="waitlistSuccess">
+            <div class="{{ cssPrefix }}-waitlist-success" role="status">
+                <div class="{{ cssPrefix }}-waitlist-success-icon">
+                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <h4>{{ labels.waitlistSuccess }}</h4>
+                <p>{{ labels.waitlistSuccessDesc }}</p>
+                <button type="button" class="{{ cssPrefix }}-waitlist-btn" @click="hideWaitlistForm()">
+                    OK
+                </button>
+            </div>
+        </template>
+    </div>
+
+    {# Step 2: Customer Info #}
+    <div x-show="step === 2" x-cloak>
+        <h3 tabindex="-1">{{ labels.enterInfo }}</h3>
+        <div class="form-group">
+            <label for="event-customer-name">{{ labels.fieldName }} <span class="required" aria-hidden="true">*</span></label>
+            <input type="text"
+                   id="event-customer-name"
+                   x-model="customerName"
+                   class="text-input"
+                   aria-required="true"
+                   :aria-invalid="(touched.name && (!customerName || customerName.trim().length === 0)).toString()"
+                   :aria-describedby="(touched.name && (!customerName || customerName.trim().length === 0)) ? 'event-name-error' : false"
+                   @blur="touched.name = true; customerName = customerName ? customerName.trim() : ''">
+            <p id="event-name-error" role="alert" x-show="touched.name && (!customerName || customerName.trim().length === 0)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.nameRequired'|t('booked') }}</p>
+        </div>
+        <div class="form-group">
+            <label for="event-customer-email">{{ labels.fieldEmail }} <span class="required" aria-hidden="true">*</span></label>
+            <input type="email"
+                   id="event-customer-email"
+                   x-model="customerEmail"
+                   class="text-input"
+                   aria-required="true"
+                   :aria-invalid="(touched.email && (customerEmail ? !isValidEmail(customerEmail) : true)).toString()"
+                   :aria-describedby="(touched.email && customerEmail && !isValidEmail(customerEmail)) ? 'event-email-error' : (touched.email && !customerEmail ? 'event-email-required' : false)"
+                   @blur="touched.email = true; customerEmail = customerEmail.trim()"
+                   :class="{ 'border-red-500': touched.email && customerEmail && !isValidEmail(customerEmail) }">
+            <p id="event-email-error" role="alert" x-show="touched.email && customerEmail && !isValidEmail(customerEmail)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.invalidEmail'|t('booked') }}</p>
+            <p id="event-email-required" role="alert" x-show="touched.email && !customerEmail" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.emailRequired'|t('booked') }}</p>
+        </div>
+        <div class="form-group">
+            <label for="event-customer-phone">{{ labels.fieldPhone }}{% if requirePhone %} <span class="required" aria-hidden="true">*</span>{% endif %}</label>
+            <input type="tel"
+                   id="event-customer-phone"
+                   x-model="customerPhone"
+                   class="text-input"
+                   {% if requirePhone %}aria-required="true"{% endif %}
+                   :aria-invalid="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0) ? 'true' : false"
+                   :aria-describedby="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0) ? 'event-phone-error' : false"
+                   @blur="touched.phone = true">
+            <p id="event-phone-error" role="alert" x-show="touched.phone && config.requirePhone && (!customerPhone || customerPhone.trim().length === 0)" class="text-sm text-red-500 mt-1" style="display: none;" x-cloak>{{ 'wizard.phoneRequired'|t('booked') }}</p>
+        </div>
+        {% if showNotes %}
+        <div class="form-group">
+            <label for="event-customer-notes">{{ labels.fieldNotes }}</label>
+            <textarea id="event-customer-notes" x-model="notes" class="text-input"></textarea>
+        </div>
+        {% endif %}
+
+        <template x-if="selectedEvent && selectedEvent.capacity !== null && selectedEvent.remainingCapacity > 1">
+            <div class="form-group">
+                <label for="event-quantity">{{ labels.summaryQuantity }}</label>
+                <div class="{{ cssPrefix }}-quantity-controls">
+                    <button type="button" class="btn btn-sm" @click="quantity > 1 && quantity--" :disabled="quantity <= 1">−</button>
+                    <input type="number"
+                           id="event-quantity"
+                           x-model.number="quantity"
+                           :max="selectedEvent.remainingCapacity"
+                           min="1"
+                           class="text-input text-center"
+                           @change="quantity = Math.max(1, Math.min(quantity, selectedEvent.remainingCapacity))">
+                    <button type="button" class="btn btn-sm" @click="quantity < selectedEvent.remainingCapacity && quantity++" :disabled="quantity >= selectedEvent.remainingCapacity">+</button>
+                    <span class="text-xs" x-text="'/ ' + selectedEvent.remainingCapacity + ' {{ labels.spotsAvailable }}'"></span>
+                </div>
+            </div>
+        </template>
+
+        {% if honeypotFieldName ?? null %}
+        <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;">
+            <input type="text" id="{{ honeypotFieldName }}" name="{{ honeypotFieldName }}" autocomplete="off" tabindex="-1">
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between mt-4">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+            <button class="btn btn-primary" @click="nextStep()" :disabled="!isCustomerInfoValid()">{{ labels.btnNext }}</button>
+        </div>
+    </div>
+
+    {# Step 3: Review & Confirm #}
+    <div x-show="step === 3" x-cloak>
+        <h3 tabindex="-1">{{ labels.confirmBooking }}</h3>
+        <div class="{{ cssPrefix }}-summary p-4">
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <p class="font-semibold text-lg" x-text="selectedEvent?.title || 'Event'"></p>
+                <p x-show="selectedEvent?.description" class="text-sm text-gray-600 mt-1" x-text="selectedEvent?.description"></p>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryDate }}:</span>
+                        <span class="font-medium" x-text="selectedEvent?.formattedDate"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryTime }}:</span>
+                        <span class="font-medium" x-text="selectedEvent?.formattedTimeRange"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryQuantity }}:</span>
+                        <span class="font-medium" x-text="quantity"></span>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="{{ cssPrefix }}-summary-section mb-4">
+                <div class="grid grid-cols-1 gap-1 text-sm">
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryName }}:</span>
+                        <span class="font-medium" x-text="customerName"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">{{ labels.summaryEmail }}:</span>
+                        <span class="font-medium" x-text="customerEmail"></span>
+                    </div>
+                    <div x-show="customerPhone">
+                        <span class="text-gray-500">{{ labels.summaryPhone }}:</span>
+                        <span class="font-medium" x-text="customerPhone"></span>
+                    </div>
+                    <div x-show="notes">
+                        <span class="text-gray-500">{{ labels.summaryNotes }}:</span>
+                        <span class="font-medium" x-text="notes"></span>
+                    </div>
+                </div>
+            </div>
+
+            <template x-if="selectedEvent?.price > 0">
+                <div class="{{ cssPrefix }}-summary-section mt-4">
+                    <hr class="my-3">
+                    <div class="flex justify-between font-semibold text-lg">
+                        <span>{{ labels.summaryTotal ?? 'wizard.summaryTotal'|t('booked') }}:</span>
+                        <span x-text="formatPrice(getEventTotalPrice())"></span>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="requiresPayment()">
+                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded">
+                    <p class="text-amber-800 font-semibold">{{ labels.paymentRequired }}</p>
+                    <p class="text-amber-700 text-sm">{{ labels.paymentRequiredNote }}</p>
+                </div>
+            </template>
+        </div>
+
+        {% if (captchaEnabled ?? false) and (captchaSiteKey ?? null) %}
+            {% if captchaProvider == 'turnstile' %}
+            <div id="booked-event-turnstile-widget" class="mt-4"></div>
+            {% elseif captchaProvider == 'hcaptcha' %}
+            <div id="booked-event-hcaptcha-widget" class="mt-4"></div>
+            {% endif %}
+        {% endif %}
+
+        <template x-if="bookingError">
+            <div class="{{ cssPrefix }}-error mt-4 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
+                <div class="flex items-start gap-3">
+                    <svg class="flex-shrink-0 w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <h4 class="text-red-800 font-semibold">{{ labels.bookingErrorTitle }}</h4>
+                        <p class="text-red-700 text-sm mt-1" x-text="bookingError"></p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <div class="flex justify-between mt-4">
+            <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
+
+            <template x-if="requiresPayment()">
+                <div class="flex gap-2">
+                    <button class="btn" @click="addToCart()" :disabled="loading">
+                        <span x-show="!loading">{{ labels.btnAddToCart }}</span>
+                        <span x-show="loading">{{ labels.btnProcessing }}</span>
+                    </button>
+                    <button class="btn btn-primary" @click="proceedToCheckout()" :disabled="loading">
+                        <span x-show="!loading">{{ labels.btnProceedToCheckout }}</span>
+                        <span x-show="loading">{{ labels.btnProcessing }}</span>
+                    </button>
+                </div>
+            </template>
+
+            <template x-if="!requiresPayment()">
+                <button class="btn btn-primary" @click="submitBooking()" :disabled="loading">
+                    <span x-show="!loading">{{ labels.btnBook }}</span>
+                    <span x-show="loading">{{ labels.btnProcessing }}</span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    {# Step 4: Success #}
+    <div x-show="step === 4" x-cloak>
+        <div class="{{ cssPrefix }}-success text-center py-8" role="status">
+            <svg class="mx-auto mb-4" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #000000;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="m9 12 2 2 4-4"></path>
+            </svg>
+
+            <h3 class="text-2xl font-bold mb-2">{{ labels.successTitle }}</h3>
+            <p class="text-gray-600 mb-6">{{ labels.successMessage }}</p>
+
+            <div class="{{ cssPrefix }}-success-details p-6 mb-6 text-left max-w-md mx-auto">
+                <p class="mb-2"><strong>{{ labels.successStatus }}:</strong> <span x-text="reservationDetails?.status || '{{ labels.statusConfirmed }}'"></span></p>
+                <p class="mb-2"><strong>{{ labels.successBookingId }}:</strong> #<span x-text="reservationDetails?.id"></span></p>
+                <p class="mb-4"><strong>{{ labels.successAppointment }}:</strong> <span x-text="reservationDetails?.formattedDateTime || (selectedEvent?.formattedDate + ' ' + selectedEvent?.formattedTimeRange)"></span></p>
+
+                <div class="bg-blue-50 border-l-4 border-black p-4 text-sm">
+                    <p class="font-semibold mb-1">{{ labels.successNextSteps }}</p>
+                    <p>{{ labels.successEmailNotePrefix }}<strong x-text="customerEmail"></strong>{{ labels.successEmailNoteSuffix }}</p>
+                </div>
+            </div>
+
+            <div class="flex gap-4 justify-center">
+                <button class="btn btn-primary" @click="resetWizard()">{{ labels.btnNewBooking }}</button>
+                <a href="{{ homeUrl }}" class="btn">{{ labels.btnHome }}</a>
+            </div>
+        </div>
+    </div>
+    </div>{# end x-show="!managementMode" #}
+</div>
+
+{% js %}
+    window.csrfTokenName = "{{ craft.app.config.general.csrfTokenName }}";
+    window.csrfTokenValue = "{{ craft.app.request.csrfToken }}";
+{% endjs %}
