@@ -21,4 +21,4 @@
 .env
 .env.local
 .env.*.local
-.phpstan/
+.phpstan/.claude/worktrees/
