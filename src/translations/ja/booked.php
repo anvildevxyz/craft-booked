@@ -1814,4 +1814,8 @@ return [
     '960 min' => '960分',
     '1080 min' => '1080分',
     '1200 min' => '1200分',
+
+    // Export
+    'export.employeeSchedules' => '従業員スケジュール CSV',
+    'export.serviceCatalog' => 'サービスカタログ CSV',
 ];

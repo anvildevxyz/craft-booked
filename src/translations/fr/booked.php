@@ -1814,4 +1814,8 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Export
+    'export.employeeSchedules' => 'Plannings des Employés CSV',
+    'export.serviceCatalog' => 'Catalogue des Services CSV',
 ];
