@@ -16,6 +16,7 @@ use Craft;
 use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\User;
+use craft\enums\Color;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 
@@ -264,7 +265,12 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     }
     public static function statuses(): array
     {
-        return ['confirmed' => 'green', 'pending' => 'orange', 'cancelled' => null, 'no_show' => 'red'];
+        return [
+            'confirmed' => ['label' => Craft::t('booked', 'status.confirmed'), 'color' => Color::Green],
+            'pending' => ['label' => Craft::t('booked', 'status.pending'), 'color' => Color::Orange],
+            'cancelled' => ['label' => Craft::t('booked', 'status.cancelled')],
+            'no_show' => ['label' => Craft::t('booked', 'status.noShow'), 'color' => Color::Red],
+        ];
     }
 
     public static function eagerLoadingMap(array $sourceElements, string $handle): array|null|false

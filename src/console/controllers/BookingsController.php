@@ -414,11 +414,11 @@ class BookingsController extends Controller
         $skipped = 0;
 
         foreach ($reservations as $reservation) {
-            // Build full end datetime to compare against cutoff
-            $endDateTime = \DateTime::createFromFormat(
-                'Y-m-d H:i',
-                $reservation->getBookingDate() . ' ' . $reservation->getEndTime()
-            );
+            // Build full end datetime with the reservation's timezone
+            $dateStr = $reservation->getBookingDate() . ' ' . $reservation->getEndTime();
+            $tz = new \DateTimeZone($reservation->getUserTimezone() ?: date_default_timezone_get());
+            $endDateTime = \DateTime::createFromFormat('Y-m-d H:i:s', $dateStr, $tz)
+                ?: \DateTime::createFromFormat('Y-m-d H:i', $dateStr, $tz);
 
             if (!$endDateTime || $endDateTime > $cutoff) {
                 $skipped++;

@@ -12,7 +12,7 @@ class ReservationCsvExporter extends ElementExporter
 {
     public static function displayName(): string
     {
-        return Craft::t('booked', 'Bookings CSV');
+        return Craft::t('booked', 'export.reservations');
     }
 
     public static function isFormattable(): bool

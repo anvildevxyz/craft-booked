@@ -1833,6 +1833,7 @@ return [
     'widget.lookahead3' => 'Next 3 Days',
     'widget.lookahead7' => 'Next 7 Days',
     // Export
+    'export.reservations' => 'Bookings CSV',
     'export.employeeSchedules' => 'Employee Schedules CSV',
     'export.serviceCatalog' => 'Service Catalog CSV',
     // Session Notes

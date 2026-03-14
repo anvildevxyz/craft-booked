@@ -325,6 +325,11 @@
     color: #991b1b;
 }
 
+.booked-status-badge.status-no_show {
+    background: #fecaca;
+    color: #7f1d1d;
+}
+
 .booked-status-badge.status-default {
     background: #e5e7eb;
     color: #374151;
@@ -1173,6 +1178,12 @@
     border-left: 3px solid #ef4444;
 }
 
+.calendar-booking.status-no_show,
+.booked-reservation-card.status-no_show {
+    background: #fecaca;
+    border-left: 3px solid #dc2626;
+}
+
 .booked-reservation-card {
     padding: 8px 12px;
     margin: 4px 0;
@@ -1262,6 +1273,11 @@
 .calendar-legend-color.status-cancelled {
     background: #fee2e2;
     border: 1px solid #ef4444;
+}
+
+.calendar-legend-color.status-no_show {
+    background: #fecaca;
+    border: 1px solid #dc2626;
 }
 
 .calendar-legend-label {

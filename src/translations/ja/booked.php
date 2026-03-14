@@ -1832,6 +1832,7 @@ return [
     'widget.lookahead3' => '次の3日間',
     'widget.lookahead7' => '次の7日間',
     // Export
+    'export.reservations' => '予約 CSV',
     'export.employeeSchedules' => '従業員スケジュール CSV',
     'export.serviceCatalog' => 'サービスカタログ CSV',
     // Session Notes

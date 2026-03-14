@@ -1832,6 +1832,7 @@ return [
     'widget.lookahead3' => 'Volgende 3 dagen',
     'widget.lookahead7' => 'Volgende 7 dagen',
     // Export
+    'export.reservations' => 'Boekingen CSV',
     'export.employeeSchedules' => 'Medewerker Roosters CSV',
     'export.serviceCatalog' => 'Dienstencatalogus CSV',
     // Session Notes

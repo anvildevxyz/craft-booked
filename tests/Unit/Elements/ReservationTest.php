@@ -19,10 +19,14 @@ class ReservationTest extends TestCase
     {
         $this->requiresCraft();
         $statuses = Reservation::statuses();
-        $this->assertEquals('green', $statuses['confirmed']);
-        $this->assertEquals('orange', $statuses['pending']);
-        $this->assertNull($statuses['cancelled']);
-        $this->assertEquals('red', $statuses['no_show']);
+        $this->assertIsArray($statuses['confirmed']);
+        $this->assertEquals(\craft\enums\Color::Green, $statuses['confirmed']['color']);
+        $this->assertIsArray($statuses['pending']);
+        $this->assertEquals(\craft\enums\Color::Orange, $statuses['pending']['color']);
+        $this->assertIsArray($statuses['cancelled']);
+        $this->assertArrayNotHasKey('color', $statuses['cancelled']);
+        $this->assertIsArray($statuses['no_show']);
+        $this->assertEquals(\craft\enums\Color::Red, $statuses['no_show']['color']);
     }
 
     public function testMarkAsNoShowMethodExists(): void

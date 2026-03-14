@@ -23,26 +23,26 @@ ddev launch access
 
 ### 1.1 Status Visibility in CP
 
-- [ ] Navigate to **Booked → Bookings**
-- [ ] Verify the left sidebar shows: All, Confirmed, Pending, Cancelled, **No Show**
-- [ ] Click "No Show" — should show empty list initially
+- [X] Navigate to **Booked → Bookings**
+- [X] Verify the left sidebar shows: All, Confirmed, Pending, Cancelled, **No Show**
+- [X] Click "No Show" — should show empty list initially
 
 ### 1.2 Mark as No-Show (Element Action)
 
-- [ ] Create or find a **confirmed** booking (past date preferred)
-- [ ] In the bookings index, select the checkbox next to the booking
-- [ ] Click the gear icon (bulk actions) — verify **"Mark as No Show"** appears
-- [ ] Click it — confirm the dialog
-- [ ] Verify the booking now shows with **red** "No Show" status badge
-- [ ] Verify it appears in the "No Show" sidebar source
-- [ ] Verify the time slot is still **blocked** (not freed for new bookings)
+- [x] Create or find a **confirmed** booking (past date preferred)
+- [x] In the bookings index, select the checkbox next to the booking
+- [x] Click the gear icon (bulk actions) — verify **"Mark as No Show"** appears
+- [X] Click it — confirm the dialog
+- [X] Verify the booking now shows with **red** "No Show" status badge
+- [X] Verify it appears in the "No Show" sidebar source
+- [X] Verify the time slot is still **blocked** (not freed for new bookings)
 
 ### 1.3 Mark as No-Show — Edge Cases
 
-- [ ] Select a **cancelled** booking → Mark as No Show should skip it (no change)
-- [ ] Select a booking that's **already no-show** → should skip it
-- [ ] Select multiple bookings (mix of confirmed + cancelled) → only confirmed ones change
-- [ ] Verify the success message shows correct count
+- [X] Select a **cancelled** booking → Mark as No Show should skip it (no change)
+- [X] Select a booking that's **already no-show** → should skip it
+- [X] Select multiple bookings (mix of confirmed + cancelled) → only confirmed ones change
+- [X] Verify the success message shows correct count
 
 ### 1.4 Console Command — Auto-Mark No-Shows
 

@@ -36,7 +36,8 @@
                             {{ r.getStartTime() }}
                         </td>
                         <td>
-                            <span class="status {{ r.getStatus() }}"></span>
+                            {% set _wColors = {confirmed: 'green', pending: 'orange', cancelled: '', no_show: 'red'} %}
+                            <span class="status {{ _wColors[r.getStatus()] ?? '' }}"></span>
                             {{ r.getStatusLabel() }}
                         </td>
                     </tr>

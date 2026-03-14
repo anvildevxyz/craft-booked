@@ -2,7 +2,6 @@
 
 namespace anvildev\booked\elements\actions;
 
-use anvildev\booked\records\ReservationRecord;
 use Craft;
 use craft\base\ElementAction;
 use craft\elements\db\ElementQueryInterface;
@@ -23,17 +22,12 @@ class MarkAsNoShow extends ElementAction
     {
         $count = 0;
         foreach ($query->all() as $reservation) {
-            if ($reservation->status === ReservationRecord::STATUS_CANCELLED
-                || $reservation->status === ReservationRecord::STATUS_NO_SHOW) {
-                continue;
-            }
-            $reservation->status = ReservationRecord::STATUS_NO_SHOW;
-            if (Craft::$app->elements->saveElement($reservation)) {
+            if ($reservation->markAsNoShow()) {
                 $count++;
             }
         }
 
         $this->setMessage(Craft::t('booked', 'action.markedAsNoShow', ['count' => $count]));
-        return true;
+        return $count > 0;
     }
 }
