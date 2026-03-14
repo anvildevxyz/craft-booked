@@ -191,10 +191,17 @@ class BookingsController extends Controller
             }
         }
 
+        $canEditSessionNotes = $user->admin;
+        if (!$canEditSessionNotes && $reservation->employeeId) {
+            $employees = Booked::getInstance()->getPermission()->getEmployeesForCurrentUser();
+            $canEditSessionNotes = collect($employees)->contains('id', $reservation->employeeId);
+        }
+
         return $this->renderTemplate('booked/bookings/edit', array_merge(
             [
                 'reservation' => $reservation,
                 'canManage' => $canManage,
+                'canEditSessionNotes' => $canEditSessionNotes,
                 'emailEnabled' => true,
                 'smsEnabled' => $settings->isSmsConfigured() && ($settings->smsConfirmationEnabled ?? false),
                 'currency' => Booked::getInstance()->reports->getCurrency(),
@@ -295,6 +302,18 @@ class BookingsController extends Controller
         $reservation->status = $submittedStatus;
         $reservation->notes = ($notes = $request->getBodyParam('notes')) ? substr(strip_tags(trim($notes)), 0, 5000) : null;
         $reservation->quantity = (int)($request->getBodyParam('quantity') ?? 1);
+
+        // Session notes — only allow setting if user is admin or assigned employee
+        $user = Craft::$app->getUser()->getIdentity();
+        $canEditSessionNotes = $user->admin;
+        if (!$canEditSessionNotes && $reservation->employeeId) {
+            $employees = Booked::getInstance()->getPermission()->getEmployeesForCurrentUser();
+            $canEditSessionNotes = collect($employees)->contains('id', $reservation->employeeId);
+        }
+        if ($canEditSessionNotes) {
+            $sessionNotes = $request->getBodyParam('sessionNotes');
+            $reservation->sessionNotes = $sessionNotes ? substr(strip_tags(trim($sessionNotes)), 0, 10000) : null;
+        }
 
         $reservation->serviceId = ($v = $request->getBodyParam('serviceId')) ? (int)$v : null;
         $reservation->employeeId = ($v = $request->getBodyParam('employeeId')) ? (int)$v : null;
