@@ -1814,4 +1814,10 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Session Notes
+    'sessionNotes.heading' => 'Note della sessione',
+    'sessionNotes.label' => 'Note della sessione',
+    'sessionNotes.description' => 'Note post-appuntamento visibili solo al membro del personale assegnato e agli amministratori.',
+    'sessionNotes.instructions' => 'Aggiungi note su questo appuntamento (visibili solo al personale assegnato e agli amministratori).',
 ];

@@ -1814,4 +1814,10 @@ return [
     '960 min' => '960分',
     '1080 min' => '1080分',
     '1200 min' => '1200分',
+
+    // Session Notes
+    'sessionNotes.heading' => 'セッションノート',
+    'sessionNotes.label' => 'セッションノート',
+    'sessionNotes.description' => '予約後のメモ。担当スタッフと管理者のみが閲覧できます。',
+    'sessionNotes.instructions' => 'この予約に関するメモを追加してください（担当スタッフと管理者のみ閲覧可能）。',
 ];

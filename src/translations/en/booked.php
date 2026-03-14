@@ -1815,4 +1815,10 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Session Notes
+    'sessionNotes.heading' => 'Session Notes',
+    'sessionNotes.label' => 'Session Notes',
+    'sessionNotes.description' => 'Post-appointment notes visible only to the assigned staff member and administrators.',
+    'sessionNotes.instructions' => 'Add notes about this appointment (only visible to assigned staff and admins).',
 ];
