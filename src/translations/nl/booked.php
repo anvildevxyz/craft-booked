@@ -146,10 +146,16 @@ return [
     'status.confirmed' => 'Bevestigd',
     'status.pending' => 'In afwachting',
     'status.cancelled' => 'Geannuleerd',
+    'status.noShow' => 'No Show',
     'status.completed' => 'Afgerond',
     'status.notified' => 'Genotificeerd',
     'status.converted' => 'Omgezet',
     'status.expired' => 'Verlopen',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => 'Boeking',
