@@ -25,6 +25,7 @@ use craft\elements\User;
  * @property string $endTime
  * @property string|null $status
  * @property string|null $notes
+ * @property string|null $sessionNotes
  * @property int $quantity
  * @property string $confirmationToken
  * @property string|null $virtualMeetingUrl
@@ -63,6 +64,7 @@ interface ReservationInterface
     public function getEndTime(): string;
     public function getStatus(): ?string;
     public function getNotes(): ?string;
+    public function getSessionNotes(): ?string;
     public function getQuantity(): int;
     public function getConfirmationToken(): string;
     public function getVirtualMeetingUrl(): ?string;

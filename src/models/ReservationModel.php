@@ -37,6 +37,7 @@ class ReservationModel extends Model implements ReservationInterface
     public string $endTime = '';
     public string $status = ReservationRecord::STATUS_CONFIRMED;
     public ?string $notes = null;
+    public ?string $sessionNotes = null;
     public ?string $virtualMeetingUrl = null;
     public ?string $virtualMeetingProvider = null;
     public ?string $virtualMeetingId = null;
@@ -141,6 +142,10 @@ class ReservationModel extends Model implements ReservationInterface
     public function getNotes(): ?string
     {
         return $this->notes;
+    }
+    public function getSessionNotes(): ?string
+    {
+        return $this->sessionNotes;
     }
     public function getQuantity(): int
     {
@@ -456,6 +461,7 @@ class ReservationModel extends Model implements ReservationInterface
         $record->endTime = $this->endTime;
         $record->status = $this->status;
         $record->notes = $this->notes;
+        $record->sessionNotes = $this->sessionNotes;
         $record->virtualMeetingUrl = $this->virtualMeetingUrl;
         $record->virtualMeetingProvider = $this->virtualMeetingProvider;
         $record->virtualMeetingId = $this->virtualMeetingId;
@@ -515,7 +521,7 @@ class ReservationModel extends Model implements ReservationInterface
                 ReservationRecord::STATUS_CONFIRMED,
                 ReservationRecord::STATUS_CANCELLED,
             ]],
-            [['notes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId'], 'string'],
+            [['notes', 'sessionNotes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId'], 'string'],
             [['notificationSent', 'emailReminder24hSent', 'emailReminder1hSent', 'smsReminder24hSent', 'smsConfirmationSent', 'smsCancellationSent'], 'boolean'],
             [['smsDeliveryStatus'], 'string', 'max' => 20],
             [['confirmationToken'], 'string', 'max' => 64],
@@ -540,6 +546,7 @@ class ReservationModel extends Model implements ReservationInterface
         $model->endTime = $record->endTime;
         $model->status = $record->status;
         $model->notes = $record->notes;
+        $model->sessionNotes = $record->sessionNotes ?? null;
         $model->virtualMeetingUrl = $record->virtualMeetingUrl;
         $model->virtualMeetingProvider = $record->virtualMeetingProvider;
         $model->virtualMeetingId = $record->virtualMeetingId;
