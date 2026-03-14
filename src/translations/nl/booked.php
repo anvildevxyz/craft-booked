@@ -1825,4 +1825,7 @@ return [
     'widget.lookahead1' => 'Vandaag',
     'widget.lookahead3' => 'Volgende 3 dagen',
     'widget.lookahead7' => 'Volgende 7 dagen',
+    // Export
+    'export.employeeSchedules' => 'Medewerker Roosters CSV',
+    'export.serviceCatalog' => 'Dienstencatalogus CSV',
 ];

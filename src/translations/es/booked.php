@@ -1825,4 +1825,7 @@ return [
     'widget.lookahead1' => 'Hoy',
     'widget.lookahead3' => 'Próximos 3 días',
     'widget.lookahead7' => 'Próximos 7 días',
+    // Export
+    'export.employeeSchedules' => 'Horarios de Empleados CSV',
+    'export.serviceCatalog' => 'Catálogo de Servicios CSV',
 ];

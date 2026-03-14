@@ -63,6 +63,13 @@ class Employee extends Element
         return [SetStatus::class, Delete::class];
     }
 
+    protected static function defineExporters(string $source): array
+    {
+        $exporters = parent::defineExporters($source);
+        $exporters[] = exporters\EmployeeScheduleCsvExporter::class;
+        return $exporters;
+    }
+
     protected static function defineSources(string $context): array
     {
         return [['key' => '*', 'label' => Craft::t('booked', 'element.allEmployees'), 'defaultSort' => ['title', 'asc']]];

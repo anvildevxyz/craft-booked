@@ -1825,4 +1825,7 @@ return [
     'widget.lookahead1' => '本日',
     'widget.lookahead3' => '次の3日間',
     'widget.lookahead7' => '次の7日間',
+    // Export
+    'export.employeeSchedules' => '従業員スケジュール CSV',
+    'export.serviceCatalog' => 'サービスカタログ CSV',
 ];

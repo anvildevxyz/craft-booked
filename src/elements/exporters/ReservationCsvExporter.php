@@ -24,19 +24,32 @@ class ReservationCsvExporter extends ElementExporter
     {
         $handle = fopen('php://temp', 'r+');
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, ['ID', 'Name', 'Email', 'Phone', 'Date', 'Start Time', 'End Time', 'Status', 'Notes', 'Created']);
+        fputcsv($handle, [
+            'ID', 'Name', 'Email', 'Phone',
+            'Service', 'Employee', 'Location',
+            'Date', 'Start Time', 'End Time', 'Duration (min)',
+            'Status', 'Quantity', 'Price',
+            'Notes', 'Created',
+        ]);
 
-        foreach (Db::each($query) as $r) {
+        /** @var \anvildev\booked\elements\db\ReservationQuery $query */
+        foreach (Db::each($query->withRelations()) as $r) {
             /** @var \anvildev\booked\elements\Reservation $r */
             fputcsv($handle, [
                 (string) $r->id,
                 CsvHelper::sanitizeValue($r->userName ?? ''),
                 CsvHelper::sanitizeValue($r->userEmail ?? ''),
                 CsvHelper::sanitizeValue($r->userPhone ?? ''),
+                CsvHelper::sanitizeValue($r->getService()?->title ?? ''),
+                CsvHelper::sanitizeValue($r->getEmployee()?->title ?? ''),
+                CsvHelper::sanitizeValue($r->getLocation()?->title ?? ''),
                 (string) ($r->bookingDate ?? ''),
                 (string) ($r->startTime ?? ''),
                 (string) ($r->endTime ?? ''),
+                (string) $r->getDurationMinutes(),
                 (string) $r->getStatusLabel(),
+                (string) $r->quantity,
+                number_format($r->totalPrice, 2, '.', ''),
                 CsvHelper::sanitizeValue($r->notes ?? ''),
                 $r->dateCreated ? $r->dateCreated->format('Y-m-d H:i:s') : '',
             ]);
