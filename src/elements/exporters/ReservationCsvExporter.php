@@ -32,7 +32,7 @@ class ReservationCsvExporter extends ElementExporter
             'Notes', 'Created',
         ]);
 
-        /** @var \anvildev\booked\elements\db\ReservationQuery $query */
+        assert($query instanceof \anvildev\booked\elements\db\ReservationQuery);
         foreach (Db::each($query->withRelations()) as $r) {
             /** @var \anvildev\booked\elements\Reservation $r */
             fputcsv($handle, [

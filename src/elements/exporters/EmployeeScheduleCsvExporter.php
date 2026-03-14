@@ -51,8 +51,8 @@ class EmployeeScheduleCsvExporter extends ElementExporter
             foreach (self::DAYS as $day) {
                 $daySchedule = $hours[$day] ?? null;
                 if ($daySchedule && ($daySchedule['enabled'] ?? false)) {
-                    $start = $daySchedule['start'] ?? '';
-                    $end = $daySchedule['end'] ?? '';
+                    $start = (string) ($daySchedule['start'] ?? '');
+                    $end = (string) ($daySchedule['end'] ?? '');
                     $row[] = "{$start} - {$end}";
                     $totalMinutes += $this->calculateMinutes($start, $end);
                 } else {
