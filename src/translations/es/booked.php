@@ -146,10 +146,16 @@ return [
     'status.confirmed' => 'Confirmado',
     'status.pending' => 'Pendiente',
     'status.cancelled' => 'Cancelado',
+    'status.noShow' => 'No Show',
     'status.completed' => 'Completado',
     'status.notified' => 'Notificado',
     'status.converted' => 'Convertido',
     'status.expired' => 'Expirado',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => 'Reserva',

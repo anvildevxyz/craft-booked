@@ -153,7 +153,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
     protected function statusCondition(string $status): mixed
     {
         return match ($status) {
-            'confirmed', 'pending', 'cancelled' => ['booked_reservations.status' => $status],
+            'confirmed', 'pending', 'cancelled', 'no_show' => ['booked_reservations.status' => $status],
             default => parent::statusCondition($status),
         };
     }

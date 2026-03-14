@@ -259,7 +259,7 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     }
     public static function statuses(): array
     {
-        return ['confirmed' => 'green', 'pending' => 'orange', 'cancelled' => null];
+        return ['confirmed' => 'green', 'pending' => 'orange', 'cancelled' => null, 'no_show' => 'red'];
     }
 
     public static function eagerLoadingMap(array $sourceElements, string $handle): array|null|false
@@ -331,7 +331,10 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
 
     protected static function defineActions(?string $source = null): array
     {
-        return [Delete::class];
+        return [
+            actions\MarkAsNoShow::class,
+            Delete::class,
+        ];
     }
 
     protected static function defineExporters(string $source): array
@@ -373,6 +376,13 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
                 'key' => 'cancelled',
                 'label' => Craft::t('booked', 'status.cancelled'),
                 'criteria' => ['reservationStatus' => ReservationRecord::STATUS_CANCELLED],
+                'defaultSort' => ['bookingDate', 'desc'],
+                'type' => 'native',
+            ],
+            [
+                'key' => 'no_show',
+                'label' => Craft::t('booked', 'status.noShow'),
+                'criteria' => ['reservationStatus' => ReservationRecord::STATUS_NO_SHOW],
                 'defaultSort' => ['bookingDate', 'desc'],
                 'type' => 'native',
             ],
@@ -467,6 +477,7 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
                 ReservationRecord::STATUS_PENDING,
                 ReservationRecord::STATUS_CONFIRMED,
                 ReservationRecord::STATUS_CANCELLED,
+                ReservationRecord::STATUS_NO_SHOW,
             ]],
             [['notes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId'], 'string'],
             [['notificationSent', 'emailReminder24hSent', 'emailReminder1hSent', 'smsReminder24hSent', 'smsConfirmationSent', 'smsCancellationSent'], 'boolean'],
@@ -770,8 +781,18 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
         return Craft::$app->elements->saveElement($this);
     }
 
+    public function markAsNoShow(): bool
+    {
+        if ($this->status === ReservationRecord::STATUS_CANCELLED) {
+            return false;
+        }
+        if ($this->status === ReservationRecord::STATUS_NO_SHOW) {
+            return false;
+        }
 
-
+        $this->status = ReservationRecord::STATUS_NO_SHOW;
+        return Craft::$app->elements->saveElement($this);
+    }
 
     public function getDurationMinutes(): int
     {

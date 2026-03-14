@@ -146,10 +146,16 @@ return [
     'status.confirmed' => 'Bestätigt',
     'status.pending' => 'Ausstehend',
     'status.cancelled' => 'Storniert',
+    'status.noShow' => 'No Show',
     'status.completed' => 'Abgeschlossen',
     'status.notified' => 'Benachrichtigt',
     'status.converted' => 'Konvertiert',
     'status.expired' => 'Abgelaufen',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => 'Buchung',

@@ -146,10 +146,16 @@ return [
     'status.confirmed' => '確定',
     'status.pending' => '保留中',
     'status.cancelled' => 'キャンセル済み',
+    'status.noShow' => 'No Show',
     'status.completed' => '完了',
     'status.notified' => '通知済み',
     'status.converted' => '変換済み',
     'status.expired' => '期限切れ',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => '予約',
