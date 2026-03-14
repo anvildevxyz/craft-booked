@@ -1814,4 +1814,15 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Dashboard Widget
+    'widget.todaysBookings' => 'Reservas de hoy',
+    'widget.today' => 'Hoy',
+    'widget.nextDays' => 'Próximos {days} días',
+    'widget.total' => 'Total',
+    'widget.noBookings' => 'No hay reservas próximas',
+    'widget.lookahead' => 'Anticipación',
+    'widget.lookahead1' => 'Hoy',
+    'widget.lookahead3' => 'Próximos 3 días',
+    'widget.lookahead7' => 'Próximos 7 días',
 ];

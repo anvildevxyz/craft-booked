@@ -1814,4 +1814,15 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Dashboard Widget
+    'widget.todaysBookings' => 'Boekingen van vandaag',
+    'widget.today' => 'Vandaag',
+    'widget.nextDays' => 'Volgende {days} dagen',
+    'widget.total' => 'Totaal',
+    'widget.noBookings' => 'Geen aankomende boekingen',
+    'widget.lookahead' => 'Vooruitblik',
+    'widget.lookahead1' => 'Vandaag',
+    'widget.lookahead3' => 'Volgende 3 dagen',
+    'widget.lookahead7' => 'Volgende 7 dagen',
 ];
