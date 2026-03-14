@@ -1,0 +1,13 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.selectField({
+    label: 'widget.lookahead'|t('booked'),
+    id: 'lookaheadDays',
+    name: 'lookaheadDays',
+    value: widget.lookaheadDays,
+    options: [
+        { label: 'widget.lookahead1'|t('booked'), value: 1 },
+        { label: 'widget.lookahead3'|t('booked'), value: 3 },
+        { label: 'widget.lookahead7'|t('booked'), value: 7 },
+    ],
+}) }}

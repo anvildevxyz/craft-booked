@@ -1815,4 +1815,15 @@ return [
     '960 min' => '960 min',
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
+
+    // Dashboard Widget
+    'widget.todaysBookings' => "Today's Bookings",
+    'widget.today' => 'Today',
+    'widget.nextDays' => 'Next {days} Days',
+    'widget.total' => 'Total',
+    'widget.noBookings' => 'No upcoming bookings',
+    'widget.lookahead' => 'Lookahead',
+    'widget.lookahead1' => 'Today',
+    'widget.lookahead3' => 'Next 3 Days',
+    'widget.lookahead7' => 'Next 7 Days',
 ];

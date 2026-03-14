@@ -132,6 +132,7 @@ class Booked extends Plugin
         $this->registerTemplateVariable();
         $this->registerGraphQl();
         $this->registerFieldTypes();
+        $this->registerWidgetTypes();
     }
 
     public static function displayName(): string
@@ -487,6 +488,17 @@ class Booked extends Plugin
             function(\craft\events\RegisterComponentTypesEvent $event) {
                 $event->types[] = \anvildev\booked\fields\BookedServices::class;
                 $event->types[] = \anvildev\booked\fields\BookedEventDates::class;
+            }
+        );
+    }
+
+    private function registerWidgetTypes(): void
+    {
+        Event::on(
+            \craft\services\Dashboard::class,
+            \craft\services\Dashboard::EVENT_REGISTER_WIDGET_TYPES,
+            function(\craft\events\RegisterComponentTypesEvent $event) {
+                $event->types[] = \anvildev\booked\widgets\BookedWidget::class;
             }
         );
     }

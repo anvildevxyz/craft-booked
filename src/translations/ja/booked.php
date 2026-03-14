@@ -1814,4 +1814,15 @@ return [
     '960 min' => '960分',
     '1080 min' => '1080分',
     '1200 min' => '1200分',
+
+    // Dashboard Widget
+    'widget.todaysBookings' => '本日の予約',
+    'widget.today' => '本日',
+    'widget.nextDays' => '次の{days}日間',
+    'widget.total' => '合計',
+    'widget.noBookings' => '予定されている予約はありません',
+    'widget.lookahead' => '先読み',
+    'widget.lookahead1' => '本日',
+    'widget.lookahead3' => '次の3日間',
+    'widget.lookahead7' => '次の7日間',
 ];
