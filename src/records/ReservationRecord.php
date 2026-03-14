@@ -17,6 +17,7 @@ use craft\db\ActiveRecord;
  * @property string $endTime
  * @property string $status
  * @property string|null $notes
+ * @property string|null $sessionNotes
  * @property bool $notificationSent
  * @property string $confirmationToken
  * @property int|null $employeeId
@@ -63,7 +64,7 @@ class ReservationRecord extends ActiveRecord
             [['bookingDate'], 'date', 'format' => 'php:Y-m-d'],
             [['startTime', 'endTime'], 'match', 'pattern' => '/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
             [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_CANCELLED]],
-            [['notes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId', 'googleEventId', 'outlookEventId'], 'string'],
+            [['notes', 'sessionNotes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId', 'googleEventId', 'outlookEventId'], 'string'],
             [['notificationSent', 'emailReminder24hSent', 'emailReminder1hSent', 'smsReminder24hSent', 'smsConfirmationSent', 'smsCancellationSent'], 'boolean'],
             [['smsDeliveryStatus'], 'string', 'max' => 20],
             [['confirmationToken'], 'string', 'max' => 64],
