@@ -173,7 +173,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
         $this->query->addSelect([
             "$t.userName", "$t.userEmail", "$t.userPhone", "$t.userId",
             "$t.userTimezone", "$t.bookingDate", "$t.startTime", "$t.endTime",
-            "$t.status", "$t.notes", "$t.notificationSent", "$t.confirmationToken",
+            "$t.status", "$t.notes", "$t.sessionNotes", "$t.notificationSent", "$t.confirmationToken",
             "$t.employeeId", "$t.locationId", "$t.serviceId", "$t.quantity",
             "$t.virtualMeetingUrl", "$t.virtualMeetingProvider", "$t.virtualMeetingId",
             "$t.googleEventId", "$t.outlookEventId",
