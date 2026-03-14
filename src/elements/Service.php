@@ -125,6 +125,13 @@ class Service extends Element
         return [SetStatus::class, Delete::class];
     }
 
+    protected static function defineExporters(string $source): array
+    {
+        $exporters = parent::defineExporters($source);
+        $exporters[] = exporters\ServiceCatalogCsvExporter::class;
+        return $exporters;
+    }
+
     protected function decodeAvailabilitySchedule(): void
     {
         if (is_string($this->availabilitySchedule) && $this->availabilitySchedule !== '') {
