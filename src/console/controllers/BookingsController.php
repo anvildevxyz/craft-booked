@@ -18,6 +18,8 @@ class BookingsController extends Controller
     public string $format = 'csv';
     public ?string $from = null;
     public ?string $to = null;
+    public int $gracePeriod = 30;
+    public bool $dryRun = false;
 
     public function options($actionID): array
     {
@@ -25,6 +27,7 @@ class BookingsController extends Controller
             'list' => [...parent::options($actionID), 'date', 'status', 'limit'],
             'cancel' => [...parent::options($actionID), 'reason'],
             'export' => [...parent::options($actionID), 'format', 'from', 'to', 'status'],
+            'mark-no-shows' => [...parent::options($actionID), 'gracePeriod', 'dryRun'],
             default => parent::options($actionID),
         };
     }
@@ -381,6 +384,61 @@ class BookingsController extends Controller
         }
 
         $this->stderr("Exported " . count($rows) . " booking(s) as {$this->format}\n", Console::FG_GREEN);
+        return ExitCode::OK;
+    }
+
+    /**
+     * Auto-mark confirmed bookings as no-show when their appointment end time
+     * plus a grace period has passed without being checked in.
+     *
+     * Usage: php craft booked/bookings/mark-no-shows --grace-period=30 --dry-run
+     */
+    public function actionMarkNoShows(): int
+    {
+        $this->stdout("\nNo-Show Auto-Detection\n", Console::BOLD);
+        $this->stdout("═══════════════════════════════════\n\n");
+        $this->stdout("Grace period: {$this->gracePeriod} minutes\n");
+
+        $cutoff = new \DateTime();
+        $cutoff->modify("-{$this->gracePeriod} minutes");
+
+        // Broad date filter — precise end-time comparison happens in the loop below.
+        // ReservationFactory::find() already sets siteId('*'), no need to repeat.
+        $reservations = ReservationFactory::find()
+            ->reservationStatus(ReservationRecord::STATUS_CONFIRMED)
+            ->bookingDate(['<=', $cutoff->format('Y-m-d')])
+            ->all();
+
+        $marked = 0;
+        $skipped = 0;
+
+        foreach ($reservations as $reservation) {
+            // Build full end datetime to compare against cutoff
+            $endDateTime = \DateTime::createFromFormat(
+                'Y-m-d H:i',
+                $reservation->getBookingDate() . ' ' . $reservation->getEndTime()
+            );
+
+            if (!$endDateTime || $endDateTime > $cutoff) {
+                $skipped++;
+                continue;
+            }
+
+            if ($this->dryRun) {
+                $this->stdout("  [DRY RUN] Would mark #{$reservation->getId()} ({$reservation->getUserName()}) as no-show\n");
+                $marked++;
+                continue;
+            }
+
+            if ($reservation->markAsNoShow()) {
+                $this->stdout("  Marked #{$reservation->getId()} ({$reservation->getUserName()}) as no-show\n", Console::FG_GREEN);
+                $marked++;
+            } else {
+                $this->stderr("  Failed to mark #{$reservation->getId()}\n", Console::FG_RED);
+            }
+        }
+
+        $this->stdout("\n{$marked} booking(s) marked as no-show, {$skipped} skipped.\n\n");
         return ExitCode::OK;
     }
 
