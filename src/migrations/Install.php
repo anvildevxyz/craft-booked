@@ -318,6 +318,7 @@ class Install extends Migration
                 'siteId' => $this->integer()->null(),
                 'quantity' => $this->integer()->notNull()->defaultValue(1),
                 'notes' => $this->text(),
+                'sessionNotes' => $this->text(),
                 'virtualMeetingUrl' => $this->string()->null(),
                 'virtualMeetingProvider' => $this->string(50)->null(),
                 'virtualMeetingId' => $this->string()->null(),

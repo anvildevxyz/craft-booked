@@ -209,6 +209,22 @@
             instructions: 'form.notesInstructions'|t('booked')
         }) }}
 
+        {# Session Notes — only visible to admins and assigned employee #}
+        {% if canEditSessionNotes is defined and canEditSessionNotes %}
+            <hr>
+            <h2>{{ 'sessionNotes.heading'|t('booked') }}</h2>
+            <p class="light">{{ 'sessionNotes.description'|t('booked') }}</p>
+
+            {{ forms.textareaField({
+                label: 'sessionNotes.label'|t('booked'),
+                id: 'sessionNotes',
+                name: 'sessionNotes',
+                value: reservation.sessionNotes ?? '',
+                rows: 6,
+                instructions: 'sessionNotes.instructions'|t('booked'),
+            }) }}
+        {% endif %}
+
         {% if reservation is instance of('craft\\base\\Element') %}
             {% set fieldLayout = reservation.getFieldLayout() %}
             {% if fieldLayout and fieldLayout.getTabs()|length %}

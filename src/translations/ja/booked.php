@@ -1834,4 +1834,9 @@ return [
     // Export
     'export.employeeSchedules' => '従業員スケジュール CSV',
     'export.serviceCatalog' => 'サービスカタログ CSV',
+    // Session Notes
+    'sessionNotes.heading' => 'セッションノート',
+    'sessionNotes.label' => 'セッションノート',
+    'sessionNotes.description' => '予約後のメモ。担当スタッフと管理者のみが閲覧できます。',
+    'sessionNotes.instructions' => 'この予約に関するメモを追加してください（担当スタッフと管理者のみ閲覧可能）。',
 ];

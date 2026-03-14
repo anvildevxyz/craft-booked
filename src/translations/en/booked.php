@@ -1835,4 +1835,9 @@ return [
     // Export
     'export.employeeSchedules' => 'Employee Schedules CSV',
     'export.serviceCatalog' => 'Service Catalog CSV',
+    // Session Notes
+    'sessionNotes.heading' => 'Session Notes',
+    'sessionNotes.label' => 'Session Notes',
+    'sessionNotes.description' => 'Post-appointment notes visible only to the assigned staff member and administrators.',
+    'sessionNotes.instructions' => 'Add notes about this appointment (only visible to assigned staff and admins).',
 ];

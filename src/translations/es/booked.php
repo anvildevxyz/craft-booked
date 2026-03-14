@@ -1834,4 +1834,9 @@ return [
     // Export
     'export.employeeSchedules' => 'Horarios de Empleados CSV',
     'export.serviceCatalog' => 'Catálogo de Servicios CSV',
+    // Session Notes
+    'sessionNotes.heading' => 'Notas de sesión',
+    'sessionNotes.label' => 'Notas de sesión',
+    'sessionNotes.description' => 'Notas posteriores a la cita visibles solo para el empleado asignado y los administradores.',
+    'sessionNotes.instructions' => 'Agregar notas sobre esta cita (solo visibles para el personal asignado y administradores).',
 ];

@@ -1834,4 +1834,9 @@ return [
     // Export
     'export.employeeSchedules' => 'Medewerker Roosters CSV',
     'export.serviceCatalog' => 'Dienstencatalogus CSV',
+    // Session Notes
+    'sessionNotes.heading' => 'Sessienotities',
+    'sessionNotes.label' => 'Sessienotities',
+    'sessionNotes.description' => 'Notities na de afspraak, alleen zichtbaar voor de toegewezen medewerker en beheerders.',
+    'sessionNotes.instructions' => 'Voeg notities toe over deze afspraak (alleen zichtbaar voor toegewezen medewerkers en beheerders).',
 ];

@@ -1835,4 +1835,9 @@ return [
     // Export
     'export.employeeSchedules' => 'Mitarbeiter-Dienstpläne CSV',
     'export.serviceCatalog' => 'Servicekatalog CSV',
+    // Session Notes
+    'sessionNotes.heading' => 'Sitzungsnotizen',
+    'sessionNotes.label' => 'Sitzungsnotizen',
+    'sessionNotes.description' => 'Nachtermin-Notizen, die nur dem zugewiesenen Mitarbeiter und Administratoren sichtbar sind.',
+    'sessionNotes.instructions' => 'Notizen zu diesem Termin hinzufügen (nur für zugewiesene Mitarbeiter und Administratoren sichtbar).',
 ];

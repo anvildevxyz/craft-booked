@@ -63,4 +63,17 @@ class ReservationRecordTest extends TestCase
         $this->assertArrayHasKey('no_show', $statuses);
     }
 
+    // =========================================================================
+    // sessionNotes property
+    // =========================================================================
+
+    public function testSessionNotesPropertyExists(): void
+    {
+        $record = $this->makeRecord(['sessionNotes' => 'Patient reported improvement']);
+        $ref = new \ReflectionProperty(\yii\db\BaseActiveRecord::class, '_attributes');
+        $ref->setAccessible(true);
+        $attrs = $ref->getValue($record);
+        $this->assertEquals('Patient reported improvement', $attrs['sessionNotes']);
+    }
+
 }
