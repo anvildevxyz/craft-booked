@@ -91,7 +91,7 @@ class BookingsController extends Controller
             }
 
             // Check status validity
-            $validStatuses = [ReservationRecord::STATUS_PENDING, ReservationRecord::STATUS_CONFIRMED, ReservationRecord::STATUS_CANCELLED];
+            $validStatuses = [ReservationRecord::STATUS_PENDING, ReservationRecord::STATUS_CONFIRMED, ReservationRecord::STATUS_CANCELLED, ReservationRecord::STATUS_NO_SHOW];
             if (!in_array($reservation->getStatus(), $validStatuses, true)) {
                 $issues[] = ['error', "Invalid status: {$reservation->getStatus()}"];
             }
@@ -142,7 +142,7 @@ class BookingsController extends Controller
         }
 
         if ($this->status !== null) {
-            $validStatuses = [ReservationRecord::STATUS_PENDING, ReservationRecord::STATUS_CONFIRMED, ReservationRecord::STATUS_CANCELLED];
+            $validStatuses = [ReservationRecord::STATUS_PENDING, ReservationRecord::STATUS_CONFIRMED, ReservationRecord::STATUS_CANCELLED, ReservationRecord::STATUS_NO_SHOW];
             if (!in_array($this->status, $validStatuses, true)) {
                 $this->stderr("Invalid status '{$this->status}'. Valid: " . implode(', ', $validStatuses) . "\n", Console::FG_RED);
                 return ExitCode::USAGE;
@@ -192,6 +192,7 @@ class BookingsController extends Controller
             'confirmed' => Console::FG_GREEN,
             'cancelled' => Console::FG_RED,
             'pending' => Console::FG_YELLOW,
+            'no_show' => Console::FG_RED,
             default => Console::FG_GREY,
         };
 
@@ -448,6 +449,7 @@ class BookingsController extends Controller
             'confirmed' => ['●', Console::FG_GREEN],
             'cancelled' => ['○', Console::FG_RED],
             'pending' => ['◐', Console::FG_YELLOW],
+            'no_show' => ['✗', Console::FG_RED],
             default => ['?', Console::FG_GREY],
         };
 
