@@ -810,7 +810,7 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
 | `employeeId` | int | No | Employee ID |
 | `locationId` | int | No | Location ID |
 | `customerPhone` | string | No | Customer phone. Alias: `userPhone` |
-| `notes` | string | No | Booking notes. Alias: `customerNotes` |
+| `notes` | string | No | Customer-facing booking notes. Alias: `customerNotes` |
 | `quantity` | int | No | Number of slots (default: 1) |
 | `extras[extraId]` | int | No | Service extras with quantities |
 | `userTimezone` | string | No | IANA timezone (e.g. `America/New_York`). Falls back to Craft system timezone. Used for formatted date/time display. |
@@ -1127,6 +1127,17 @@ $reservation->userEmail = 'john@example.com';
 
 $success = Craft::$app->elements->saveElement($reservation);
 ```
+
+#### Notes vs Session Notes
+
+Reservations have two separate text fields for notes:
+
+| Field | Property | Purpose | Who can access |
+|-------|----------|---------|----------------|
+| **Notes** | `notes` | Customer-provided context set at booking time (e.g. "I have a dog allergy") | Everyone |
+| **Session Notes** | `sessionNotes` | Staff-written post-appointment notes (e.g. "Follow-up in 2 weeks") | Assigned employee + admins only |
+
+Session notes are access-controlled in the CP: only the employee assigned to the booking and administrators can view or edit them. They are excluded from CSV exports to preserve confidentiality.
 
 ### Service Element
 

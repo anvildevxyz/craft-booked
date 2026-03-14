@@ -194,7 +194,7 @@ class BookingsController extends Controller
         $canEditSessionNotes = $user->admin;
         if (!$canEditSessionNotes && $reservation->employeeId) {
             $employees = Booked::getInstance()->getPermission()->getEmployeesForCurrentUser();
-            $canEditSessionNotes = collect($employees)->contains('id', $reservation->employeeId);
+            $canEditSessionNotes = in_array($reservation->employeeId, array_column($employees, 'id'), true);
         }
 
         return $this->renderTemplate('booked/bookings/edit', array_merge(
@@ -308,7 +308,7 @@ class BookingsController extends Controller
         $canEditSessionNotes = $user->admin;
         if (!$canEditSessionNotes && $reservation->employeeId) {
             $employees = Booked::getInstance()->getPermission()->getEmployeesForCurrentUser();
-            $canEditSessionNotes = collect($employees)->contains('id', $reservation->employeeId);
+            $canEditSessionNotes = in_array($reservation->employeeId, array_column($employees, 'id'), true);
         }
         if ($canEditSessionNotes) {
             $sessionNotes = $request->getBodyParam('sessionNotes');

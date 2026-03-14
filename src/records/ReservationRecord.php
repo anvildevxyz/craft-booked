@@ -48,6 +48,7 @@ class ReservationRecord extends ActiveRecord
     public const STATUS_PENDING = 'pending';
     public const STATUS_CONFIRMED = 'confirmed';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_NO_SHOW = 'no_show';
 
     public static function tableName(): string
     {
@@ -63,7 +64,7 @@ class ReservationRecord extends ActiveRecord
             [['userTimezone'], 'string', 'max' => 50],
             [['bookingDate'], 'date', 'format' => 'php:Y-m-d'],
             [['startTime', 'endTime'], 'match', 'pattern' => '/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
-            [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_CANCELLED]],
+            [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_CANCELLED, self::STATUS_NO_SHOW]],
             [['notes', 'sessionNotes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId', 'googleEventId', 'outlookEventId'], 'string'],
             [['notificationSent', 'emailReminder24hSent', 'emailReminder1hSent', 'smsReminder24hSent', 'smsConfirmationSent', 'smsCancellationSent'], 'boolean'],
             [['smsDeliveryStatus'], 'string', 'max' => 20],
@@ -99,6 +100,7 @@ class ReservationRecord extends ActiveRecord
                 self::STATUS_PENDING => Craft::t('booked', 'status.pending'),
                 self::STATUS_CONFIRMED => Craft::t('booked', 'status.confirmed'),
                 self::STATUS_CANCELLED => Craft::t('booked', 'status.cancelled'),
+                self::STATUS_NO_SHOW => Craft::t('booked', 'status.noShow'),
             ];
         }
 
@@ -106,6 +108,7 @@ class ReservationRecord extends ActiveRecord
             self::STATUS_PENDING => 'Pending',
             self::STATUS_CONFIRMED => 'Confirmed',
             self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_NO_SHOW => 'No Show',
         ];
     }
 

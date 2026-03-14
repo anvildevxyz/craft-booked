@@ -22,3 +22,5 @@
 .env.local
 .env.*.local
 .phpstan/
+.claude/worktrees/
+coverage/

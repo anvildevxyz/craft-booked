@@ -98,6 +98,7 @@ interface ReservationInterface
     public function getExtras(): array;
 
     public function cancel(): bool;
+    public function markAsNoShow(): bool;
     public function canBeCancelled(): bool;
     public function getFormattedDateTime(): string;
     public function getDurationMinutes(): int;

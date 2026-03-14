@@ -146,10 +146,16 @@ return [
     'status.confirmed' => 'Confirmé',
     'status.pending' => 'En attente',
     'status.cancelled' => 'Annulé',
+    'status.noShow' => 'No Show',
     'status.completed' => 'Terminé',
     'status.notified' => 'Notifié',
     'status.converted' => 'Converti',
     'status.expired' => 'Expiré',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => 'Réservation',
@@ -1815,6 +1821,20 @@ return [
     '1080 min' => '1080 min',
     '1200 min' => '1200 min',
 
+    // Dashboard Widget
+    'widget.todaysBookings' => "Réservations d'aujourd'hui",
+    'widget.today' => "Aujourd'hui",
+    'widget.nextDays' => 'Prochains {days} jours',
+    'widget.total' => 'Total',
+    'widget.noBookings' => 'Aucune réservation à venir',
+    'widget.lookahead' => 'Anticipation',
+    'widget.lookahead1' => "Aujourd'hui",
+    'widget.lookahead3' => 'Prochains 3 jours',
+    'widget.lookahead7' => 'Prochains 7 jours',
+    // Export
+    'export.reservations' => 'Réservations CSV',
+    'export.employeeSchedules' => 'Plannings des Employés CSV',
+    'export.serviceCatalog' => 'Catalogue des Services CSV',
     // Session Notes
     'sessionNotes.heading' => 'Notes de session',
     'sessionNotes.label' => 'Notes de session',

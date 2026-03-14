@@ -146,10 +146,16 @@ return [
     'status.confirmed' => '確定',
     'status.pending' => '保留中',
     'status.cancelled' => 'キャンセル済み',
+    'status.noShow' => 'No Show',
     'status.completed' => '完了',
     'status.notified' => '通知済み',
     'status.converted' => '変換済み',
     'status.expired' => '期限切れ',
+
+    // No-show actions
+    'action.markAsNoShow' => 'Mark as No Show',
+    'action.markAsNoShowConfirm' => 'Are you sure you want to mark the selected bookings as no-show?',
+    'action.markedAsNoShow' => '{count} booking(s) marked as no-show.',
 
     // Element display names
     'element.booking' => '予約',
@@ -1815,6 +1821,20 @@ return [
     '1080 min' => '1080分',
     '1200 min' => '1200分',
 
+    // Dashboard Widget
+    'widget.todaysBookings' => '本日の予約',
+    'widget.today' => '本日',
+    'widget.nextDays' => '次の{days}日間',
+    'widget.total' => '合計',
+    'widget.noBookings' => '予定されている予約はありません',
+    'widget.lookahead' => '先読み',
+    'widget.lookahead1' => '本日',
+    'widget.lookahead3' => '次の3日間',
+    'widget.lookahead7' => '次の7日間',
+    // Export
+    'export.reservations' => '予約 CSV',
+    'export.employeeSchedules' => '従業員スケジュール CSV',
+    'export.serviceCatalog' => 'サービスカタログ CSV',
     // Session Notes
     'sessionNotes.heading' => 'セッションノート',
     'sessionNotes.label' => 'セッションノート',

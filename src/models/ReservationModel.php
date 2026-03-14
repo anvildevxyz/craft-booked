@@ -302,6 +302,18 @@ class ReservationModel extends Model implements ReservationInterface
         return $this->save(false);
     }
 
+    public function markAsNoShow(): bool
+    {
+        if ($this->status === ReservationRecord::STATUS_CANCELLED) {
+            return false;
+        }
+        if ($this->status === ReservationRecord::STATUS_NO_SHOW) {
+            return false;
+        }
+
+        $this->status = ReservationRecord::STATUS_NO_SHOW;
+        return $this->save(false);
+    }
 
     public function getDurationMinutes(): int
     {
@@ -520,6 +532,7 @@ class ReservationModel extends Model implements ReservationInterface
                 ReservationRecord::STATUS_PENDING,
                 ReservationRecord::STATUS_CONFIRMED,
                 ReservationRecord::STATUS_CANCELLED,
+                ReservationRecord::STATUS_NO_SHOW,
             ]],
             [['notes', 'sessionNotes', 'virtualMeetingUrl', 'virtualMeetingProvider', 'virtualMeetingId'], 'string'],
             [['notificationSent', 'emailReminder24hSent', 'emailReminder1hSent', 'smsReminder24hSent', 'smsConfirmationSent', 'smsCancellationSent'], 'boolean'],

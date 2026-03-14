@@ -44,17 +44,23 @@ class ReservationRecordTest extends TestCase
         $this->assertEquals('cancelled', ReservationRecord::STATUS_CANCELLED);
     }
 
+    public function testNoShowStatusConstant(): void
+    {
+        $this->assertEquals('no_show', ReservationRecord::STATUS_NO_SHOW);
+    }
+
     // =========================================================================
     // getStatuses()
     // =========================================================================
 
-    public function testGetStatusesReturnsAllThreeStatuses(): void
+    public function testGetStatusesReturnsAllFourStatuses(): void
     {
         $statuses = ReservationRecord::getStatuses();
-        $this->assertCount(3, $statuses);
+        $this->assertCount(4, $statuses);
         $this->assertArrayHasKey('pending', $statuses);
         $this->assertArrayHasKey('confirmed', $statuses);
         $this->assertArrayHasKey('cancelled', $statuses);
+        $this->assertArrayHasKey('no_show', $statuses);
     }
 
     // =========================================================================

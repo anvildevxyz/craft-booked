@@ -87,7 +87,7 @@ class ReservationInterface extends Element
                 'status' => [
                     'name' => 'status',
                     'type' => Type::string(),
-                    'description' => 'The reservation status (pending, confirmed, cancelled, completed).',
+                    'description' => 'The reservation status (pending, confirmed, cancelled, no_show).',
                 ],
                 'notes' => [
                     'name' => 'notes',
