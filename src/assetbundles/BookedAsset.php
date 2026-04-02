@@ -21,4 +21,38 @@ class BookedAsset extends AssetBundle
         $this->jsOptions['position'] = \craft\web\View::POS_HEAD;
         parent::init();
     }
+
+    public function registerAssetFiles($view): void
+    {
+        parent::registerAssetFiles($view);
+
+        // Register Alpine.js at POS_END so it loads after wizard components
+        // have registered their alpine:init listeners, and after DOM is ready
+        if (!self::isAlpineRegistered($view)) {
+            $am = $view->getAssetManager();
+            $baseUrl = $am->getPublishedUrl($this->sourcePath, true);
+            if ($baseUrl !== false) {
+                $view->registerJsFile(
+                    $baseUrl . '/js/vendor/alpine.min.js',
+                    ['position' => \craft\web\View::POS_END, 'defer' => true]
+                );
+            }
+        }
+    }
+
+    /**
+     * Check if Alpine.js is already registered to avoid double-loading.
+     */
+    private static function isAlpineRegistered(\craft\web\View $view): bool
+    {
+        foreach ($view->jsFiles as $position) {
+            foreach ($position as $html) {
+                if (str_contains($html, 'alpine')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }
