@@ -55,6 +55,10 @@ class BookingController extends Controller
         $form->userPhone = $request->getBodyParam('customerPhone') ?? $request->getBodyParam('userPhone');
         $form->userTimezone = $request->getBodyParam('userTimezone') ?: Craft::$app->getTimeZone();
         $form->bookingDate = $request->getBodyParam('date') ?? $request->getBodyParam('bookingDate');
+        $form->endDate = $request->getBodyParam('endDate');
+        if ($form->endDate && $form->bookingDate && $form->endDate < $form->bookingDate) {
+            $form->endDate = null;
+        }
         $form->startTime = $request->getBodyParam('time') ?? $request->getBodyParam('startTime');
         $form->endTime = $request->getBodyParam('endTime') ?? $request->getBodyParam('end_time');
         $form->notes = $request->getBodyParam('notes') ?? $request->getBodyParam('customerNotes');
@@ -101,7 +105,7 @@ class BookingController extends Controller
         $softLockToken = $request->getBodyParam('softLockToken');
 
         // Auto-calculate end time from service duration + extras duration
-        if (!$form->eventDateId && !$form->endTime && $form->startTime && $form->serviceId && $form->bookingDate) {
+        if (!$form->eventDateId && !$form->endTime && $form->startTime && $form->serviceId && $form->bookingDate && !$form->endDate) {
             $service = Service::findOne($form->serviceId);
             if ($service) {
                 try {

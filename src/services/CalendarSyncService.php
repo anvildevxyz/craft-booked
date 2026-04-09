@@ -266,9 +266,17 @@ TEXT;
             'description' => Craft::t('booked', 'calendar.customer', ['name' => Html::encode($reservation->userName)]) . "\n" .
                              Craft::t('booked', 'ics.email', ['email' => Html::encode($reservation->userEmail)]) . "\n" .
                              Craft::t('booked', 'ics.notes', ['notes' => Html::encode($reservation->notes ?? '-')]),
-            'start' => ['dateTime' => $reservation->bookingDate . 'T' . $reservation->startTime, 'timeZone' => $reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone()],
-            'end' => ['dateTime' => $reservation->bookingDate . 'T' . $reservation->endTime, 'timeZone' => $reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone()],
         ];
+
+        if ($reservation->isMultiDay() && $reservation->getEndDate()) {
+            $exclusiveEnd = (new \DateTime($reservation->getEndDate()))->modify('+1 day')->format('Y-m-d');
+            $eventData['start'] = ['date' => $reservation->bookingDate];
+            $eventData['end'] = ['date' => $exclusiveEnd];
+        } else {
+            $tz = $reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone();
+            $eventData['start'] = ['dateTime' => $reservation->bookingDate . 'T' . $reservation->startTime, 'timeZone' => $tz];
+            $eventData['end'] = ['dateTime' => $reservation->bookingDate . 'T' . $reservation->endTime, 'timeZone' => $tz];
+        }
 
         $isUpdate = !empty($reservation->googleEventId);
         $action = $isUpdate ? 'update' : 'create';
@@ -327,9 +335,19 @@ TEXT;
                              Craft::t('booked', 'ics.email', ['email' => \craft\helpers\Html::encode($reservation->userEmail)]) . '<br>' .
                              Craft::t('booked', 'ics.notes', ['notes' => \craft\helpers\Html::encode($reservation->notes ?? '-')]),
             ],
-            'start' => ['dateTime' => $reservation->bookingDate . 'T' . $reservation->startTime, 'timeZone' => DateHelper::toWindowsTimezone($reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone())],
-            'end' => ['dateTime' => $reservation->bookingDate . 'T' . $reservation->endTime, 'timeZone' => DateHelper::toWindowsTimezone($reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone())],
         ];
+
+        if ($reservation->isMultiDay() && $reservation->getEndDate()) {
+            $tz = DateHelper::toWindowsTimezone($reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone());
+            $eventData['isAllDay'] = true;
+            $eventData['start'] = ['dateTime' => $reservation->bookingDate . 'T00:00:00', 'timeZone' => $tz];
+            $endDatePlusOne = (new \DateTime($reservation->getEndDate()))->modify('+1 day')->format('Y-m-d');
+            $eventData['end'] = ['dateTime' => $endDatePlusOne . 'T00:00:00', 'timeZone' => $tz];
+        } else {
+            $tz = DateHelper::toWindowsTimezone($reservation->getLocation()?->timezone ?? Craft::$app->getTimeZone());
+            $eventData['start'] = ['dateTime' => $reservation->bookingDate . 'T' . $reservation->startTime, 'timeZone' => $tz];
+            $eventData['end'] = ['dateTime' => $reservation->bookingDate . 'T' . $reservation->endTime, 'timeZone' => $tz];
+        }
 
         $isUpdate = !empty($reservation->outlookEventId);
         $action = $isUpdate ? 'update' : 'create';

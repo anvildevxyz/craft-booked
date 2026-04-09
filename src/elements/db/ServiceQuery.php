@@ -14,6 +14,9 @@ class ServiceQuery extends ElementQuery
 {
     public ?int $duration = null;
     public ?float $price = null;
+    public ?string $durationType = null;
+    public ?int $minDays = null;
+    public ?int $maxDays = null;
     public ?bool $enabled = null;
     public bool $withTrashed = false;
     public array|int|null $locationId = null;
@@ -27,6 +30,12 @@ class ServiceQuery extends ElementQuery
     public function price(?float $value): static
     {
         $this->price = $value;
+        return $this;
+    }
+
+    public function durationType(?string $value): static
+    {
+        $this->durationType = $value;
         return $this;
     }
 
@@ -61,13 +70,14 @@ class ServiceQuery extends ElementQuery
         $this->query->addSelect([
             "$t.propagationMethod", "$t.description", "$t.duration", "$t.bufferBefore", "$t.bufferAfter",
             "$t.price", "$t.allowCancellation", "$t.cancellationPolicyHours", "$t.allowRefund", "$t.refundTiers", "$t.virtualMeetingProvider", "$t.minTimeBeforeBooking",
+            "$t.durationType", "$t.pricingMode", "$t.minDays", "$t.maxDays",
             "$t.timeSlotLength", "$t.availabilitySchedule",
             "$t.customerLimitEnabled", "$t.customerLimitCount",
             "$t.customerLimitPeriod", "$t.customerLimitPeriodType", "$t.enableWaitlist",
             "$t.taxCategoryId", "$t.deletedAt",
         ]);
 
-        foreach (['duration', 'price'] as $param) {
+        foreach (['duration', 'price', 'durationType', 'minDays', 'maxDays'] as $param) {
             if ($this->$param !== null) {
                 $this->subQuery->andWhere(Db::parseParam("$t.$param", $this->$param));
             }

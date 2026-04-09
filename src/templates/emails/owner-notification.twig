@@ -73,6 +73,16 @@
 					<span class="badge badge-primary">#{{ bookingId }}</span>
 				</span>
 			</div>
+			{% if isMultiDay is defined and isMultiDay %}
+			<div class="info-row">
+				<span class="info-label">{{ 'labels.dateRange'|t('booked') }}</span>
+				<span class="info-value">{{ formattedBookingDate }} – {{ formattedEndDate }}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">{{ 'labels.duration'|t('booked') }}</span>
+				<span class="info-value">{{ duration }} {{ durationUnit }}</span>
+			</div>
+			{% else %}
 			<div class="info-row">
 				<span class="info-label">{{ 'labels.date'|t('booked') }}</span>
 				<span class="info-value">{{ formattedBookingDate }}</span>
@@ -85,6 +95,7 @@
 					({{ duration }}
 					{{ 'labels.min'|t('booked') }})</span>
 			</div>
+			{% endif %}
 			{% if serviceName is defined and serviceName %}
 				<div class="info-row">
 					<span class="info-label">{{ 'labels.service'|t('booked') }}</span>

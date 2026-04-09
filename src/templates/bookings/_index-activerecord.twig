@@ -227,10 +227,18 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {{ reservation.bookingDate|date('short') }}
+                                {% if reservation.endDate is defined and reservation.endDate %}
+                                    {{ reservation.bookingDate|date('short') }} – {{ reservation.endDate|date('short') }}
+                                {% else %}
+                                    {{ reservation.bookingDate|date('short') }}
+                                {% endif %}
                             </td>
                             <td>
-                                {{ reservation.startTime[:5] }}&ndash;{{ reservation.endTime[:5] }}
+                                {% if reservation.endDate is defined and reservation.endDate %}
+                                    {{ reservation.getDurationDays() ?? '' }} {{ 'labels.days'|t('booked') }}
+                                {% else %}
+                                    {{ reservation.startTime[:5] }}&ndash;{{ reservation.endTime[:5] }}
+                                {% endif %}
                             </td>
                             <td>
                                 {% if reservation.dateCreated %}

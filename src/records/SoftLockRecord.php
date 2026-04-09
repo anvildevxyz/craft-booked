@@ -15,7 +15,8 @@ use craft\db\ActiveRecord;
  * @property int|null $locationId
  * @property string $date
  * @property string $startTime
- * @property string $endTime
+ * @property string|null $endTime
+ * @property string|null $endDate
  * @property int $quantity
  * @property string $expiresAt
  */

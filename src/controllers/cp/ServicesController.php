@@ -108,6 +108,18 @@ class ServicesController extends Controller
         $service->title = $request->getBodyParam('title');
         $service->description = $request->getBodyParam('description') ?: null;
         $service->enabled = (bool)$request->getBodyParam('enabled', true);
+        $durationType = $request->getBodyParam('durationType', 'minutes');
+        $service->durationType = in_array($durationType, ['minutes', 'days', 'flexible_days'], true) ? $durationType : 'minutes';
+        if ($service->durationType === 'flexible_days') {
+            $service->pricingMode = 'per_unit';
+        } elseif ($service->durationType === 'days') {
+            $pricingMode = $request->getBodyParam('pricingMode', 'flat');
+            $service->pricingMode = in_array($pricingMode, ['flat', 'per_unit'], true) ? $pricingMode : 'flat';
+        } else {
+            $service->pricingMode = 'flat';
+        }
+        $service->minDays = $service->durationType === 'flexible_days' ? ($request->getBodyParam('minDays') ?: 1) : null;
+        $service->maxDays = $service->durationType === 'flexible_days' ? ($request->getBodyParam('maxDays') ?: 7) : null;
         $service->duration = $request->getBodyParam('duration') ?: null;
         $service->bufferBefore = $request->getBodyParam('bufferBefore') ?: null;
         $service->bufferAfter = $request->getBodyParam('bufferAfter') ?: null;

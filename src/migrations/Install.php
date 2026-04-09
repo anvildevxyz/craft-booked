@@ -152,9 +152,13 @@ class Install extends Migration
                 'propagationMethod' => $this->string(50)->notNull()->defaultValue('none'),
                 'description' => $this->text()->null(),
                 'duration' => $this->integer()->null(),
+                'durationType' => $this->string(20)->notNull()->defaultValue('minutes'),
                 'bufferBefore' => $this->integer()->null(),
                 'bufferAfter' => $this->integer()->null(),
                 'price' => $this->decimal(14, 4)->null(),
+                'pricingMode' => $this->string(10)->notNull()->defaultValue('flat'),
+                'minDays' => $this->integer()->null(),
+                'maxDays' => $this->integer()->null(),
                 'virtualMeetingProvider' => $this->string()->null(),
                 'minTimeBeforeBooking' => $this->integer()->null(),
                 'timeSlotLength' => $this->integer()->null(),
@@ -307,8 +311,9 @@ class Install extends Migration
                 'userId' => $this->integer()->null(),
                 'userTimezone' => $this->string(50)->null(),
                 'bookingDate' => $this->date()->notNull(),
-                'startTime' => $this->time()->notNull(),
-                'endTime' => $this->time()->notNull(),
+                'endDate' => $this->date()->null(),
+                'startTime' => $this->time()->null(),
+                'endTime' => $this->time()->null(),
                 'status' => $this->string(20)->notNull()->defaultValue('confirmed'),
                 'activeSlotKey' => $this->string(255)->null(),
                 'employeeId' => $this->integer()->null(),
@@ -361,6 +366,7 @@ class Install extends Migration
             $this->createIndex('idx_confirmationToken', '{{%booked_reservations}}', 'confirmationToken', true);
             // activeSlotKey: "date|time|employeeId" for active bookings, NULL for cancelled/employee-less
             $this->createIndex('idx_unique_active_booking', '{{%booked_reservations}}', 'activeSlotKey', true);
+            $this->createIndex('idx_reservations_date_range', '{{%booked_reservations}}', ['bookingDate', 'endDate', 'employeeId', 'status']);
         }
 
         if (!$this->db->tableExists('{{%booked_reservation_extras}}')) {
@@ -445,8 +451,9 @@ class Install extends Migration
                 'employeeId' => $this->integer()->null(),
                 'locationId' => $this->integer()->null(),
                 'date' => $this->date()->notNull(),
-                'startTime' => $this->string(10)->notNull(),
-                'endTime' => $this->string(10)->notNull(),
+                'endDate' => $this->date()->null(),
+                'startTime' => $this->string(10)->null(),
+                'endTime' => $this->string(10)->null(),
                 'quantity' => $this->integer()->notNull()->defaultValue(1),
                 'expiresAt' => $this->dateTime()->notNull(),
                 'dateCreated' => $this->dateTime()->notNull(),

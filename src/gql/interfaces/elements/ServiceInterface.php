@@ -98,6 +98,16 @@ class ServiceInterface extends Element
                         );
                     },
                 ],
+                'durationType' => [
+                    'name' => 'durationType',
+                    'type' => Type::string(),
+                    'description' => 'The duration unit: "minutes" or "days"',
+                ],
+                'pricingMode' => [
+                    'name' => 'pricingMode',
+                    'type' => Type::string(),
+                    'description' => 'The pricing mode: "flat" or "per_unit"',
+                ],
             ]
         ), self::getName());
     }

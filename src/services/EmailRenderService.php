@@ -80,11 +80,16 @@ class EmailRenderService extends Component
             'userEmail' => $reservation->userEmail,
             'userPhone' => $reservation->userPhone,
             'bookingDate' => $reservation->bookingDate,
+            'endDate' => $reservation->getEndDate(),
             'startTime' => $reservation->startTime,
             'endTime' => $reservation->endTime,
+            'isMultiDay' => $reservation->isMultiDay(),
             'formattedBookingDate' => $reservation->bookingDate
                 ? DateHelper::formatDateLocale($reservation->bookingDate)
                 : '',
+            'formattedEndDate' => $reservation->isMultiDay() && $reservation->getEndDate()
+                ? DateHelper::formatDateLocale($reservation->getEndDate())
+                : null,
             'formattedStartTime' => $reservation->startTime
                 ? DateHelper::formatTimeLocale(DateHelper::parseTime($reservation->startTime))
                 : '',
@@ -92,6 +97,13 @@ class EmailRenderService extends Component
                 ? DateHelper::formatTimeLocale(DateHelper::parseTime($reservation->endTime))
                 : '',
             'duration' => $reservation->getDurationMinutes(),
+            'durationDays' => $reservation->getDurationDays(),
+            'durationUnit' => $reservation->isMultiDay()
+                ? Craft::t('booked', 'labels.days')
+                : Craft::t('booked', 'labels.minutes'),
+            'durationDisplay' => $reservation->isMultiDay()
+                ? $reservation->getDurationDays() . ' ' . Craft::t('booked', 'labels.days')
+                : $reservation->getDurationMinutes() . ' ' . Craft::t('booked', 'labels.minutes'),
             'quantity' => $quantity,
             'quantityDisplay' => $quantity > 1,
             'status' => $reservation->getStatusLabel(),

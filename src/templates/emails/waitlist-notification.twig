@@ -40,6 +40,14 @@
                 <span class="info-label">{{ 'labels.service'|t('booked') }}</span>
                 <span class="info-value">{{ serviceName }}</span>
             </div>
+            {% if isMultiDay is defined and isMultiDay %}
+            {% if formattedDate %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.dateRange'|t('booked') }}</span>
+                <span class="info-value">{{ formattedDate }}{% if formattedEndDate %} – {{ formattedEndDate }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% else %}
             {% if formattedDate %}
             <div class="info-row">
                 <span class="info-label">{{ 'labels.date'|t('booked') }}</span>
@@ -51,6 +59,7 @@
                 <span class="info-label">{{ 'labels.time'|t('booked') }}</span>
                 <span class="info-value">{{ startTime }}{% if endTime %} – {{ endTime }}{% endif %}</span>
             </div>
+            {% endif %}
             {% endif %}
             {% if service and service.duration %}
             <div class="info-row">

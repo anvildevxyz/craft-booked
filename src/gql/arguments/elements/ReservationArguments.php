@@ -16,6 +16,11 @@ class ReservationArguments extends ElementArguments
             'employeeId' => ['name' => 'employeeId', 'type' => Type::listOf(Type::int()), 'description' => 'Filter by employee ID(s).'],
             'locationId' => ['name' => 'locationId', 'type' => Type::listOf(Type::int()), 'description' => 'Filter by location ID(s).'],
             'userId' => ['name' => 'userId', 'type' => Type::listOf(Type::int()), 'description' => 'Filter by linked Craft user ID(s).'],
+            'endDate' => [
+                'name' => 'endDate',
+                'type' => Type::listOf(Type::string()),
+                'description' => 'Filter by end date',
+            ],
         ]);
     }
 }

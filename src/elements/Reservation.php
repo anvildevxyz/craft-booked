@@ -11,6 +11,7 @@ use anvildev\booked\helpers\ValidationHelper;
 use anvildev\booked\records\ReservationRecord;
 use anvildev\booked\traits\HasCancellationPolicy;
 use anvildev\booked\traits\HasFormattedDateTime;
+use anvildev\booked\traits\HasMultiDaySupport;
 use anvildev\booked\traits\ValidatesTimeRange;
 use Craft;
 use craft\base\Element;
@@ -30,6 +31,7 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
 {
     use HasCancellationPolicy;
     use HasFormattedDateTime;
+    use HasMultiDaySupport;
     use ValidatesTimeRange;
 
     public string $userName = '';
@@ -38,8 +40,9 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     public ?int $userId = null;
     public ?string $userTimezone = null;
     public string $bookingDate = '';
-    public string $startTime = '';
-    public string $endTime = '';
+    public ?string $endDate = null;
+    public ?string $startTime = '';
+    public ?string $endTime = '';
     public string $status = ReservationRecord::STATUS_CONFIRMED;
     public ?string $notes = null;
     public ?string $sessionNotes = null;
@@ -122,11 +125,15 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     }
     public function getStartTime(): string
     {
-        return $this->startTime;
+        return $this->startTime ?? '';
     }
     public function getEndTime(): string
     {
-        return $this->endTime;
+        return $this->endTime ?? '';
+    }
+    public function getEndDate(): ?string
+    {
+        return $this->endDate;
     }
     public function getNotes(): ?string
     {
@@ -462,15 +469,23 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
             'eventDateName' => ($ed = $this->getEventDate())
                 ? Html::encode($ed->title) . Html::tag('br') . Html::tag('span', $ed->getFormattedDate(), ['class' => 'light', 'style' => 'font-size: 11px;'])
                 : Html::tag('span', "\u{2014}", ['class' => 'light']),
-            'bookingDate' => Html::tag('div',
-                Html::tag('strong', Craft::$app->formatter->asDate($this->bookingDate, 'short')) .
-                Html::tag('br') .
-                Html::tag('span', $this->startTime . ' - ' . $this->endTime, ['class' => 'light', 'style' => 'font-size: 11px;'])
-            ),
+            'bookingDate' => $this->isMultiDay()
+                ? Html::tag('div',
+                    Html::tag('strong', Craft::$app->formatter->asDate($this->bookingDate, 'short') . ' – ' . Craft::$app->formatter->asDate($this->endDate, 'short')) .
+                    Html::tag('br') .
+                    Html::tag('span', ($this->getDurationDays() ?? 0) . ' ' . Craft::t('booked', 'labels.days'), ['class' => 'light', 'style' => 'font-size: 11px;'])
+                )
+                : Html::tag('div',
+                    Html::tag('strong', Craft::$app->formatter->asDate($this->bookingDate, 'short')) .
+                    Html::tag('br') .
+                    Html::tag('span', $this->startTime . ' - ' . $this->endTime, ['class' => 'light', 'style' => 'font-size: 11px;'])
+                ),
             'quantity' => ($qty = $this->quantity ?? 1) > 1
                 ? Html::tag('span', $qty . 'x', ['class' => 'badge', 'style' => 'background-color: #0d78f2; color: white;'])
                 : Html::tag('span', (string)$qty, ['class' => 'light']),
-            'duration' => Html::tag('span', $this->getDurationMinutes() . ' Min.', ['class' => 'light']),
+            'duration' => $this->isMultiDay()
+                ? Html::tag('span', ($this->getDurationDays() ?? 0) . ' ' . Craft::t('booked', $this->getDurationDays() === 1 ? 'labels.day' : 'labels.days'), ['class' => 'light'])
+                : Html::tag('span', $this->getDurationMinutes() . ' Min.', ['class' => 'light']),
             default => parent::attributeHtml($attribute),
         };
     }
@@ -478,12 +493,14 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     protected function defineRules(): array
     {
         return array_merge(parent::defineRules(), [
-            [['userName', 'userEmail', 'bookingDate', 'startTime', 'endTime'], 'required'],
+            [['userName', 'userEmail', 'bookingDate'], 'required'],
+            [['startTime', 'endTime'], 'required', 'when' => fn($model) => !$model->isMultiDay()],
+            [['endDate'], ValidationHelper::DATE_VALIDATOR, 'format' => ValidationHelper::DATE_FORMAT, 'when' => fn($model) => $model->endDate !== null && $model->endDate !== ''],
             [['userEmail'], 'email'],
             [['userName', 'userEmail', 'userPhone'], 'string', 'max' => 255],
             [['userTimezone'], 'string', 'max' => 50],
             [['bookingDate'], ValidationHelper::DATE_VALIDATOR, 'format' => ValidationHelper::DATE_FORMAT],
-            [['startTime', 'endTime'], 'match', 'pattern' => ValidationHelper::TIME_FORMAT_PATTERN],
+            [['startTime', 'endTime'], 'match', 'pattern' => ValidationHelper::TIME_FORMAT_PATTERN, 'when' => fn($model) => !$model->isMultiDay()],
             [['status'], 'in', 'range' => [
                 ReservationRecord::STATUS_PENDING,
                 ReservationRecord::STATUS_CONFIRMED,
@@ -698,6 +715,7 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
 
         // Store times directly in the configured timezone (no conversion)
         $record->bookingDate = $this->bookingDate;
+        $record->endDate = $this->endDate;
         $record->startTime = $this->startTime;
         $record->endTime = $this->endTime;
 
@@ -806,37 +824,6 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
         return Craft::$app->elements->saveElement($this);
     }
 
-    public function getDurationMinutes(): int
-    {
-        $start = DateHelper::parseTime($this->startTime);
-        $end = DateHelper::parseTime($this->endTime);
-
-        if (!$start || !$end) {
-            return 0;
-        }
-
-        $diff = $start->diff($end);
-        return (int) ($diff->h * 60 + $diff->i);
-    }
-
-    public function conflictsWith(ReservationInterface $other): bool
-    {
-        if ($this->getBookingDate() !== $other->getBookingDate()) {
-            return false;
-        }
-
-        $thisStart = DateHelper::parseTime($this->getStartTime());
-        $thisEnd = DateHelper::parseTime($this->getEndTime());
-        $otherStart = DateHelper::parseTime($other->getStartTime());
-        $otherEnd = DateHelper::parseTime($other->getEndTime());
-
-        if (!$thisStart || !$thisEnd || !$otherStart || !$otherEnd) {
-            return false; // Invalid times, no conflict
-        }
-
-        return !($thisEnd->getTimestamp() <= $otherStart->getTimestamp() || $thisStart->getTimestamp() >= $otherEnd->getTimestamp());
-    }
-
     public function getManagementUrl(): string
     {
         return UrlHelper::siteUrl('booking/manage/' . $this->confirmationToken, null, null, $this->siteId ?? Craft::$app->getSites()->getPrimarySite()->id);
@@ -930,15 +917,6 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
         return $this->id ? Booked::getInstance()->serviceExtra->getExtrasSummary($this->id) : '';
     }
 
-    public function getTotalPrice(): float
-    {
-        $service = $this->getService();
-        $servicePrice = ($service && isset($service->price)) ? (float)$service->price * $this->quantity : 0.0;
-        $eventDate = $this->getEventDate();
-        $eventPrice = ($eventDate && $eventDate->price) ? (float)$eventDate->price * $this->quantity : 0.0;
-        return $servicePrice + $eventPrice + $this->getExtrasPrice();
-    }
-
     public function recalculateTotals(): void
     {
         $this->totalPrice = $this->getTotalPrice();
@@ -993,19 +971,24 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     public function getPrice(): ?float
     {
         $service = $this->getService();
-        $unitPrice = ($service && isset($service->price)) ? (float) $service->price : 0.0;
+        $basePrice = ($service && isset($service->price)) ? (float) $service->price : 0.0;
+
+        // Per-unit day pricing: multiply by number of days
+        if ($service && $service->isPerUnitPricing() && $service->isDayService() && $this->isMultiDay()) {
+            $basePrice = $basePrice * ($this->getDurationDays() ?? 1);
+        }
 
         $eventDate = $this->getEventDate();
         if ($eventDate && $eventDate->price) {
-            $unitPrice += (float) $eventDate->price;
+            $basePrice += (float) $eventDate->price;
         }
 
         $extrasTotal = $this->getExtrasPrice();
         if ($extrasTotal > 0) {
-            $unitPrice += $extrasTotal / max(1, $this->quantity);
+            $basePrice += $extrasTotal / max(1, $this->quantity);
         }
 
-        return $unitPrice;
+        return $basePrice;
     }
 
     public function getPromotionalPrice(): ?float

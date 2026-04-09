@@ -56,6 +56,12 @@
     <div class="section">
         <div class="section-title">{{ 'labels.bookingDetails'|t('booked') }}</div>
         <div class="info-grid">
+            {% if isMultiDay is defined and isMultiDay %}
+            <div class="info-row">
+                <span class="info-label">{{ 'labels.dateRange'|t('booked') }}</span>
+                <span class="info-value">{{ formattedBookingDate }} – {{ formattedEndDate }}</span>
+            </div>
+            {% else %}
             <div class="info-row">
                 <span class="info-label">{{ 'labels.date'|t('booked') }}</span>
                 <span class="info-value">{{ formattedBookingDate }}</span>
@@ -64,6 +70,7 @@
                 <span class="info-label">{{ 'labels.time'|t('booked') }}</span>
                 <span class="info-value">{{ formattedStartTime }} – {{ formattedEndTime }}</span>
             </div>
+            {% endif %}
             {% if employeeName is defined and employeeName %}
             <div class="info-row">
                 <span class="info-label">{{ 'labels.staff'|t('booked') }}</span>

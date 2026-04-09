@@ -9,6 +9,10 @@ use craft\db\ActiveRecord;
  * @property string $propagationMethod
  * @property string|null $description
  * @property int|null $duration
+ * @property string $durationType
+ * @property string $pricingMode
+ * @property int|null $minDays
+ * @property int|null $maxDays
  * @property int|null $bufferBefore
  * @property int|null $bufferAfter
  * @property float|null $price

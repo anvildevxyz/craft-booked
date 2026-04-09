@@ -34,7 +34,11 @@
     </p>
 
     <div class="highlight-box danger">
+        {% if isMultiDay is defined and isMultiDay %}
+        <div class="highlight-primary" style="text-decoration: line-through;">{{ formattedBookingDate }} – {{ formattedEndDate }}</div>
+        {% else %}
         <div class="highlight-primary" style="text-decoration: line-through;">{{ formattedDateTime }}</div>
+        {% endif %}
         {% if serviceName is defined and serviceName %}
         <div class="highlight-secondary" style="text-decoration: line-through; opacity: 0.5;">{{ serviceName }}</div>
         {% endif %}

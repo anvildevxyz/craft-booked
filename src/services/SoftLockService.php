@@ -24,7 +24,7 @@ class SoftLockService extends Component
     /** @return string|false Token if successful */
     public function createLock(array $data, int $durationMinutes = 5): string|false
     {
-        if (empty($data['date']) || empty($data['startTime']) || empty($data['serviceId'])) {
+        if (empty($data['date']) || (empty($data['startTime']) && empty($data['endDate'])) || empty($data['serviceId'])) {
             return false;
         }
 
@@ -33,13 +33,14 @@ class SoftLockService extends Component
         $employeeId = $data['employeeId'] ?? null;
         $quantity = max(1, (int)($data['quantity'] ?? 1));
         $capacity = isset($data['capacity']) ? (int)$data['capacity'] : null;
+        $endDate = $data['endDate'] ?? null;
 
         try {
             $siteId = Craft::$app->getSites()->getCurrentSite()->id;
         } catch (\Throwable) {
             $siteId = 1;
         }
-        $lockKey = 'booked-softlock-' . $siteId . '-' . $data['date'] . '-' . $data['startTime'] . '-' . $data['serviceId'] . '-' . ($employeeId ?? 'any');
+        $lockKey = 'booked-softlock-' . $siteId . '-' . $data['date'] . '-' . ($endDate ?? $data['startTime']) . '-' . $data['serviceId'] . '-' . ($employeeId ?? 'any');
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 5)) {
@@ -47,7 +48,20 @@ class SoftLockService extends Component
         }
 
         try {
-            if ($this->isLocked($data['date'], $data['startTime'], $data['serviceId'], $employeeId, $data['endTime'] ?? null, $data['locationId'] ?? null, null, $quantity, $capacity)) {
+            // For multi-day locks, check date-range overlap instead of time-based overlap
+            if ($endDate) {
+                $isAlreadyLocked = $this->isDateRangeLocked(
+                    $data['date'], $endDate, $data['serviceId'],
+                    $employeeId, $data['locationId'] ?? null, $quantity, $capacity
+                );
+            } else {
+                $isAlreadyLocked = $this->isLocked(
+                    $data['date'], $data['startTime'], $data['serviceId'],
+                    $employeeId, $data['endTime'] ?? null, $data['locationId'] ?? null,
+                    null, $quantity, $capacity
+                );
+            }
+            if ($isAlreadyLocked) {
                 return false;
             }
 
@@ -64,6 +78,7 @@ class SoftLockService extends Component
             $record->date = $data['date'];
             $record->startTime = $data['startTime'];
             $record->endTime = $data['endTime'] ?? null;
+            $record->endDate = $endDate;
             $record->quantity = $quantity;
             $record->expiresAt = Db::prepareDateForDb($expiresAt);
 
@@ -186,6 +201,33 @@ class SoftLockService extends Component
         }
 
         return $query;
+    }
+
+    public function isDateRangeLocked(string $startDate, string $endDate, int $serviceId, ?int $employeeId, ?int $locationId, int $quantity = 1, ?int $capacity = null, ?string $excludeToken = null): bool
+    {
+        $query = $this->getRecordQuery()
+            ->where(['serviceId' => $serviceId])
+            ->andWhere(['>', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))])
+            ->andWhere(['not', ['endDate' => null]])
+            ->andWhere(['<=', 'date', $endDate])
+            ->andWhere(['>=', 'endDate', $startDate]);
+
+        if ($employeeId !== null) {
+            $query->andWhere(['or', ['employeeId' => $employeeId], ['employeeId' => null]]);
+        }
+        if ($locationId !== null) {
+            $query->andWhere(['locationId' => $locationId]);
+        }
+        if ($excludeToken !== null) {
+            $query->andWhere(['not', ['token' => $excludeToken]]);
+        }
+
+        if ($capacity !== null) {
+            $heldQuantity = (int)$query->sum('quantity');
+            return ($heldQuantity + $quantity) > $capacity;
+        }
+
+        return $query->exists();
     }
 
     protected function createRecord()

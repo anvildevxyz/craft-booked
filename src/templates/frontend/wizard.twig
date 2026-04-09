@@ -341,10 +341,24 @@
                     <h4 x-text="service.title"></h4>
                     <p x-text="service.description"></p>
                     {% if showDuration or showPrice %}
-                    <div class="light" x-show="(service.duration && service.duration > 0) || (service.price && service.price > 0)">
-                        {% if showDuration %}<span x-show="service.duration && service.duration > 0" x-text="service.duration + ' {{ labels.durationUnit }}'"></span>{% endif %}
-                        <span x-show="service.duration && service.duration > 0 && service.price && service.price > 0"> | </span>
-                        {% if showPrice %}<span x-show="service.price && service.price > 0" x-text="service.price + ' {{ labels.currencySymbol }}'"></span>{% endif %}
+                    <div class="light" x-show="(service.duration && service.duration > 0) || service.isFlexibleDayService || (service.price && service.price > 0)">
+                        {% if showDuration %}
+                        <template x-if="service.isFlexibleDayService">
+                            <span x-text="service.minDays + '–' + service.maxDays + ' {{ 'labels.days'|t('booked') }}'"></span>
+                        </template>
+                        <template x-if="!service.isFlexibleDayService && service.duration && service.duration > 0">
+                            <span x-text="service.duration + ' ' + (service.durationType === 'days' ? (service.duration === 1 ? '{{ 'labels.day'|t('booked') }}' : '{{ 'labels.days'|t('booked') }}') : '{{ labels.durationUnit }}')"></span>
+                        </template>
+                        {% endif %}
+                        <span x-show="((service.duration && service.duration > 0) || service.isFlexibleDayService) && service.price && service.price > 0"> | </span>
+                        {% if showPrice %}
+                        <template x-if="service.isFlexibleDayService && service.price && service.price > 0">
+                            <span x-text="service.price + ' {{ labels.currencySymbol }} / {{ 'labels.day'|t('booked') }}'"></span>
+                        </template>
+                        <template x-if="!service.isFlexibleDayService && service.price && service.price > 0">
+                            <span x-text="service.price + ' {{ labels.currencySymbol }}'"></span>
+                        </template>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -471,10 +485,34 @@
     </div>
 
     <div x-show="step === 5" x-cloak>
-        <h3 tabindex="-1">{{ labels.selectDateTime }}</h3>
-        
+        <h3 tabindex="-1">
+            <template x-if="!isDayService">
+                <span>{{ labels.selectDateTime }}</span>
+            </template>
+            <template x-if="isDayService && !selectingEndDate">
+                <span>{{ 'wizard.selectStartDate'|t('booked') }}</span>
+            </template>
+            <template x-if="isDayService && selectingEndDate">
+                <span>{{ 'wizard.selectEndDate'|t('booked') }}</span>
+            </template>
+        </h3>
+
+        <template x-if="isFlexibleDayService">
+            <p class="{{ cssPrefix }}-date-instruction">
+                <template x-if="!selectingEndDate && !endDate">
+                    <span>{{ 'wizard.pickStartDateHint'|t('booked') }}</span>
+                </template>
+                <template x-if="selectingEndDate">
+                    <span>{{ 'wizard.pickEndDateHint'|t('booked') }}</span>
+                </template>
+                <template x-if="date && endDate">
+                    <span x-text="formatDisplayDate(date) + ' – ' + formatDisplayDate(endDate) + ' (' + getDurationDays() + ' ' + (getDurationDays() === 1 ? '{{ 'labels.day'|t('booked') }}' : '{{ 'labels.days'|t('booked') }}') + ')'"></span>
+                </template>
+            </p>
+        </template>
+
         <div class="{{ cssPrefix }}-date-picker" x-init="initDatePicker()" x-ref="datePickerContainer">
-            <label for="booking-date" class="{{ cssPrefix }}-date-label">{{ labels.selectDate }}</label>
+            <label for="booking-date" class="{{ cssPrefix }}-date-label" x-show="!isDayService">{{ labels.selectDate }}</label>
             <input type="text"
                    id="booking-date"
                    x-ref="dateInput"
@@ -482,14 +520,28 @@
                    placeholder="{{ labels.selectDatePlaceholder }}"
                    class="text-input {{ cssPrefix }}-datepicker-input">
             <div class="{{ cssPrefix }}-calendar-legend">
-                <span class="{{ cssPrefix }}-calendar-legend-item">
-                    <span class="{{ cssPrefix }}-calendar-legend-dot available"></span>
-                    {{ labels.legendAvailable }}
-                </span>
+                <template x-if="!selectingEndDate">
+                    <span class="{{ cssPrefix }}-calendar-legend-item">
+                        <span class="{{ cssPrefix }}-calendar-legend-dot available"></span>
+                        {{ labels.legendAvailable }}
+                    </span>
+                </template>
+                <template x-if="selectingEndDate">
+                    <span class="{{ cssPrefix }}-calendar-legend-item">
+                        <span class="{{ cssPrefix }}-calendar-legend-dot available"></span>
+                        {{ 'wizard.legendValidEndDate'|t('booked') }}
+                    </span>
+                </template>
                 <span class="{{ cssPrefix }}-calendar-legend-item">
                     <span class="{{ cssPrefix }}-calendar-legend-dot unavailable"></span>
                     {{ labels.legendUnavailable }}
                 </span>
+                <template x-if="selectingEndDate">
+                    <span class="{{ cssPrefix }}-calendar-legend-item">
+                        <span class="{{ cssPrefix }}-calendar-legend-dot {{ cssPrefix }}-legend-dot-range"></span>
+                        {{ 'wizard.legendSelectedRange'|t('booked') }}
+                    </span>
+                </template>
             </div>
         </div>
 
@@ -741,15 +793,34 @@
 
             <div class="{{ cssPrefix }}-summary-section mb-4">
                 <div class="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                        <span class="text-gray-500">{{ labels.summaryDate }}:</span>
-                        <span class="font-medium" x-text="formatDisplayDate(date)"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">{{ labels.summaryTime }}:</span>
-                        <span class="font-medium" x-text="formatDisplayTime(time)"></span>
-                        <span class="text-gray-400" x-show="selectedService?.duration"> - <span x-text="formatDisplayTime(calculateEndTime())"></span></span>
-                    </div>
+                    <template x-if="isDayService">
+                        <div class="col-span-2">
+                            <span class="text-gray-500">{{ 'labels.dateRange'|t('booked') }}:</span>
+                            <span class="font-medium" x-text="formatDisplayDate(date) + ' – ' + formatDisplayDate(endDate)"></span>
+                            <span class="text-gray-400" x-text="'(' + getDurationDays() + ' ' + (getDurationDays() === 1 ? '{{ 'labels.day'|t('booked') }}' : '{{ 'labels.days'|t('booked') }}') + ')'"></span>
+                        </div>
+                    </template>
+                    <template x-if="isFlexibleDayService && selectedService?.price > 0">
+                        <div class="col-span-2 text-sm text-gray-500">
+                            <span x-text="getDurationDays() + ' {{ 'labels.days'|t('booked') }} × ' + selectedService.price + ' {{ labels.currencySymbol }} / {{ 'labels.day'|t('booked') }}'"></span>
+                            <span x-show="quantity > 1" x-text="' × ' + quantity"></span>
+                            <span> = </span>
+                            <span class="font-medium text-black" x-text="(getDurationDays() * selectedService.price * quantity) + ' {{ labels.currencySymbol }}'"></span>
+                        </div>
+                    </template>
+                    <template x-if="!isDayService">
+                        <div>
+                            <span class="text-gray-500">{{ labels.summaryDate }}:</span>
+                            <span class="font-medium" x-text="formatDisplayDate(date)"></span>
+                        </div>
+                    </template>
+                    <template x-if="!isDayService">
+                        <div>
+                            <span class="text-gray-500">{{ labels.summaryTime }}:</span>
+                            <span class="font-medium" x-text="formatDisplayTime(time)"></span>
+                            <span class="text-gray-400" x-show="selectedService?.duration"> - <span x-text="formatDisplayTime(calculateEndTime())"></span></span>
+                        </div>
+                    </template>
                     <div x-show="quantity > 1">
                         <span class="text-gray-500">{{ labels.summaryQuantity }}:</span>
                         <span class="font-medium" x-text="quantity"></span>
@@ -813,7 +884,9 @@
 
             <template x-if="getServicePrice() > 0 || getExtrasTotal() > 0">
                 <div class="mt-4 pt-4 border-t border-gray-200">
-                    <p x-show="getServicePrice() > 0"><strong>{{ labels.summaryServicePrice }}:</strong> <span x-text="formatPrice(getServicePrice() * quantity)"></span></p>
+                    <p x-show="getServicePrice() > 0"><strong>{{ labels.summaryServicePrice }}:</strong> <span x-text="formatPrice(getServicePrice() * quantity)"></span>
+                        <span x-show="isDayService && selectedService?.pricingMode === 'per_unit' && getDurationDays() > 1" class="text-gray-400 text-sm" x-text="'(' + selectedService?.price + ' {{ labels.currencySymbol }} × ' + getDurationDays() + ' {{ 'labels.days'|t('booked') }}' + (quantity > 1 ? ' × ' + quantity : '') + ')'"></span>
+                    </p>
                     <p x-show="getExtrasTotal() > 0"><strong>{{ labels.summaryExtrasPrice }}:</strong> <span x-text="formatPrice(getExtrasTotal())"></span></p>
                     <p class="text-lg font-bold mt-2"><strong>{{ labels.summaryTotal }}:</strong> <span x-text="formatPrice(getTotalPrice())"></span></p>
                 </div>
@@ -836,16 +909,9 @@
         {% endif %}
 
         <template x-if="bookingError">
-            <div class="{{ cssPrefix }}-error mt-4 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
-                <div class="flex items-start gap-3">
-                    <svg class="flex-shrink-0 w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                    </svg>
-                    <div>
-                        <h4 class="text-red-800 font-semibold">{{ labels.bookingErrorTitle }}</h4>
-                        <p class="text-red-700 text-sm mt-1" x-text="bookingError"></p>
-                    </div>
-                </div>
+            <div class="{{ cssPrefix }}-booking-error" role="alert">
+                <strong>{{ labels.bookingErrorTitle }}</strong>
+                <span x-text="bookingError"></span>
             </div>
         </template>
 
@@ -887,7 +953,12 @@
             <div class="{{ cssPrefix }}-success-details p-6 mb-6 text-left max-w-md mx-auto">
                 <p class="mb-2"><strong>{{ labels.successStatus }}:</strong> <span x-text="reservationDetails?.status || '{{ labels.statusConfirmed }}'"></span></p>
                 <p class="mb-2"><strong>{{ labels.successBookingId }}:</strong> #<span x-text="reservationDetails?.id"></span></p>
-                <p class="mb-4"><strong>{{ labels.successAppointment }}:</strong> <span x-text="reservationDetails?.formattedDateTime || (formatDisplayDate(date) + ' ' + formatDisplayTime(time))"></span></p>
+                <template x-if="isDayService">
+                    <p class="mb-4"><strong>{{ labels.successAppointment }}:</strong> <span x-text="reservationDetails?.formattedDateTime || (formatDisplayDate(date) + ' – ' + formatDisplayDate(endDate))"></span></p>
+                </template>
+                <template x-if="!isDayService">
+                    <p class="mb-4"><strong>{{ labels.successAppointment }}:</strong> <span x-text="reservationDetails?.formattedDateTime || (formatDisplayDate(date) + ' ' + formatDisplayTime(time))"></span></p>
+                </template>
 
                 <div class="bg-blue-50 border-l-4 border-black p-4 text-sm">
                     <p class="font-semibold mb-1">{{ labels.successNextSteps }}</p>
@@ -903,7 +974,7 @@
     </div>
 </div>
 
-{% js %}
+<script>
     window.csrfTokenName = "{{ craft.app.config.general.csrfTokenName }}";
     window.csrfTokenValue = "{{ craft.app.request.csrfToken }}";
-{% endjs %}
+</script>

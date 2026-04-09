@@ -113,6 +113,7 @@
     flex-wrap: nowrap;
     justify-content: center;
     margin: 0;
+    width: 100%;
     padding: 12px 16px;
     border-bottom: 2px solid #000000;
     gap: 0;
@@ -2891,11 +2892,11 @@ ol.booked-step-indicator {
     font-weight: 600;
     font-size: 0.9375rem;
     border-radius: 0;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     flex: 0 0 calc(100% / 7);
     max-width: calc(100% / 7);
     height: 48px;
-    line-height: 44px;
+    line-height: 46px;
     transition: all 0.15s;
     margin: 0;
     box-sizing: border-box;
@@ -2903,7 +2904,7 @@ ol.booked-step-indicator {
 
 .booked-wizard .flatpickr-day:hover {
     background: #f0f0f0;
-    border-color: #000000;
+    border-color: #d1d5db;
 }
 
 .booked-wizard .flatpickr-day.selected,
@@ -3177,4 +3178,69 @@ ol.booked-step-indicator {
 
 .booked-toast--error {
     background: #dc2626;
+}
+/* ============================================================================
+   FLEXIBLE DAY RANGE SELECTION
+   ============================================================================ */
+
+/* Override Flatpickr's .selected for range selection — we manage selection visually */
+.booked-wizard .flatpickr-day.booked-range-start.selected,
+.booked-wizard .flatpickr-day.booked-in-range.selected,
+.booked-wizard .flatpickr-day.booked-range-end.selected {
+    /* Let our range classes take priority */
+}
+
+.booked-wizard .flatpickr-day.booked-in-range {
+    background: #f3f4f6;
+    border-color: transparent;
+}
+
+.booked-wizard .flatpickr-day.booked-range-start {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+}
+
+.booked-wizard .flatpickr-day.booked-range-end {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+}
+
+/* Softer hover for range end-date selection */
+.booked-wizard .flatpickr-day.booked-available:hover {
+    background: #e5e7eb;
+    border-color: transparent;
+}
+
+.booked-wizard .booked-date-instruction {
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.booked-wizard .booked-legend-dot-range {
+    background: #e5e7eb !important;
+    border: 1px solid #9ca3af !important;
+}
+
+/* ============================================================================
+   BOOKING ERROR
+   ============================================================================ */
+
+.booked-wizard .booked-booking-error {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #fca5a5;
+    border-radius: 0.5rem;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.booked-wizard .booked-booking-error strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
 }

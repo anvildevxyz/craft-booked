@@ -129,6 +129,23 @@ class ReservationInterface extends Element
                     'type' => Type::string(),
                     'description' => 'Virtual meeting provider.',
                 ],
+                'endDate' => [
+                    'name' => 'endDate',
+                    'type' => Type::string(),
+                    'description' => 'The end date for multi-day bookings (YYYY-MM-DD), null for single-day',
+                ],
+                'isMultiDay' => [
+                    'name' => 'isMultiDay',
+                    'type' => Type::nonNull(Type::boolean()),
+                    'description' => 'Whether this is a multi-day booking',
+                    'resolve' => fn($source) => $source->isMultiDay(),
+                ],
+                'durationDays' => [
+                    'name' => 'durationDays',
+                    'type' => Type::int(),
+                    'description' => 'Number of days for multi-day bookings, null for single-day',
+                    'resolve' => fn($source) => $source->getDurationDays(),
+                ],
             ]
         ), self::getName());
     }

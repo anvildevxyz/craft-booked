@@ -25,6 +25,10 @@ class Service extends Element
 
     public ?string $description = null;
     public ?int $duration = null;
+    public string $durationType = 'minutes';
+    public string $pricingMode = 'flat';
+    public ?int $minDays = null;
+    public ?int $maxDays = null;
     public ?int $bufferBefore = null;
     public ?int $bufferAfter = null;
     public ?float $price = null;
@@ -43,6 +47,38 @@ class Service extends Element
     public array|string|null $refundTiers = null;
     public ?int $taxCategoryId = null;
     public ?string $deletedAt = null;
+
+    public function isDayService(): bool
+    {
+        return $this->durationType === 'days' || $this->durationType === 'flexible_days';
+    }
+
+    public function isFlexibleDayService(): bool
+    {
+        return $this->durationType === 'flexible_days';
+    }
+
+    public function isPerUnitPricing(): bool
+    {
+        return $this->pricingMode === 'per_unit';
+    }
+
+    public function getDurationLabel(): string
+    {
+        if ($this->duration === null) {
+            return '';
+        }
+
+        if ($this->isDayService()) {
+            $unit = $this->duration === 1
+                ? \Craft::t('booked', 'labels.day')
+                : \Craft::t('booked', 'labels.days');
+        } else {
+            $unit = \Craft::t('booked', 'labels.min');
+        }
+
+        return $this->duration . ' ' . $unit;
+    }
 
     public function softDelete(): void
     {
@@ -199,7 +235,7 @@ class Service extends Element
     {
         $dash = Html::tag('span', '–', ['class' => 'light']);
         return match ($attribute) {
-            'duration' => $this->duration !== null ? Html::encode($this->duration . ' ' . Craft::t('booked', 'labels.min')) : $dash,
+            'duration' => $this->duration !== null ? Html::encode($this->getDurationLabel()) : $dash,
             'price' => $this->price !== null ? Craft::$app->formatter->asCurrency($this->price) : $dash,
             default => parent::attributeHtml($attribute),
         };
@@ -214,8 +250,15 @@ class Service extends Element
     {
         return array_merge(parent::defineRules(), [
             [['description'], 'string'],
-            [['duration'], 'required'],
+            [['duration'], 'required', 'when' => fn($model) => $model->durationType !== 'flexible_days'],
             [['duration'], 'integer', 'min' => 1],
+            [['durationType'], 'in', 'range' => ['minutes', 'days', 'flexible_days']],
+            [['pricingMode'], 'in', 'range' => ['flat', 'per_unit']],
+            [['minDays'], 'required', 'when' => fn($model) => $model->durationType === 'flexible_days'],
+            [['minDays'], 'integer', 'min' => 1, 'when' => fn($model) => $model->durationType === 'flexible_days'],
+            [['maxDays'], 'required', 'when' => fn($model) => $model->durationType === 'flexible_days'],
+            [['maxDays'], 'integer', 'min' => 1, 'when' => fn($model) => $model->durationType === 'flexible_days'],
+            [['maxDays'], 'compare', 'compareAttribute' => 'minDays', 'operator' => '>=', 'type' => 'number', 'when' => fn($model) => $model->durationType === 'flexible_days'],
             [['bufferBefore', 'bufferAfter'], 'integer', 'min' => 0],
             [['price'], 'number', 'min' => 0],
             [['virtualMeetingProvider'], 'string'],
@@ -270,6 +313,10 @@ class Service extends Element
 
             $record->propagationMethod = $this->propagationMethod->value;
             $record->description = $this->description;
+            $record->durationType = $this->durationType;
+            $record->pricingMode = $this->pricingMode;
+            $record->minDays = $this->minDays;
+            $record->maxDays = $this->maxDays;
             $record->duration = $this->duration;
             $record->bufferBefore = $this->bufferBefore;
             $record->bufferAfter = $this->bufferAfter;

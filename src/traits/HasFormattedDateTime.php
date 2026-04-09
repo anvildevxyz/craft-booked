@@ -14,7 +14,41 @@ trait HasFormattedDateTime
 {
     public function getFormattedDateTime(): string
     {
-        if (empty($this->bookingDate) || empty($this->startTime) || empty($this->endTime)) {
+        if (empty($this->bookingDate)) {
+            return '';
+        }
+
+        $locale = Craft::$app->language ?: 'en';
+        $timezone = $this->userTimezone ?: Craft::$app->getTimeZone();
+
+        // Multi-day booking: "June 10 – June 12, 2026 (3 days)"
+        if ($this->isMultiDay()) {
+            $startDate = \DateTime::createFromFormat('Y-m-d', $this->bookingDate);
+            $endDate = \DateTime::createFromFormat('Y-m-d', $this->endDate);
+
+            if (!$startDate || !$endDate) {
+                return $this->bookingDate . ' – ' . ($this->endDate ?? '');
+            }
+
+            $dateFormatter = new \IntlDateFormatter(
+                $locale,
+                \IntlDateFormatter::LONG,
+                \IntlDateFormatter::NONE,
+                $timezone
+            );
+
+            $days = $this->getDurationDays();
+            $dayLabel = $days === 1
+                ? Craft::t('booked', 'labels.day')
+                : Craft::t('booked', 'labels.days');
+
+            return $dateFormatter->format($startDate) . ' – ' .
+                $dateFormatter->format($endDate) .
+                ' (' . $days . ' ' . $dayLabel . ')';
+        }
+
+        // Single-day booking: original behavior
+        if (empty($this->startTime) || empty($this->endTime)) {
             return '';
         }
 
@@ -25,9 +59,6 @@ trait HasFormattedDateTime
         if (!$date || !$startTime || !$endTime) {
             return $this->bookingDate . ' ' . $this->startTime . ' - ' . $this->endTime;
         }
-
-        $locale = Craft::$app->language ?: 'en';
-        $timezone = $this->userTimezone ?: Craft::$app->getTimeZone();
 
         $dateFormatter = new \IntlDateFormatter(
             $locale,

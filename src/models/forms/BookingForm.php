@@ -14,6 +14,7 @@ class BookingForm extends Model
     public ?string $userPhone = null;
     public ?string $userTimezone = null;
     public ?string $bookingDate = null;
+    public ?string $endDate = null;
     public ?string $startTime = null;
     public ?string $endTime = null;
     public ?string $notes = null;
@@ -31,7 +32,8 @@ class BookingForm extends Model
     {
         return [
             [['userName', 'userEmail'], 'required', 'message' => Yii::t('booked', 'This field is required.')],
-            [['bookingDate', 'startTime', 'endTime', 'serviceId'], 'required', 'message' => Yii::t('booked', 'This field is required.'), 'when' => fn($model) => $model->eventDateId === null],
+            [['bookingDate', 'serviceId'], 'required', 'message' => Yii::t('booked', 'This field is required.'), 'when' => fn($model) => $model->eventDateId === null],
+            [['startTime', 'endTime'], 'required', 'message' => Yii::t('booked', 'This field is required.'), 'when' => fn($model) => $model->eventDateId === null && empty($model->endDate)],
             [['userName', 'userEmail', 'userPhone', 'notes'], 'filter', 'filter' => fn($value) =>
                 $value ? trim(strip_tags($value)) : null, ],
             ['userEmail', 'filter', 'filter' => 'strtolower'],
@@ -39,6 +41,7 @@ class BookingForm extends Model
             [['userName', 'userEmail', 'userPhone'], 'string', 'max' => 255],
             ['notes', 'string', 'max' => 5000],
             [['bookingDate'], ValidationHelper::DATE_VALIDATOR, 'format' => ValidationHelper::DATE_FORMAT, 'when' => fn($model) => $model->bookingDate !== null],
+            [['endDate'], ValidationHelper::DATE_VALIDATOR, 'format' => ValidationHelper::DATE_FORMAT, 'when' => fn($model) => $model->endDate !== null],
             [['startTime', 'endTime'], 'match', 'pattern' => ValidationHelper::TIME_FORMAT_PATTERN, 'when' => fn($model) => $model->startTime !== null],
             [['serviceId', 'employeeId', 'locationId', 'eventDateId'], 'integer'],
             [['quantity'], 'integer', 'min' => 1, 'max' => 10000],
@@ -126,6 +129,7 @@ class BookingForm extends Model
             'userPhone' => $this->userPhone,
             'userTimezone' => $this->userTimezone,
             'bookingDate' => $this->bookingDate,
+            'endDate' => $this->endDate,
             'startTime' => $this->startTime,
             'endTime' => $this->endTime,
             'serviceId' => $this->serviceId,

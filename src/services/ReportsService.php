@@ -251,7 +251,8 @@ class ReportsService extends Component
         $query = (new Query())
             ->from('{{%booked_reservations}} r')
             ->where(['r.status' => 'confirmed'])
-            ->andWhere(['not', ['r.startTime' => null]]);
+            ->andWhere(['not', ['r.startTime' => null]])
+            ->andWhere(['is', 'r.endDate', null]);
 
         if ($startDate && $endDate) {
             $query->andWhere(['between', 'r.bookingDate', $startDate, $endDate]);

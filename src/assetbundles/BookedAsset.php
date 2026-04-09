@@ -26,8 +26,6 @@ class BookedAsset extends AssetBundle
     {
         parent::registerAssetFiles($view);
 
-        // Register Alpine.js at POS_END so it loads after wizard components
-        // have registered their alpine:init listeners, and after DOM is ready
         if (!self::isAlpineRegistered($view)) {
             $am = $view->getAssetManager();
             $baseUrl = $am->getPublishedUrl($this->sourcePath, true);

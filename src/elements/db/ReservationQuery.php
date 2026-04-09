@@ -27,6 +27,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
     public ?string $userPhone = null;
     public ?int $userId = null;
     public array|string|null $bookingDate = null;
+    public array|string|null $endDate = null;
     public ?string $startTime = null;
     public ?string $endTime = null;
     public array|string|null $reservationStatus = null;
@@ -102,6 +103,12 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
         return $this;
     }
 
+    public function endDate(array|string|null $value): static
+    {
+        $this->endDate = $value;
+        return $this;
+    }
+
     public function startTime(?string $value): static
     {
         $this->startTime = $value;
@@ -172,7 +179,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
 
         $this->query->addSelect([
             "$t.userName", "$t.userEmail", "$t.userPhone", "$t.userId",
-            "$t.userTimezone", "$t.bookingDate", "$t.startTime", "$t.endTime",
+            "$t.userTimezone", "$t.bookingDate", "$t.endDate", "$t.startTime", "$t.endTime",
             "$t.status", "$t.notes", "$t.sessionNotes", "$t.notificationSent", "$t.confirmationToken",
             "$t.employeeId", "$t.locationId", "$t.serviceId", "$t.quantity",
             "$t.virtualMeetingUrl", "$t.virtualMeetingProvider", "$t.virtualMeetingId",
@@ -185,7 +192,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
         ]);
 
         // Simple param filters (string keys map property name => column name)
-        foreach (['userName', 'userEmail', 'userPhone', 'userId', 'startTime', 'endTime', 'reservationStatus' => 'status', 'employeeId', 'locationId', 'serviceId', 'eventDateId'] as $key => $col) {
+        foreach (['userName', 'userEmail', 'userPhone', 'userId', 'endDate', 'startTime', 'endTime', 'reservationStatus' => 'status', 'employeeId', 'locationId', 'serviceId', 'eventDateId'] as $key => $col) {
             $prop = is_int($key) ? $col : $key;
             if ($this->$prop !== null) {
                 $this->subQuery->andWhere(Db::parseParam("$t.$col", $this->$prop));

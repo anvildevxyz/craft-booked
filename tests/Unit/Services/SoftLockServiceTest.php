@@ -505,6 +505,7 @@ class SoftLockServiceTest extends TestCase
             public ?string $date = null;
             public ?string $startTime = null;
             public ?string $endTime = null;
+            public ?string $endDate = null;
             public int $quantity = 1;
             public ?string $expiresAt = null;
         };
