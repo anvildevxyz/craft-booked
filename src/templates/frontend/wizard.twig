@@ -532,14 +532,16 @@
                         {{ 'wizard.legendValidEndDate'|t('booked') }}
                     </span>
                 </template>
-                <span class="{{ cssPrefix }}-calendar-legend-item">
-                    <span class="{{ cssPrefix }}-calendar-legend-dot unavailable"></span>
-                    {{ labels.legendUnavailable }}
-                </span>
+                <template x-if="!selectingEndDate">
+                    <span class="{{ cssPrefix }}-calendar-legend-item">
+                        <span class="{{ cssPrefix }}-calendar-legend-dot unavailable"></span>
+                        {{ labels.legendUnavailable }}
+                    </span>
+                </template>
                 <template x-if="selectingEndDate">
                     <span class="{{ cssPrefix }}-calendar-legend-item">
                         <span class="{{ cssPrefix }}-calendar-legend-dot {{ cssPrefix }}-legend-dot-range"></span>
-                        {{ 'wizard.legendSelectedRange'|t('booked') }}
+                        {{ 'wizard.legendIncludedInBooking'|t('booked') }}
                     </span>
                 </template>
             </div>

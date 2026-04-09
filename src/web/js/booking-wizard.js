@@ -937,21 +937,24 @@
                         // For day-based services, highlight available dates and range
                         if (self.isDayService) {
                             if (self.isFlexibleDayService && self.selectingEndDate && self.date) {
-                                // End-date selection mode: only style dates in the relevant range
+                                // End-date selection mode
+                                var firstValidEnd = self.validEndDates.length > 0 ? self.validEndDates[0] : null;
+                                var lastValidEnd = self.validEndDates.length > 0 ? self.validEndDates[self.validEndDates.length - 1] : null;
+
                                 if (dateStr === self.date) {
                                     dayElem.classList.add('booked-range-start');
                                 } else if (self.validEndDates.includes(dateStr)) {
                                     dayElem.classList.add('booked-available');
                                     dayElem.setAttribute('title', self.config.messages?.available || 'Available');
-                                } else if (dateStr > self.date && self.validEndDates.length > 0 && dateStr <= self.validEndDates[self.validEndDates.length - 1]) {
-                                    // Only mark as unavailable if within the possible end-date range
-                                    dayElem.classList.add('booked-unavailable');
+                                } else if (dateStr > self.date && firstValidEnd && dateStr < firstValidEnd) {
+                                    // Between start and first valid end = included in minimum range, not an error
+                                    dayElem.classList.add('booked-in-range');
                                 }
-                                // Dates before start or after max range: no styling (neutral)
+                                // Dates before start or after valid range: no styling (neutral)
 
                                 // Highlight range between start and hovered/selected end
                                 var rangeEnd = self.hoveredDate || self.endDate;
-                                if (rangeEnd && dateStr >= self.date && dateStr <= rangeEnd && self.validEndDates.includes(rangeEnd)) {
+                                if (rangeEnd && dateStr > self.date && dateStr <= rangeEnd && self.validEndDates.includes(rangeEnd)) {
                                     dayElem.classList.add('booked-in-range');
                                 }
                             } else if (self.isFlexibleDayService && self.date && self.endDate) {
@@ -1248,8 +1251,14 @@
                         this.loading = true;
                         this.announce(this.config.messages?.selectEndDate || 'Select your end date');
                         // Clear Flatpickr's internal selected state so it doesn't override our styling
+                        // Preserve the current month view to avoid jumping back
                         if (this.flatpickrInstance) {
+                            const currentYear = this.flatpickrInstance.currentYear;
+                            const currentMonth = this.flatpickrInstance.currentMonth;
                             this.flatpickrInstance.clear();
+                            this.flatpickrInstance.changeMonth(currentMonth, false);
+                            this.flatpickrInstance.currentYear = currentYear;
+                            this.flatpickrInstance.redraw();
                         }
                         this.fetchValidEndDates(date).then(() => {
                             this.loading = false;

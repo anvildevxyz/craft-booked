@@ -1858,6 +1858,7 @@ return [
     'wizard.pickEndDateHint' => '最終日を選んでください。有効な終了日がハイライトされています。',
     'wizard.legendValidEndDate' => '有効な終了日',
     'wizard.legendSelectedRange' => '選択範囲',
+    'wizard.legendIncludedInBooking' => '予約に含まれる',
     'wizard.daysSelected' => '{count}日選択済み',
     'sms.confirmation.multiday' => 'ご予約が確定しました！{{service}} {{date}}から{{endDate}}まで（{{durationDays}}日間）。{{location}}',
     'sms.reminder.multiday' => 'リマインダー：{{service}}は明日開始、{{date}}から{{endDate}}。{{location}}',

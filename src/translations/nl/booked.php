@@ -1858,6 +1858,7 @@ return [
     'wizard.pickEndDateHint' => 'Kies nu uw laatste dag. Geldige einddatums zijn gemarkeerd.',
     'wizard.legendValidEndDate' => 'Geldige einddatum',
     'wizard.legendSelectedRange' => 'Uw selectie',
+    'wizard.legendIncludedInBooking' => 'Inbegrepen in boeking',
     'wizard.daysSelected' => '{count} dagen geselecteerd',
     'sms.confirmation.multiday' => 'Uw boeking is bevestigd! {{service}} van {{date}} tot {{endDate}} ({{durationDays}} dagen). {{location}}',
     'sms.reminder.multiday' => 'Herinnering: {{service}} begint morgen, {{date}} tot {{endDate}}. {{location}}',

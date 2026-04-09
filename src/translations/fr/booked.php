@@ -1858,6 +1858,7 @@ return [
     'wizard.pickEndDateHint' => 'Choisissez maintenant votre dernier jour. Les dates de fin valides sont mises en évidence.',
     'wizard.legendValidEndDate' => 'Date de fin valide',
     'wizard.legendSelectedRange' => 'Votre sélection',
+    'wizard.legendIncludedInBooking' => 'Inclus dans la réservation',
     'wizard.daysSelected' => '{count} jours sélectionnés',
     'sms.confirmation.multiday' => 'Votre réservation est confirmée ! {{service}} du {{date}} au {{endDate}} ({{durationDays}} jours). {{location}}',
     'sms.reminder.multiday' => 'Rappel : {{service}} commence demain, du {{date}} au {{endDate}}. {{location}}',
