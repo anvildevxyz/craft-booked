@@ -80,15 +80,12 @@ class MultiDayAvailabilityService extends Component
         $blackoutService,
         $scheduleResolver,
     ): bool {
-        // Convert minute-based buffers to days (round up: any partial day = full day buffer)
-        $bufferBeforeDays = $bufferBefore > 0 ? (int)ceil($bufferBefore / 1440) : 0;
-        $bufferAfterDays = $bufferAfter > 0 ? (int)ceil($bufferAfter / 1440) : 0;
-
-        $bufferedStart = $bufferBeforeDays > 0
-            ? (new \DateTime($startDate))->modify("-{$bufferBeforeDays} days")->format('Y-m-d')
+        // For day-based services, buffer values are stored as days directly
+        $bufferedStart = $bufferBefore > 0
+            ? (new \DateTime($startDate))->modify("-{$bufferBefore} days")->format('Y-m-d')
             : $startDate;
-        $bufferedEnd = $bufferAfterDays > 0
-            ? (new \DateTime($endDate))->modify("+{$bufferAfterDays} days")->format('Y-m-d')
+        $bufferedEnd = $bufferAfter > 0
+            ? (new \DateTime($endDate))->modify("+{$bufferAfter} days")->format('Y-m-d')
             : $endDate;
 
         $allDates = self::getDatesInRange($bufferedStart, $bufferedEnd);

@@ -240,7 +240,7 @@
 		</div>
 	{% endif %}
 
-	<div class="field">
+	<div class="field" id="buffer-fields">
 		{{ forms.textField({
         label: 'service.bufferBefore'|t('booked'),
         instructions: 'service.bufferBeforeInstructions'|t('booked'),
@@ -250,7 +250,7 @@
         min: 0,
         value: service.bufferBefore,
         errors: service.getErrors('bufferBefore'),
-        unit: 'labels.min'|t('booked')
+        unit: (service.durationType ?? 'minutes') != 'minutes' ? 'labels.days'|t('booked') : 'labels.min'|t('booked')
     }) }}
 
 		{{ forms.textField({
@@ -263,7 +263,7 @@
         value: service.bufferAfter,
         errors: service.getErrors('bufferAfter'),
         size: 10,
-        unit: 'labels.min'|t('booked')
+        unit: (service.durationType ?? 'minutes') != 'minutes' ? 'labels.days'|t('booked') : 'labels.min'|t('booked')
     }) }}
 	</div>
 
@@ -564,6 +564,14 @@
 	        var slotField = document.getElementById('timeSlotLength');
 	        if (slotField) {
 	            slotField.closest('.field').style.display = isDayBased ? 'none' : '';
+	        }
+
+	        // Update buffer field units (minutes for time-slot, days for day-based)
+	        var bufferFields = document.getElementById('buffer-fields');
+	        if (bufferFields) {
+	            bufferFields.querySelectorAll('.flex-label, .light').forEach(function(unit) {
+	                unit.textContent = isDayBased ? labels.daysUnit : labels.minUnit;
+	            });
 	        }
 
 	        // Show pricingMode only for fixed-day services
