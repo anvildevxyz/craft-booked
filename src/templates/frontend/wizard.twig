@@ -511,7 +511,7 @@
             </p>
         </template>
 
-        <div class="{{ cssPrefix }}-date-picker" x-init="initDatePicker()" x-ref="datePickerContainer">
+        <div class="{{ cssPrefix }}-date-picker" x-ref="datePickerContainer">
             <label for="booking-date" class="{{ cssPrefix }}-date-label" x-show="!isDayService">{{ labels.selectDate }}</label>
             <input type="text"
                    id="booking-date"
@@ -547,7 +547,7 @@
             </div>
         </div>
 
-        <div class="{{ cssPrefix }}-time-section" x-show="date">
+        <div class="{{ cssPrefix }}-time-section" x-show="date && !isDayService">
             <template x-if="availableSlots.length > 0">
                 <div>
                     <label class="{{ cssPrefix }}-time-label">{{ labels.selectTime }}</label>
@@ -588,7 +588,7 @@
                 </div>
             </template>
 
-            <template x-if="availableSlots.length === 0 && !loading">
+            <template x-if="availableSlots.length === 0 && !loading && !isDayService">
                 <div class="{{ cssPrefix }}-no-slots-container">
                     <div class="{{ cssPrefix }}-no-slots-card" x-show="!waitlistSuccess">
                         <div class="{{ cssPrefix }}-no-slots-icon">
