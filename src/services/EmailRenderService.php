@@ -96,10 +96,19 @@ class EmailRenderService extends Component
             'formattedEndTime' => $reservation->endTime
                 ? DateHelper::formatTimeLocale(DateHelper::parseTime($reservation->endTime))
                 : '',
-            'duration' => $reservation->getDurationMinutes(),
+            // For multi-day bookings, `duration` is the number of days so the
+            // shared `{{ duration }} {{ durationUnit }}` template expression
+            // renders correctly. `durationMinutes` / `durationDays` are kept
+            // available for templates that need the raw values.
+            'duration' => $reservation->isMultiDay()
+                ? ($reservation->getDurationDays() ?? 0)
+                : $reservation->getDurationMinutes(),
+            'durationMinutes' => $reservation->getDurationMinutes(),
             'durationDays' => $reservation->getDurationDays(),
             'durationUnit' => $reservation->isMultiDay()
-                ? Craft::t('booked', 'labels.days')
+                ? (($reservation->getDurationDays() ?? 0) === 1
+                    ? Craft::t('booked', 'labels.day')
+                    : Craft::t('booked', 'labels.days'))
                 : Craft::t('booked', 'labels.minutes'),
             'durationDisplay' => $reservation->isMultiDay()
                 ? $reservation->getDurationDays() . ' ' . Craft::t('booked', 'labels.days')

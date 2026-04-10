@@ -393,6 +393,28 @@ class BookingService extends Component
         return "booked-booking-{$date}-{$time}-any-" . ($serviceId ?? 'any');
     }
 
+    /**
+     * Build the mutex lock key for mutating an existing reservation (cancel,
+     * reduce/increase quantity). Handles event bookings, multi-day bookings,
+     * and regular time-slot bookings — multi-day reservations have a null
+     * startTime so they cannot go through buildSlotLockKey().
+     */
+    private function buildReservationLockKey($reservation): string
+    {
+        if ($reservation->eventDateId) {
+            return "booked-event-booking-{$reservation->eventDateId}";
+        }
+        if ($reservation->isMultiDay()) {
+            return "booked-multiday-{$reservation->bookingDate}-" . ($reservation->employeeId ?? 'any') . "-{$reservation->serviceId}";
+        }
+        return $this->buildSlotLockKey(
+            $reservation->bookingDate,
+            $reservation->startTime,
+            $reservation->employeeId,
+            $reservation->serviceId,
+        );
+    }
+
     private function populateReservation(
         ReservationInterface $reservation,
         array $data,
@@ -809,9 +831,7 @@ class BookingService extends Component
             throw new BookingValidationException(Craft::t('booked', 'booking.cannotCancel'));
         }
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
@@ -844,9 +864,7 @@ class BookingService extends Component
 
         $newQuantity = $currentQuantity - $reduceBy;
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
@@ -959,9 +977,7 @@ class BookingService extends Component
             return false;
         }
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
