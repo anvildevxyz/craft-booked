@@ -938,8 +938,7 @@
                         if (self.isDayService) {
                             if (self.isFlexibleDayService && self.selectingEndDate && self.date) {
                                 // End-date selection mode
-                                var firstValidEnd = self.validEndDates.length > 0 ? self.validEndDates[0] : null;
-                                var lastValidEnd = self.validEndDates.length > 0 ? self.validEndDates[self.validEndDates.length - 1] : null;
+                                const firstValidEnd = self.validEndDates.length > 0 ? self.validEndDates[0] : null;
 
                                 if (dateStr === self.date) {
                                     dayElem.classList.add('booked-range-start');
@@ -953,7 +952,7 @@
                                 // Dates before start or after valid range: no styling (neutral)
 
                                 // Highlight range between start and hovered/selected end
-                                var rangeEnd = self.hoveredDate || self.endDate;
+                                const rangeEnd = self.hoveredDate || self.endDate;
                                 if (rangeEnd && dateStr > self.date && dateStr <= rangeEnd && self.validEndDates.includes(rangeEnd)) {
                                     dayElem.classList.add('booked-in-range');
                                 }

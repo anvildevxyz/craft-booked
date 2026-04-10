@@ -134,6 +134,17 @@ class BookingService extends Component
             throw new BookingValidationException(Craft::t('booked', 'booking.missingParameters'));
         }
 
+        // Validate multi-day date range
+        if ($isMultiDay && !empty($data['endDate']) && !empty($data['bookingDate'])) {
+            if ($data['endDate'] < $data['bookingDate']) {
+                throw new BookingValidationException(Craft::t('booked', 'booking.invalidDate'));
+            }
+            $rangeDays = (int)(new \DateTime($data['bookingDate']))->diff(new \DateTime($data['endDate']))->days + 1;
+            if ($rangeDays > 365) {
+                throw new BookingValidationException(Craft::t('booked', 'booking.invalidDate'));
+            }
+        }
+
         // Reject bookings for past dates
         if (!$eventDateId && !empty($data['bookingDate'])) {
             $timezone = new \DateTimeZone($data['userTimezone'] ?? Craft::$app->getTimeZone());

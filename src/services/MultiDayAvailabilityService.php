@@ -8,7 +8,7 @@ use anvildev\booked\records\ReservationRecord;
 use craft\base\Component;
 
 /**
- * Handles availability calculation for day-based services (durationType = 'days').
+ * Handles availability calculation for day-based services (durationType = 'days' or 'flexible_days').
  * Separate from AvailabilityService to keep the slot-based path untouched.
  */
 class MultiDayAvailabilityService extends Component
@@ -29,13 +29,19 @@ class MultiDayAvailabilityService extends Component
         int $extrasDuration = 0,
     ): array {
         $service = Service::find()->id($serviceId)->siteId('*')->one();
-        if (!$service || !$service->isDayService() || !$service->duration) {
+        if (!$service || !$service->isDayService()) {
             return [];
         }
 
-        $duration = $service->duration + $extrasDuration;
+        // For flexible_days, use minDays as the minimum duration to check
+        $duration = $service->isFlexibleDayService()
+            ? ($service->minDays ?? 1)
+            : ($service->duration ?? 1);
+        $duration += $extrasDuration;
+
         $bufferBefore = $service->bufferBefore ?? 0;
         $bufferAfter = $service->bufferAfter ?? 0;
+        $capacity = $service->capacity ?? 1;
         $blackoutService = Booked::getInstance()->getBlackoutDate();
         $scheduleResolver = Booked::getInstance()->scheduleResolver;
 
@@ -57,7 +63,7 @@ class MultiDayAvailabilityService extends Component
 
             if ($this->isStartDateAvailable(
                 $candidateStart, $candidateEnd, $serviceId, $employeeId, $locationId,
-                $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver
+                $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver, $capacity
             )) {
                 $availableDates[] = $candidateStart;
             }
@@ -77,8 +83,9 @@ class MultiDayAvailabilityService extends Component
         int $quantity,
         int $bufferBefore,
         int $bufferAfter,
-        $blackoutService,
-        $scheduleResolver,
+        BlackoutDateService $blackoutService,
+        ScheduleResolverService $scheduleResolver,
+        ?int $capacity = null,
     ): bool {
         // For day-based services, buffer values are stored as days directly
         $bufferedStart = $bufferBefore > 0
@@ -126,8 +133,10 @@ class MultiDayAvailabilityService extends Component
 
         // Check capacity: sum existing quantities, not just existence
         $existingQuantity = (int)$conflictQuery->sum('r.quantity');
-        $service = \anvildev\booked\elements\Service::find()->id($serviceId)->siteId('*')->one();
-        $capacity = $service->capacity ?? 1;
+        if ($capacity === null) {
+            $service = Service::find()->id($serviceId)->siteId('*')->one();
+            $capacity = $service->capacity ?? 1;
+        }
 
         return ($existingQuantity + $quantity) <= $capacity;
     }

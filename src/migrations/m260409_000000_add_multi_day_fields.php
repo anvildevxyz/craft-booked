@@ -10,7 +10,7 @@ class m260409_000000_add_multi_day_fields extends Migration
     {
         // Service fields
         if (!$this->db->columnExists('{{%booked_services}}', 'durationType')) {
-            $this->addColumn('{{%booked_services}}', 'durationType', $this->string(10)->notNull()->defaultValue('minutes')->after('duration'));
+            $this->addColumn('{{%booked_services}}', 'durationType', $this->string(20)->notNull()->defaultValue('minutes')->after('duration'));
         }
         if (!$this->db->columnExists('{{%booked_services}}', 'pricingMode')) {
             $this->addColumn('{{%booked_services}}', 'pricingMode', $this->string(10)->notNull()->defaultValue('flat')->after('price'));

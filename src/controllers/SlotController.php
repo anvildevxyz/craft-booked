@@ -417,6 +417,12 @@ class SlotController extends Controller
             return $this->jsonError(Craft::t('booked', 'booking.invalidDate'));
         }
 
+        // Cap date range to prevent abuse (max 365 days)
+        $rangeDays = (int)(new \DateTime($date))->diff(new \DateTime($endDate))->days + 1;
+        if ($rangeDays > 365) {
+            return $this->jsonError(Craft::t('booked', 'booking.invalidDate'));
+        }
+
         $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
         $employeeId = $this->normalizeId($request->getBodyParam('employeeId'));
         $locationId = $this->normalizeId($request->getBodyParam('locationId'));
