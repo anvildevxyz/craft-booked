@@ -75,7 +75,7 @@
             prefetchedMonths: {}, // Tracks which year-month combos have been fetched
             slotCache: {}, // Caches slot data by date string (entries expire after SLOT_CACHE_TTL_MS)
             SLOT_CACHE_TTL_MS: 2 * 60 * 1000, // 2 minutes
-            showAvailabilityIndicators: false, // Only show after first date selection
+            showAvailabilityIndicators: true, // Show colored dates from the very first render
 
             // Selected objects
             selectedService: null,
@@ -853,16 +853,21 @@
             /**
              * Initialize Flatpickr datepicker with availability highlighting
              */
-            initDatePicker() {
+            async initDatePicker() {
                 const input = this.$refs.dateInput;
                 if (!input || !window.flatpickr) {
                     console.warn('[BookingWizard] Flatpickr not available');
                     return;
                 }
 
-                // Destroy existing instance if any
+                // Destroy existing instance if any. Null the reference before
+                // the async pre-fetch below so that fetchAvailableDates /
+                // fetchAvailabilityCalendar don't try to redraw() a destroyed
+                // instance (which throws "Cannot read properties of undefined
+                // (reading 'noCalendar')" inside Flatpickr).
                 if (this.flatpickrInstance) {
                     this.flatpickrInstance.destroy();
+                    this.flatpickrInstance = null;
                 }
 
                 // Determine locale from config (set by Craft's app.language) or HTML lang
@@ -880,6 +885,25 @@
                     const max = new Date();
                     max.setDate(max.getDate() + this.config.maximumAdvanceBookingDays);
                     maxDate = max;
+                }
+
+                // Pre-fetch availability for the initial month BEFORE creating the
+                // flatpickr instance, so the very first onDayCreate pass has data to
+                // style with. Without this, the first render paints all days neutral
+                // (gray) and only gets colored once an async fetch redraws.
+                this.showAvailabilityIndicators = true;
+                const initialDate = this.date ? new Date(this.date) : new Date();
+                const initYear = initialDate.getFullYear();
+                const initMonth = initialDate.getMonth() + 1;
+                this.calendarMonth = `${initYear}-${String(initMonth).padStart(2, '0')}`;
+                try {
+                    if (this.isDayService) {
+                        await this.fetchAvailableDates();
+                    } else {
+                        await this.fetchAvailabilityCalendar(initYear, initMonth);
+                    }
+                } catch (e) {
+                    console.warn('[BookingWizard] Initial availability fetch failed:', e);
                 }
 
                 this.flatpickrInstance = flatpickr(input, {
@@ -1011,17 +1035,14 @@
                             instance.setDate(self.date, false);
                         }
 
-                        // Fetch availability for the current month immediately
-                        // This ensures users see availability indicators right away
+                        // Initial availability fetch already ran in initDatePicker()
+                        // before this instance was created, so onDayCreate has
+                        // already painted the right classes. Only schedule
+                        // adjacent-month / slot prefetches here.
                         self.showAvailabilityIndicators = true;
                         const year = instance.currentYear;
                         const month = instance.currentMonth + 1;
-                        self.calendarMonth = `${year}-${String(month).padStart(2, '0')}`;
-                        if (self.isDayService) {
-                            self.fetchAvailableDates();
-                        } else {
-                            self.fetchAvailabilityCalendar(year, month);
-                            // Prefetch adjacent months + likely slots after initial load
+                        if (!self.isDayService) {
                             setTimeout(() => {
                                 if (self.step === 5 && self.flatpickrInstance) {
                                     self.prefetchAdjacentMonths(year, month);
@@ -1219,6 +1240,15 @@
             selectDate(date) {
                 // Fixed-duration day service: compute end date and advance
                 if (this.isDayService && !this.isFlexibleDayService) {
+                    // Reject clicks on unavailable start dates so users don't
+                    // accidentally advance to the next step with a bad date.
+                    if (this.availableStartDates.length > 0 && !this.availableStartDates.includes(date)) {
+                        if (this.flatpickrInstance) {
+                            this.flatpickrInstance.clear();
+                            this.flatpickrInstance.redraw();
+                        }
+                        return;
+                    }
                     this.date = date;
                     const duration = Math.max(1, this.serviceDuration);
                     // Use UTC to avoid timezone shift issues with toISOString()
@@ -1234,8 +1264,31 @@
 
                 // Flexible day service: two-click selection
                 if (this.isFlexibleDayService) {
-                    if (this.selectingEndDate && date <= this.date) {
-                        // Clicked on or before start date while in end-date mode: re-pick start
+                    // Clicking the currently selected start date unselects it
+                    // and returns to start-date selection mode. This is the
+                    // only escape hatch users have when they've picked a start
+                    // date they don't want. Preserve the current month view so
+                    // the calendar doesn't jump back to today.
+                    if (this.selectingEndDate && date === this.date) {
+                        this.date = null;
+                        this.endDate = null;
+                        this.selectingEndDate = false;
+                        this.validEndDates = [];
+                        this.hoveredDate = null;
+                        if (this.flatpickrInstance) {
+                            const currentYear = this.flatpickrInstance.currentYear;
+                            const currentMonth = this.flatpickrInstance.currentMonth;
+                            this.flatpickrInstance.clear();
+                            this.flatpickrInstance.changeMonth(currentMonth, false);
+                            this.flatpickrInstance.currentYear = currentYear;
+                            this.flatpickrInstance.redraw();
+                        }
+                        this.announce(this.config.messages?.pickStartDateHint || 'Pick a start date');
+                        return;
+                    }
+
+                    if (this.selectingEndDate && date < this.date) {
+                        // Clicked before the start date: treat as re-picking a new earlier start
                         this.selectingEndDate = false;
                         this.validEndDates = [];
                         this.hoveredDate = null;
@@ -1243,6 +1296,14 @@
                     }
 
                     if (!this.selectingEndDate) {
+                        // Reject clicks on dates that aren't valid start dates
+                        if (this.availableStartDates.length > 0 && !this.availableStartDates.includes(date)) {
+                            if (this.flatpickrInstance) {
+                                this.flatpickrInstance.clear();
+                                this.flatpickrInstance.redraw();
+                            }
+                            return;
+                        }
                         // Select start date
                         this.date = date;
                         this.endDate = null;
