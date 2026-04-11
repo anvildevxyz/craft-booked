@@ -47,6 +47,7 @@ class BookingDataController extends Controller
 
         $site = SiteHelper::getSiteForRequest(Craft::$app->getRequest());
 
+        /** @var Service[] $services */
         $services = ElementQueryHelper::forSite(
             Service::find()->enabled()->unique(),
             $site->id
@@ -82,7 +83,7 @@ class BookingDataController extends Controller
         $serviceLocationMap = Booked::getInstance()->serviceLocation->getLocationIdMapForServices($serviceIds);
 
         return $this->jsonSuccess('', [
-            'services' => array_map(fn($service) => [
+            'services' => array_map(fn(Service $service) => [
                 'id' => $service->id,
                 'title' => $service->title,
                 'description' => $service->description ?? '',

@@ -987,10 +987,14 @@
                                     if (dateStr === self.date) dayElem.classList.add('booked-range-start');
                                     if (dateStr === self.endDate) dayElem.classList.add('booked-range-end');
                                 }
-                            } else {                                if (self.availableStartDates.includes(dateStr)) {
+                            } else {
+                                // Start date selection (fixed-day or flexible first click).
+                                // Only apply styling once availableStartDates has loaded — otherwise
+                                // every day flashes "Fully booked" before the fetch resolves.
+                                if (self.availableStartDates.includes(dateStr)) {
                                     dayElem.classList.add('booked-available');
                                     dayElem.setAttribute('title', self.config.messages?.available || 'Available');
-                                } else {
+                                } else if (self.availableStartDates.length > 0) {
                                     dayElem.classList.add('booked-unavailable');
                                     dayElem.setAttribute('title', self.config.messages?.fullyBooked || 'Fully booked');
                                 }
@@ -1321,6 +1325,9 @@
                         this.fetchValidEndDates(date).then(() => {
                             this.loading = false;
                             if (this.flatpickrInstance) {
+                                // redraw() alone doesn't re-run onDayCreate, so the new
+                                // validEndDates don't paint. changeMonth(current, false)
+                                // forces a full day-cell rebuild without navigating.
                                 const m = this.flatpickrInstance.currentMonth;
                                 this.flatpickrInstance.changeMonth(m, false);
                             }

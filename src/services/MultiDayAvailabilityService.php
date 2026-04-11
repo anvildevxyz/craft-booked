@@ -46,15 +46,7 @@ class MultiDayAvailabilityService extends Component
         $scheduleResolver = Booked::getInstance()->scheduleResolver;
 
         $availableDates = [];
-        $current = \DateTime::createFromFormat('Y-m-d', $rangeStart);
-        $end = \DateTime::createFromFormat('Y-m-d', $rangeEnd);
-
-        if (!$current || !$end) {
-            return [];
-        }
-
-        while ($current <= $end) {
-            $candidateStart = $current->format('Y-m-d');
+        foreach (self::collectCandidateStartDates($rangeStart, $rangeEnd) as $candidateStart) {
             $candidateEnd = self::calculateEndDate($candidateStart, $duration);
 
             if ($this->isStartDateAvailable(
@@ -63,11 +55,35 @@ class MultiDayAvailabilityService extends Component
             )) {
                 $availableDates[] = $candidateStart;
             }
-
-            $current->modify('+1 day');
         }
 
         return $availableDates;
+    }
+
+    /**
+     * Enumerate every YYYY-MM-DD date in [rangeStart, rangeEnd] inclusive.
+     *
+     * Returns an empty array when either input is not a valid Y-m-d date or
+     * when rangeEnd precedes rangeStart.
+     *
+     * @return string[]
+     */
+    public static function collectCandidateStartDates(string $rangeStart, string $rangeEnd): array
+    {
+        $current = \DateTime::createFromFormat('Y-m-d', $rangeStart);
+        $end = \DateTime::createFromFormat('Y-m-d', $rangeEnd);
+
+        if (!$current || !$end || $current > $end) {
+            return [];
+        }
+
+        $dates = [];
+        while ($current <= $end) {
+            $dates[] = $current->format('Y-m-d');
+            $current->modify('+1 day');
+        }
+
+        return $dates;
     }
 
     public function isStartDateAvailable(
