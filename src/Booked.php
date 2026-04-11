@@ -305,10 +305,6 @@ class Booked extends Plugin
             Order::class,
             Order::EVENT_AFTER_COMPLETE_ORDER,
             function(Event $event) {
-                if (!$this->isCommerceEnabled()) {
-                    return;
-                }
-
                 /** @var Order $order */
                 $order = $event->sender;
                 $reservation = $this->commerce->getReservationByOrderId($order->id);
@@ -343,10 +339,10 @@ class Booked extends Plugin
             Order::class,
             Order::EVENT_AFTER_REMOVE_LINE_ITEM,
             function(\craft\commerce\events\LineItemEvent $event) {
-                if (!$this->isCommerceEnabled()) {
-                    return;
-                }
-
+                // No isCommerceEnabled() guard: if the removed line item maps
+                // to a pending reservation element, the reservation came from
+                // the Commerce flow and must be cancelled regardless of the
+                // current setting, matching the EVENT_AFTER_COMPLETE_ORDER path.
                 $lineItem = $event->lineItem;
                 if (!$lineItem->purchasableId) {
                     return;

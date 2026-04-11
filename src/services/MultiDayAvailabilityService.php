@@ -57,10 +57,6 @@ class MultiDayAvailabilityService extends Component
             $candidateStart = $current->format('Y-m-d');
             $candidateEnd = self::calculateEndDate($candidateStart, $duration);
 
-            if ($candidateEnd > $rangeEnd) {
-                break;
-            }
-
             if ($this->isStartDateAvailable(
                 $candidateStart, $candidateEnd, $serviceId, $employeeId, $locationId,
                 $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver, $capacity

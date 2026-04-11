@@ -987,12 +987,10 @@
                                     if (dateStr === self.date) dayElem.classList.add('booked-range-start');
                                     if (dateStr === self.endDate) dayElem.classList.add('booked-range-end');
                                 }
-                            } else {
-                                // Start date selection (fixed-day or flexible first click)
-                                if (self.availableStartDates.includes(dateStr)) {
+                            } else {                                if (self.availableStartDates.includes(dateStr)) {
                                     dayElem.classList.add('booked-available');
                                     dayElem.setAttribute('title', self.config.messages?.available || 'Available');
-                                } else if (self.availableStartDates.length > 0) {
+                                } else {
                                     dayElem.classList.add('booked-unavailable');
                                     dayElem.setAttribute('title', self.config.messages?.fullyBooked || 'Fully booked');
                                 }
@@ -1323,7 +1321,8 @@
                         this.fetchValidEndDates(date).then(() => {
                             this.loading = false;
                             if (this.flatpickrInstance) {
-                                this.flatpickrInstance.redraw();
+                                const m = this.flatpickrInstance.currentMonth;
+                                this.flatpickrInstance.changeMonth(m, false);
                             }
                         });
                         return;
