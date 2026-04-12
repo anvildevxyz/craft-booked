@@ -209,8 +209,9 @@
 	</div>
 
 	<div class="field">
+		{% set isPerUnit = (service.durationType ?? 'minutes') == 'flexible_days' or ((service.durationType ?? 'minutes') == 'days' and (service.pricingMode ?? 'flat') == 'per_unit') %}
 		{{ forms.textField({
-        label: 'labels.price'|t('booked'),
+        label: isPerUnit ? 'service.pricePerDay'|t('booked') : 'labels.price'|t('booked'),
         id: 'price',
         name: 'price',
         type: 'number',
@@ -218,6 +219,7 @@
         min: 0,
         value: service.price,
         errors: service.getErrors('price'),
+        unit: isPerUnit ? 'service.perDay'|t('booked') : null,
     }) }}
 	</div>
 
@@ -535,8 +537,46 @@
 	        minutes: {{ 'service.durationMinutes'|t('booked')|json_encode|raw }},
 	        days: {{ 'service.durationDays'|t('booked')|json_encode|raw }},
 	        minUnit: {{ 'labels.min'|t('booked')|json_encode|raw }},
-	        daysUnit: {{ 'labels.days'|t('booked')|json_encode|raw }}
+	        daysUnit: {{ 'labels.days'|t('booked')|json_encode|raw }},
+	        price: {{ 'labels.price'|t('booked')|json_encode|raw }},
+	        pricePerDay: {{ 'service.pricePerDay'|t('booked')|json_encode|raw }},
+	        perDayUnit: {{ 'service.perDay'|t('booked')|json_encode|raw }}
 	    };
+
+	    function updatePriceLabel(isPerUnit) {
+	        var priceField = document.getElementById('price');
+	        if (!priceField) return;
+	        var fieldWrap = priceField.closest('.field');
+	        if (fieldWrap) {
+	            var label = fieldWrap.querySelector('.heading label');
+	            if (label) {
+	                label.textContent = isPerUnit ? labels.pricePerDay : labels.price;
+	            }
+	        }
+	        var inputWrap = priceField.closest('.input');
+	        if (!inputWrap) return;
+	        var unit = inputWrap.querySelector('.flex-label, .light');
+	        if (isPerUnit) {
+	            if (!unit) {
+	                unit = document.createElement('div');
+	                unit.className = 'flex-label light';
+	                priceField.parentNode.appendChild(unit);
+	            }
+	            unit.textContent = labels.perDayUnit;
+	        } else if (unit) {
+	            unit.parentNode.removeChild(unit);
+	        }
+	    }
+
+	    function syncPriceLabel() {
+	        var durationType = document.getElementById('durationType').value;
+	        var pricingMode = document.getElementById('pricingMode').value;
+	        var isPerUnit = durationType === 'flexible_days'
+	            || (durationType === 'days' && pricingMode === 'per_unit');
+	        updatePriceLabel(isPerUnit);
+	    }
+
+	    document.getElementById('pricingMode').addEventListener('change', syncPriceLabel);
 
 	    document.getElementById('durationType').addEventListener('change', function() {
 	        var isDays = this.value === 'days';
@@ -588,6 +628,9 @@
 	        if (flexFields) {
 	            flexFields.style.display = isFlexible ? '' : 'none';
 	        }
+
+	        // Sync price label with current duration/pricing combination
+	        syncPriceLabel();
 	    });
 
 	    // Trigger on load
