@@ -115,8 +115,26 @@ class GraphQLQueryMutationTest extends TestCase
             dirname(__DIR__, 3) . '/src/gql/arguments/elements/ReservationArguments.php'
         );
 
-        foreach (['bookingDate', 'status', 'serviceId', 'employeeId', 'locationId', 'userId'] as $arg) {
+        foreach (['bookingDate', 'endDate', 'status', 'serviceId', 'employeeId', 'locationId', 'userId'] as $arg) {
             $this->assertStringContainsString("'{$arg}'", $argsSource, "ReservationArguments must define '{$arg}'");
+        }
+    }
+
+    public function testReservationResolverAllowlistIncludesReservationArgumentNames(): void
+    {
+        $resolverSource = file_get_contents(
+            dirname(__DIR__, 3) . '/src/gql/resolvers/elements/ReservationResolver.php'
+        );
+
+        preg_match('/ALLOWED_QUERY_PARAMS = \[(.*?)\];/s', $resolverSource, $blockMatches);
+        $this->assertNotEmpty($blockMatches[1] ?? null, 'Could not parse ALLOWED_QUERY_PARAMS block');
+        $allowBlock = $blockMatches[1];
+        foreach (['bookingDate', 'endDate', 'status', 'serviceId', 'employeeId', 'locationId', 'userId'] as $arg) {
+            $this->assertStringContainsString(
+                "'{$arg}'",
+                $allowBlock,
+                "ReservationResolver allowlist must include '{$arg}' (ReservationArguments exposes it)"
+            );
         }
     }
 
@@ -192,6 +210,27 @@ class GraphQLQueryMutationTest extends TestCase
         $this->assertStringContainsString('extraIds', $method, 'resolveCreate must handle extraIds');
         $this->assertStringContainsString('extraQuantities', $method, 'resolveCreate must handle extraQuantities');
         $this->assertStringContainsString("'extras' =>", $method, 'resolveCreate must pass extras to booking service');
+    }
+
+    public function testCreateMutationPassesEndDateAndNullableStartTime(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 3) . '/src/gql/mutations/ReservationMutations.php'
+        );
+
+        preg_match('/function resolveCreate\b.*?^    \}/ms', $source, $matches);
+        $method = $matches[0];
+
+        $this->assertStringContainsString(
+            "'endDate' => \$input['endDate'] ?? null",
+            $method,
+            'resolveCreate must pass endDate to createReservation for multi-day GraphQL bookings'
+        );
+        $this->assertStringContainsString(
+            "'startTime' => \$input['startTime'] ?? null",
+            $method,
+            'resolveCreate must allow null startTime for multi-day GraphQL bookings'
+        );
     }
 
     public function testCreateMutationSetsGraphqlSource(): void
@@ -557,7 +596,7 @@ class GraphQLQueryMutationTest extends TestCase
             dirname(__DIR__, 3) . '/src/gql/types/input/CreateReservationInput.php'
         );
 
-        foreach (['serviceId', 'bookingDate', 'startTime', 'userName', 'userEmail'] as $field) {
+        foreach (['serviceId', 'bookingDate', 'startTime', 'endDate', 'userName', 'userEmail'] as $field) {
             $this->assertStringContainsString(
                 "'{$field}'",
                 $source,

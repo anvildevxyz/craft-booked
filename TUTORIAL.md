@@ -396,3 +396,24 @@ You now have a working booking system. Here's where to go next:
 | `booked/booking/create-booking` | Create a new booking |
 | `booked/booking-management/cancel-booking` | Cancel a booking |
 | `booked/slot/get-available-slots` | AJAX endpoint for available slots (POST, JSON) |
+| `booked/slot/get-available-dates` | Month of bookable **start** dates for day-based services (GET, JSON) |
+| `booked/slot/get-valid-end-dates` | Allowed **end** dates for flexible-day services after a start date (GET, JSON) |
+
+---
+
+## Day-based services (rentals, retreats, multi-night stays)
+
+Some offerings are booked by **calendar days**, not clock times.
+
+### In the Control Panel
+
+1. Go to **Booked → Services** and edit or create a service.
+2. Set **Duration type**:
+   - **Days** — fixed length: set **Duration** to the number of consecutive days (e.g. `3` for three nights inclusive).
+   - **Flexible days** — guest picks length within a range: set **Minimum days** and **Maximum days** (validation requires min ≤ max).
+3. **Buffers** for day-based services are in **days** (they widen the span used for blackouts and double-booking checks).
+4. Assign **schedules** as usual: every day of the stay must be a working day in the active employee or service schedule.
+
+Customers using `{{ craft.booked.getWizard() }}` get a **date** or **start/end date** picker instead of time slots. Per-unit pricing multiplies the service price by the number of days when that pricing mode is enabled.
+
+For behavior details and API parameters, see [Availability & Schedule System — Multi-day and flexible-day services](AVAILABILITY.md#multi-day-and-flexible-day-services).

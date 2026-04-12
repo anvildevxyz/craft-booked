@@ -74,6 +74,12 @@ These placeholders are replaced with reservation data in `TwilioSmsService::getR
 | `{{customerName}}` | Customer's name | "John Doe" |
 | `{{status}}` | Reservation status | "confirmed" |
 | `{{confirmationCode}}` | Confirmation code (from the reservation's `confirmationCode` property) | "ABC123" |
+| `{{endDate}}` | End date (short) when multi-day | |
+| `{{endDateMedium}}` / `{{endDateLong}}` / `{{endDateFull}}` | Same as `{{date}}` variants, for the inclusive end date | |
+| `{{durationDays}}` | Inclusive day count for multi-day stays | `3` |
+| `{{isMultiDay}}` | String `"true"` or `"false"` (for conditional logic in external tooling) | |
+
+When no custom template is set in **Booked → Settings → SMS**, **multi-day** reservations use the translation keys `sms.confirmation.multiday`, `sms.reminder.multiday`, and `sms.cancellation.multiday` (see `translations/*/booked.php`). Those strings use `{{date}}`, `{{endDate}}`, `{{durationDays}}`, and `{{location}}` instead of `{{time}}`. A non-empty **custom** SMS template in settings always wins and receives the same variable map (so you can use `{{endDate}}` there for both single- and multi-day).
 
 ### Default Templates
 

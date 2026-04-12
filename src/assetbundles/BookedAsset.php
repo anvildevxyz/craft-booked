@@ -41,9 +41,6 @@ class BookedAsset extends AssetBundle
     /**
      * Check if Alpine.js is already registered to avoid double-loading.
      *
-     * Typed as yii\web\View (not craft\web\View) to match the parent
-     * AssetBundle::registerAssetFiles() signature — $jsFiles is declared on
-     * the Yii base class, so no Craft-specific API is needed here.
      */
     private static function isAlpineRegistered(\yii\web\View $view): bool
     {

@@ -88,12 +88,19 @@ These variables are available in every email template:
 | `reservation` | object | Full reservation object | |
 | `bookingId` | int | Reservation ID | `123` |
 | `bookingDate` | string | Raw booking date (`Y-m-d` format) | `2026-01-15` |
+| `endDate` | string \| null | Inclusive end date for multi-day stays | `2026-01-17` |
 | `formattedBookingDate` | string | Display-friendly formatted date | `Monday, Jan 15` |
+| `formattedEndDate` | string \| null | Formatted last day when multi-day | `Friday, Jan 17` |
+| `isMultiDay` | bool | Whether the booking spans multiple calendar days | |
 | `startTime` | string | Raw start time | `14:00` |
 | `formattedStartTime` | string | Display-friendly formatted start time | `2:00 PM` |
 | `endTime` | string | Raw end time | `15:00` |
 | `formattedEndTime` | string | Display-friendly formatted end time | `3:00 PM` |
-| `duration` | int | Duration in minutes | `60` |
+| `duration` | int | Minutes for time-based bookings; **day count** for multi-day (for `{{ duration }} {{ durationUnit }}`) | `60` or `3` |
+| `durationMinutes` | int | Always minutes (0 for multi-day) | |
+| `durationDays` | int \| null | Inclusive day count for multi-day | `3` |
+| `durationUnit` | string | Localized `minutes` / `day` / `days` | |
+| `durationDisplay` | string | Pre-combined duration string | `60 minutes` or `3 days` |
 | `quantity` | int | Number of spots booked | `1` |
 | `quantityDisplay` | bool | Whether to show quantity (true when > 1) | |
 | `status` | string | Localized status label | `Confirmed` |

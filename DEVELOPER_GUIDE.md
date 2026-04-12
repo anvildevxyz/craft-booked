@@ -56,6 +56,7 @@ The plugin registers 28+ services via `setComponents()` in `Booked.php`. Key ser
 | `maintenance` | `MaintenanceService` | Cleanup and maintenance tasks |
 | `bookingSecurity` | `BookingSecurityService` | Request security validation (CAPTCHA, honeypot, IP blocking, time-based limits) |
 | `timeWindow` | `TimeWindowService` | Time window calculations |
+| `multiDayAvailability` | `MultiDayAvailabilityService` | Availability for day-based services (`days` / `flexible_days`) |
 | `mutex` | `MutexFactory` | Mutex lock factory |
 | `dashboard` | `DashboardService` | Dashboard widget data |
 
@@ -816,8 +817,11 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
 | `userTimezone` | string | No | IANA timezone (e.g. `America/New_York`). Falls back to Craft system timezone. Used for formatted date/time display. |
 | `softLockToken` | string | No | Soft lock token from slot selection |
 | `captchaToken` | string | No | CAPTCHA token (if enabled) |
+| `endDate` | string | No | Inclusive end date (`Y-m-d`) for **multi-day** day-based services; omit `startTime` / `endTime` when set |
 
 > **Parameter aliases:** When both a parameter and its alias are sent, the primary name takes precedence (e.g. `date` wins over `bookingDate`). The aliases exist for backward compatibility.
+
+> **Multi-day bookings:** When `endDate` is present (and the booking is not an event), the reservation is stored without `startTime` / `endTime`. For soft locks, use `POST booked/slot/create-multi-day-lock` with `date`, `endDate`, and `serviceId`. Selected add-ons use the same `extras` map as for time-based services. Optional `extrasDuration` on **availability** endpoints (not this action) extends multi-day date checks—see [AVAILABILITY.md](AVAILABILITY.md#multi-day-and-flexible-day-services).
 
 **Response:**
 
@@ -856,6 +860,7 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
 | `employeeId` | int | No | Employee ID |
 | `locationId` | int | No | Location ID |
 | `quantity` | int | No | Requested quantity (default: 1) |
+| `extrasDuration` | int | No | Extra minutes added to service duration for slot generation (minute-based services) |
 
 **Response:**
 
@@ -868,6 +873,57 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
       { "startTime": "10:00", "endTime": "11:00", "available": true }
     ],
     "waitlistAvailable": false
+  }
+}
+```
+
+### Get available start dates (day-based services)
+
+`GET /actions/booked/slot/get-available-dates` (anonymous)
+
+Returns which **start dates** in a calendar month can begin a stay for a service with `durationType` `days` or `flexible_days`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serviceId` | int | Yes | Service ID |
+| `month` | string | Yes | `YYYY-MM` |
+| `employeeId` | int | No | Scope conflicts to this employee |
+| `locationId` | int | No | Scope conflicts to this location |
+| `quantity` | int | No | Default 1 |
+| `extrasDuration` | int | No | Added to the stay length in **days** for this check |
+
+```json
+{
+  "success": true,
+  "data": {
+    "availableDates": ["2026-06-10", "2026-06-11"],
+    "month": "2026-06"
+  }
+}
+```
+
+### Get valid end dates (flexible day services)
+
+`GET /actions/booked/slot/get-valid-end-dates` (anonymous)
+
+Only for `durationType` `flexible_days`. Given a start date, returns inclusive end dates for each allowed length that still passes availability (stops at the first failing length or `maxDays`).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serviceId` | int | Yes | Service ID |
+| `startDate` | string | Yes | `Y-m-d` |
+| `employeeId` | int | No | |
+| `locationId` | int | No | |
+| `quantity` | int | No | Default 1 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "validEndDates": ["2026-06-12", "2026-06-13"],
+    "startDate": "2026-06-10",
+    "minDays": 3,
+    "maxDays": 7
   }
 }
 ```
@@ -941,6 +997,19 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
 { "success": true, "data": { "token": "abc123...", "expiresIn": 300 } }
 ```
 
+**Multi-day lock** — `POST /actions/booked/slot/create-multi-day-lock` (anonymous)
+
+Reserves a **date range** for a day-based service while the customer completes checkout (same expiry as other soft locks).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `date` | string | Yes | Stay start (`Y-m-d`) |
+| `endDate` | string | Yes | Inclusive stay end (`Y-m-d`) |
+| `serviceId` | int | Yes | |
+| `employeeId` | int | No | |
+| `locationId` | int | No | |
+| `quantity` | int | No | Default 1 |
+
 `POST /actions/booked/slot/release-lock` (anonymous)
 
 | Parameter | Type | Required | Description |
@@ -951,7 +1020,7 @@ CSRF tokens are required by default (configurable via `enableCsrfValidation` set
 
 `GET /actions/booked/booking-data/get-services` (anonymous)
 
-Returns all enabled services with title, duration, price, buffers, and extras flag.
+Returns all enabled services with title, `duration`, `durationType` (`minutes` \| `days` \| `flexible_days`), `pricingMode`, `isFlexibleDayService`, `minDays` / `maxDays` (flexible), price, buffers, virtual meeting provider, `hasExtras`, and `locationIds`.
 
 `GET /actions/booked/booking-data/get-service-extras?serviceId=1` (anonymous)
 
