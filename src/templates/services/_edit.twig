@@ -111,8 +111,53 @@
 	</div>
 
 	<div class="field">
+		{{ forms.selectField({
+        label: 'service.durationType'|t('booked'),
+        id: 'durationType',
+        name: 'durationType',
+        options: [
+            { label: 'service.durationTypeMinutes'|t('booked'), value: 'minutes' },
+            { label: 'service.durationTypeDays'|t('booked'), value: 'days' },
+            { label: 'service.durationTypeFlexibleDays'|t('booked'), value: 'flexible_days' },
+        ],
+        value: service.durationType ?? 'minutes',
+    }) }}
+
+		{{ forms.selectField({
+        label: 'service.pricingMode'|t('booked'),
+        id: 'pricingMode',
+        name: 'pricingMode',
+        options: [
+            { label: 'service.pricingFlat'|t('booked'), value: 'flat' },
+            { label: 'service.pricingPerUnit'|t('booked'), value: 'per_unit' },
+        ],
+        value: service.pricingMode ?? 'flat',
+    }) }}
+
+		<div id="flexible-days-fields" style="display: none;">
+			{{ forms.textField({
+				label: 'service.minDays'|t('booked'),
+				id: 'minDays',
+				name: 'minDays',
+				type: 'number',
+				min: 1,
+				value: service.minDays ?? 1,
+				errors: service.getErrors('minDays'),
+			}) }}
+
+			{{ forms.textField({
+				label: 'service.maxDays'|t('booked'),
+				id: 'maxDays',
+				name: 'maxDays',
+				type: 'number',
+				min: 1,
+				value: service.maxDays ?? 7,
+				errors: service.getErrors('maxDays'),
+			}) }}
+		</div>
+
 		{{ forms.textField({
-        label: 'service.durationMinutes'|t('booked'),
+        label: (service.durationType ?? 'minutes') == 'days' ? 'service.durationDays'|t('booked') : 'service.durationMinutes'|t('booked'),
         id: 'duration',
         name: 'duration',
         type: 'number',
@@ -121,7 +166,7 @@
         min: 1,
         value: service.duration,
         errors: service.getErrors('duration'),
-        unit: 'labels.min'|t('booked')
+        unit: (service.durationType ?? 'minutes') == 'days' ? 'labels.days'|t('booked') : 'labels.min'|t('booked')
     }) }}
 
 		{% set plugin = craft.app.plugins.getPlugin('booked') %}
@@ -164,8 +209,9 @@
 	</div>
 
 	<div class="field">
+		{% set isPerUnit = (service.durationType ?? 'minutes') == 'flexible_days' or ((service.durationType ?? 'minutes') == 'days' and (service.pricingMode ?? 'flat') == 'per_unit') %}
 		{{ forms.textField({
-        label: 'labels.price'|t('booked'),
+        label: isPerUnit ? 'service.pricePerDay'|t('booked') : 'labels.price'|t('booked'),
         id: 'price',
         name: 'price',
         type: 'number',
@@ -173,6 +219,7 @@
         min: 0,
         value: service.price,
         errors: service.getErrors('price'),
+        unit: isPerUnit ? 'service.perDay'|t('booked') : null,
     }) }}
 	</div>
 
@@ -195,7 +242,7 @@
 		</div>
 	{% endif %}
 
-	<div class="field">
+	<div class="field" id="buffer-fields">
 		{{ forms.textField({
         label: 'service.bufferBefore'|t('booked'),
         instructions: 'service.bufferBeforeInstructions'|t('booked'),
@@ -205,7 +252,7 @@
         min: 0,
         value: service.bufferBefore,
         errors: service.getErrors('bufferBefore'),
-        unit: 'labels.min'|t('booked')
+        unit: (service.durationType ?? 'minutes') != 'minutes' ? 'labels.days'|t('booked') : 'labels.min'|t('booked')
     }) }}
 
 		{{ forms.textField({
@@ -218,7 +265,7 @@
         value: service.bufferAfter,
         errors: service.getErrors('bufferAfter'),
         size: 10,
-        unit: 'labels.min'|t('booked')
+        unit: (service.durationType ?? 'minutes') != 'minutes' ? 'labels.days'|t('booked') : 'labels.min'|t('booked')
     }) }}
 	</div>
 
@@ -483,4 +530,111 @@
 		],
 		errors: service.getErrors('enableWaitlist')
 	}) }}
+
+	{% js %}
+	(function() {
+	    var labels = {
+	        minutes: {{ 'service.durationMinutes'|t('booked')|json_encode|raw }},
+	        days: {{ 'service.durationDays'|t('booked')|json_encode|raw }},
+	        minUnit: {{ 'labels.min'|t('booked')|json_encode|raw }},
+	        daysUnit: {{ 'labels.days'|t('booked')|json_encode|raw }},
+	        price: {{ 'labels.price'|t('booked')|json_encode|raw }},
+	        pricePerDay: {{ 'service.pricePerDay'|t('booked')|json_encode|raw }},
+	        perDayUnit: {{ 'service.perDay'|t('booked')|json_encode|raw }}
+	    };
+
+	    function updatePriceLabel(isPerUnit) {
+	        var priceField = document.getElementById('price');
+	        if (!priceField) return;
+	        var fieldWrap = priceField.closest('.field');
+	        if (fieldWrap) {
+	            var label = fieldWrap.querySelector('.heading label');
+	            if (label) {
+	                label.textContent = isPerUnit ? labels.pricePerDay : labels.price;
+	            }
+	        }
+	        var inputWrap = priceField.closest('.input');
+	        if (!inputWrap) return;
+	        var unit = inputWrap.querySelector('.flex-label, .light');
+	        if (isPerUnit) {
+	            if (!unit) {
+	                unit = document.createElement('div');
+	                unit.className = 'flex-label light';
+	                priceField.parentNode.appendChild(unit);
+	            }
+	            unit.textContent = labels.perDayUnit;
+	        } else if (unit) {
+	            unit.parentNode.removeChild(unit);
+	        }
+	    }
+
+	    function syncPriceLabel() {
+	        var durationType = document.getElementById('durationType').value;
+	        var pricingMode = document.getElementById('pricingMode').value;
+	        var isPerUnit = durationType === 'flexible_days'
+	            || (durationType === 'days' && pricingMode === 'per_unit');
+	        updatePriceLabel(isPerUnit);
+	    }
+
+	    document.getElementById('pricingMode').addEventListener('change', syncPriceLabel);
+
+	    document.getElementById('durationType').addEventListener('change', function() {
+	        var isDays = this.value === 'days';
+	        var isFlexible = this.value === 'flexible_days';
+	        var isDayBased = isDays || isFlexible;
+
+	        // Update duration field label and visibility
+	        var durationField = document.getElementById('duration');
+	        if (durationField) {
+	            durationField.closest('.field').style.display = isFlexible ? 'none' : '';
+	            var label = durationField.closest('.field').querySelector('.heading label');
+	            if (label) {
+	                label.textContent = isDayBased ? labels.days : labels.minutes;
+	            }
+	            var container = durationField.closest('.input');
+	            if (container) {
+	                var unit = container.querySelector('.flex-label, .light');
+	                if (unit) {
+	                    unit.textContent = isDayBased ? labels.daysUnit : labels.minUnit;
+	                }
+	            }
+	        }
+
+	        // Hide timeSlotLength for day-based services
+	        var slotField = document.getElementById('timeSlotLength');
+	        if (slotField) {
+	            slotField.closest('.field').style.display = isDayBased ? 'none' : '';
+	        }
+
+	        // Update buffer field units (minutes for time-slot, days for day-based)
+	        var bufferFields = document.getElementById('buffer-fields');
+	        if (bufferFields) {
+	            bufferFields.querySelectorAll('.flex-label, .light').forEach(function(unit) {
+	                unit.textContent = isDayBased ? labels.daysUnit : labels.minUnit;
+	            });
+	        }
+
+	        // Show pricingMode only for fixed-day services
+	        var pricingField = document.getElementById('pricingMode');
+	        if (pricingField) {
+	            pricingField.closest('.field').style.display = isDays ? '' : 'none';
+	            if (!isDays) {
+	                pricingField.value = isFlexible ? 'per_unit' : 'flat';
+	            }
+	        }
+
+	        // Show minDays/maxDays only for flexible_days
+	        var flexFields = document.getElementById('flexible-days-fields');
+	        if (flexFields) {
+	            flexFields.style.display = isFlexible ? '' : 'none';
+	        }
+
+	        // Sync price label with current duration/pricing combination
+	        syncPriceLabel();
+	    });
+
+	    // Trigger on load
+	    document.getElementById('durationType').dispatchEvent(new Event('change'));
+	})();
+	{% endjs %}
 {% endblock %}

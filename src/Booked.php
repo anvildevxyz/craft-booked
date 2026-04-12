@@ -89,6 +89,7 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\RefundService $refund
  * @property-read \anvildev\booked\services\RefundPolicyService $refundPolicy
  * @property-read \anvildev\booked\services\MutexFactory $mutex
+ * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
  */
 class Booked extends Plugin
 {
@@ -195,6 +196,7 @@ class Booked extends Plugin
             'refund' => \anvildev\booked\services\RefundService::class,
             'refundPolicy' => \anvildev\booked\services\RefundPolicyService::class,
             'mutex' => \anvildev\booked\services\MutexFactory::class,
+            'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
         ]);
     }
 
@@ -283,6 +285,11 @@ class Booked extends Plugin
         return $this->get('timezone');
     }
 
+    public function getMultiDayAvailability(): \anvildev\booked\services\MultiDayAvailabilityService
+    {
+        return $this->get('multiDayAvailability');
+    }
+
     public function isCommerceEnabled(): bool
     {
         return Craft::$app->plugins->isPluginEnabled('commerce') && $this->getSettings()->commerceEnabled;
@@ -298,10 +305,6 @@ class Booked extends Plugin
             Order::class,
             Order::EVENT_AFTER_COMPLETE_ORDER,
             function(Event $event) {
-                if (!$this->isCommerceEnabled()) {
-                    return;
-                }
-
                 /** @var Order $order */
                 $order = $event->sender;
                 $reservation = $this->commerce->getReservationByOrderId($order->id);
@@ -336,10 +339,10 @@ class Booked extends Plugin
             Order::class,
             Order::EVENT_AFTER_REMOVE_LINE_ITEM,
             function(\craft\commerce\events\LineItemEvent $event) {
-                if (!$this->isCommerceEnabled()) {
-                    return;
-                }
-
+                // No isCommerceEnabled() guard: if the removed line item maps
+                // to a pending reservation element, the reservation came from
+                // the Commerce flow and must be cancelled regardless of the
+                // current setting, matching the EVENT_AFTER_COMPLETE_ORDER path.
                 $lineItem = $event->lineItem;
                 if (!$lineItem->purchasableId) {
                     return;

@@ -9,12 +9,12 @@ use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\EventDate;
 use anvildev\booked\elements\Location;
 use anvildev\booked\elements\Service;
-use anvildev\booked\helpers\DateHelper;
 use anvildev\booked\helpers\ElementQueryHelper;
 use anvildev\booked\models\db\ReservationModelQuery;
 use anvildev\booked\records\ReservationRecord;
 use anvildev\booked\traits\HasCancellationPolicy;
 use anvildev\booked\traits\HasFormattedDateTime;
+use anvildev\booked\traits\HasMultiDaySupport;
 use Craft;
 use craft\base\Model;
 use craft\elements\User;
@@ -24,6 +24,7 @@ class ReservationModel extends Model implements ReservationInterface
 {
     use HasCancellationPolicy;
     use HasFormattedDateTime;
+    use HasMultiDaySupport;
 
     public ?int $id = null;
     public ?string $uid = null;
@@ -33,8 +34,9 @@ class ReservationModel extends Model implements ReservationInterface
     public ?int $userId = null;
     public ?string $userTimezone = null;
     public string $bookingDate = '';
-    public string $startTime = '';
-    public string $endTime = '';
+    public ?string $endDate = null;
+    public ?string $startTime = '';
+    public ?string $endTime = '';
     public string $status = ReservationRecord::STATUS_CONFIRMED;
     public ?string $notes = null;
     public ?string $sessionNotes = null;
@@ -129,11 +131,15 @@ class ReservationModel extends Model implements ReservationInterface
     }
     public function getStartTime(): string
     {
-        return $this->startTime;
+        return $this->startTime ?? '';
     }
     public function getEndTime(): string
     {
-        return $this->endTime;
+        return $this->endTime ?? '';
+    }
+    public function getEndDate(): ?string
+    {
+        return $this->endDate;
     }
     public function getStatus(): ?string
     {
@@ -315,38 +321,6 @@ class ReservationModel extends Model implements ReservationInterface
         return $this->save(false);
     }
 
-    public function getDurationMinutes(): int
-    {
-        $start = DateHelper::parseTime($this->startTime);
-        $end = DateHelper::parseTime($this->endTime);
-
-        if (!$start || !$end) {
-            return 0;
-        }
-
-        $diff = $start->diff($end);
-        return (int) ($diff->h * 60 + $diff->i);
-    }
-
-    public function conflictsWith(ReservationInterface $other): bool
-    {
-        if ($this->getBookingDate() !== $other->getBookingDate()) {
-            return false;
-        }
-
-        $thisStart = DateHelper::parseTime($this->getStartTime());
-        $thisEnd = DateHelper::parseTime($this->getEndTime());
-        $otherStart = DateHelper::parseTime($other->getStartTime());
-        $otherEnd = DateHelper::parseTime($other->getEndTime());
-
-        if (!$thisStart || !$thisEnd || !$otherStart || !$otherEnd) {
-            return false;
-        }
-
-        return !($thisEnd->getTimestamp() <= $otherStart->getTimestamp()
-            || $thisStart->getTimestamp() >= $otherEnd->getTimestamp());
-    }
-
     public function getBookingDateTime(): ?\DateTime
     {
         if (empty($this->bookingDate) || empty($this->startTime)) {
@@ -405,15 +379,6 @@ class ReservationModel extends Model implements ReservationInterface
         return $this->id ? Booked::getInstance()->serviceExtra->getExtrasSummary($this->id) : '';
     }
 
-    public function getTotalPrice(): float
-    {
-        $service = $this->getService();
-        $servicePrice = ($service && isset($service->price)) ? (float) $service->price * $this->quantity : 0.0;
-        $eventDate = $this->getEventDate();
-        $eventPrice = ($eventDate && $eventDate->price) ? (float) $eventDate->price * $this->quantity : 0.0;
-        return $servicePrice + $eventPrice + $this->getExtrasPrice();
-    }
-
     public function recalculateTotals(): void
     {
         $this->totalPrice = $this->getTotalPrice();
@@ -469,6 +434,7 @@ class ReservationModel extends Model implements ReservationInterface
         $record->userId = $this->userId;
         $record->userTimezone = $this->userTimezone ?? Craft::$app->getTimeZone();
         $record->bookingDate = $this->bookingDate;
+        $record->endDate = $this->endDate;
         $record->startTime = $this->startTime;
         $record->endTime = $this->endTime;
         $record->status = $this->status;
@@ -522,12 +488,14 @@ class ReservationModel extends Model implements ReservationInterface
     public function defineRules(): array
     {
         return array_merge(parent::defineRules(), [
-            [['userName', 'userEmail', 'bookingDate', 'startTime', 'endTime'], 'required'],
+            [['userName', 'userEmail', 'bookingDate'], 'required'],
+            [['startTime', 'endTime'], 'required', 'when' => fn($model) => empty($model->endDate)],
+            [['endDate'], 'date', 'format' => 'php:Y-m-d', 'when' => fn($model) => $model->endDate !== null && $model->endDate !== ''],
             [['userEmail'], 'email'],
             [['userName', 'userEmail', 'userPhone'], 'string', 'max' => 255],
             [['userTimezone'], 'string', 'max' => 50],
             [['bookingDate'], 'date', 'format' => 'php:Y-m-d'],
-            [['startTime', 'endTime'], 'match', 'pattern' => '/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            [['startTime', 'endTime'], 'match', 'pattern' => '/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', 'when' => fn($model) => $model->startTime !== null],
             [['status'], 'in', 'range' => [
                 ReservationRecord::STATUS_PENDING,
                 ReservationRecord::STATUS_CONFIRMED,
@@ -555,6 +523,7 @@ class ReservationModel extends Model implements ReservationInterface
         $model->userId = $record->userId;
         $model->userTimezone = $record->userTimezone;
         $model->bookingDate = $record->bookingDate;
+        $model->endDate = $record->endDate;
         $model->startTime = $record->startTime;
         $model->endTime = $record->endTime;
         $model->status = $record->status;

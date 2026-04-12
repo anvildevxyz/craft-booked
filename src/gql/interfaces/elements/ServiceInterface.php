@@ -52,7 +52,7 @@ class ServiceInterface extends Element
                 'duration' => [
                     'name' => 'duration',
                     'type' => Type::int(),
-                    'description' => 'The service duration in minutes.',
+                    'description' => 'Duration in minutes when durationType is minutes; fixed day count when durationType is days.',
                 ],
                 'price' => [
                     'name' => 'price',
@@ -62,12 +62,12 @@ class ServiceInterface extends Element
                 'bufferBefore' => [
                     'name' => 'bufferBefore',
                     'type' => Type::int(),
-                    'description' => 'Buffer time before the service in minutes.',
+                    'description' => 'Buffer before the service: minutes for time-based services; whole days for day-based services.',
                 ],
                 'bufferAfter' => [
                     'name' => 'bufferAfter',
                     'type' => Type::int(),
-                    'description' => 'Buffer time after the service in minutes.',
+                    'description' => 'Buffer after the service: minutes for time-based; whole days for day-based.',
                 ],
                 'virtualMeetingProvider' => [
                     'name' => 'virtualMeetingProvider',
@@ -97,6 +97,16 @@ class ServiceInterface extends Element
                             \anvildev\booked\Booked::getInstance()->serviceLocation->getLocationsForService($source->id)
                         );
                     },
+                ],
+                'durationType' => [
+                    'name' => 'durationType',
+                    'type' => Type::string(),
+                    'description' => 'Duration unit: minutes, days (fixed multi-day), or flexible_days (variable length).',
+                ],
+                'pricingMode' => [
+                    'name' => 'pricingMode',
+                    'type' => Type::string(),
+                    'description' => 'The pricing mode: "flat" or "per_unit"',
                 ],
             ]
         ), self::getName());

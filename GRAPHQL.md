@@ -50,6 +50,8 @@ query {
     slug
     description
     duration
+    durationType
+    pricingMode
     price
     bufferBefore
     bufferAfter
@@ -72,6 +74,8 @@ query { bookedServiceCount }
 
 **Filter arguments:** `duration` (Int), `price` (Float), `locationId` (Int), plus standard Craft element arguments (`limit`, `offset`, `orderBy`, `id`, `uid`, `status`, etc.).
 
+`durationType` is `minutes`, `days`, or `flexible_days`. For day-based types, `duration` is the fixed day count (`days`); `minDays` / `maxDays` are not yet exposed on the GraphQL service type—use the REST `booking-data/get-services` payload or element APIs if you need them in headless builds.
+
 ### Reservations
 
 ```graphql
@@ -79,6 +83,9 @@ query {
   bookedReservations {
     id
     bookingDate
+    endDate
+    isMultiDay
+    durationDays
     startTime
     endTime
     userName
@@ -104,7 +111,7 @@ query { bookedReservation(id: 123) { id userName status } }
 query { bookedReservationCount }
 ```
 
-**Filter arguments:** `status` ([String]), `bookingDate` ([String]), `serviceId` ([Int]), `employeeId` ([Int]), `locationId` ([Int]), `userId` ([Int]), plus standard Craft element arguments.
+**Filter arguments:** `status` ([String]), `bookingDate` ([String]), `endDate` ([String]), `serviceId` ([Int]), `employeeId` ([Int]), `locationId` ([Int]), `userId` ([Int]), plus standard Craft element arguments.
 
 ### Employees
 
@@ -294,10 +301,12 @@ query {
 | title | String | Service title |
 | slug | String | Service slug |
 | description | String | Service description |
-| duration | Int | Duration in minutes |
+| duration | Int | Minutes when `durationType` is `minutes`; fixed day count when `durationType` is `days` |
+| durationType | String | `minutes`, `days`, or `flexible_days` |
+| pricingMode | String | `flat` or `per_unit` (per-unit day services multiply price by stay length) |
 | price | Float | Service price |
-| bufferBefore | Int | Buffer before (minutes) |
-| bufferAfter | Int | Buffer after (minutes) |
+| bufferBefore | Int | Buffer before booking (minutes for `minutes`; **days** for day-based services—same field, different unit) |
+| bufferAfter | Int | Buffer after booking (same unit rule as `bufferBefore`) |
 | virtualMeetingProvider | String | Virtual meeting provider (`zoom`, `google_meet`) |
 | minTimeBeforeBooking | Int | Minimum time before booking (minutes) |
 | timeSlotLength | Int | Time slot length (minutes) |
@@ -313,9 +322,12 @@ query {
 | userId | Int | Linked Craft user ID |
 | userPhone | String | Customer phone |
 | userTimezone | String | Customer timezone |
-| bookingDate | String | Booking date (YYYY-MM-DD) |
-| startTime | String | Start time (HH:MM) |
-| endTime | String | End time (HH:MM) |
+| bookingDate | String | Booking date (YYYY-MM-DD); for multi-day, first day of stay |
+| endDate | String | Inclusive last day for multi-day bookings; null for single-day |
+| isMultiDay | Boolean! | True when `endDate` is set |
+| durationDays | Int | Inclusive day count for multi-day; null for single-day |
+| startTime | String | Start time (HH:MM); null for multi-day |
+| endTime | String | End time (HH:MM); null for multi-day |
 | status | String | `pending`, `confirmed`, `cancelled`, `completed` |
 | notes | String | Customer notes |
 | quantity | Int | Number of spots booked |
@@ -443,13 +455,29 @@ mutation {
     errors { field message code }
   }
 }
+
+# Multi-day day-based service: omit startTime; set inclusive endDate
+mutation {
+  createBookedReservation(input: {
+    serviceId: "12"
+    bookingDate: "2026-06-10"
+    endDate: "2026-06-12"
+    userName: "Jane Doe"
+    userEmail: "jane@example.com"
+  }) {
+    success
+    reservation { id bookingDate endDate isMultiDay durationDays status }
+    errors { field message code }
+  }
+}
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | serviceId | ID | Yes | The service to book |
-| bookingDate | String | Yes | Date (YYYY-MM-DD) |
-| startTime | String | Yes | Time (HH:MM) |
+| bookingDate | String | Yes | Date (YYYY-MM-DD); start date for multi-day |
+| startTime | String | Yes* | Time (HH:MM); omit for multi-day (`endDate` set) |
+| endDate | String | No | Inclusive end date for multi-day services (YYYY-MM-DD) |
 | userName | String | Yes | Customer name |
 | userEmail | String | Yes | Customer email |
 | employeeId | ID | No | Specific employee |

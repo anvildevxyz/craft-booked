@@ -96,6 +96,7 @@ class BookingService extends Component
             'userEmail' => $data['customerEmail'] ?? '',
             'bookingDate' => $data['date'] ?? '',
             'startTime' => $data['time'] ?? '',
+            'endDate' => $data['endDate'] ?? null,
             'serviceId' => $data['serviceId'] ?? null,
             'employeeId' => $data['employeeId'] ?? null,
             'locationId' => $data['locationId'] ?? null,
@@ -123,8 +124,25 @@ class BookingService extends Component
             [$eventDate, $data] = $this->prepareEventBookingData($data);
         }
 
-        if (!$eventDateId && (empty($data['bookingDate']) || empty($data['startTime']))) {
+        $isMultiDay = !empty($data['endDate']);
+
+        if (!$eventDateId && !$isMultiDay && (empty($data['bookingDate']) || empty($data['startTime']))) {
             throw new BookingValidationException(Craft::t('booked', 'booking.missingParameters'));
+        }
+
+        if (!$eventDateId && $isMultiDay && empty($data['bookingDate'])) {
+            throw new BookingValidationException(Craft::t('booked', 'booking.missingParameters'));
+        }
+
+        // Validate multi-day date range
+        if ($isMultiDay && !empty($data['endDate']) && !empty($data['bookingDate'])) {
+            if ($data['endDate'] < $data['bookingDate']) {
+                throw new BookingValidationException(Craft::t('booked', 'booking.invalidDate'));
+            }
+            $rangeDays = (int)(new \DateTime($data['bookingDate']))->diff(new \DateTime($data['endDate']))->days + 1;
+            if ($rangeDays > 365) {
+                throw new BookingValidationException(Craft::t('booked', 'booking.invalidDate'));
+            }
         }
 
         // Reject bookings for past dates
@@ -139,7 +157,7 @@ class BookingService extends Component
         $this->checkRateLimits($userEmail, $data);
 
         $bookingDate = $data['bookingDate'] ?? '';
-        $startTime = $data['startTime'] ?? '';
+        $startTime = $isMultiDay ? null : ($data['startTime'] ?? '');
         $employeeId = $data['employeeId'] ?? null;
         $locationId = $data['locationId'] ?? null;
         $serviceId = $data['serviceId'] ?? null;
@@ -147,7 +165,9 @@ class BookingService extends Component
 
         $lockKey = $eventDateId
             ? "booked-event-booking-{$eventDateId}"
-            : $this->buildSlotLockKey($bookingDate, $startTime, $employeeId, $serviceId);
+            : ($isMultiDay
+                ? "booked-multiday-{$bookingDate}-" . ($employeeId ?? 'any') . "-{$serviceId}"
+                : $this->buildSlotLockKey($bookingDate, $startTime, $employeeId, $serviceId));
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
@@ -182,13 +202,21 @@ class BookingService extends Component
                     $extrasDuration = Booked::getInstance()->serviceExtra->calculateExtrasDuration($data['extras']);
                 }
 
-                $endTime = $this->calculateEndTime($data, $bookingDate, $startTime, $serviceId, $extrasDuration);
+                $endTime = $isMultiDay ? null : $this->calculateEndTime($data, $bookingDate, $startTime, $serviceId, $extrasDuration);
                 $endTime = $endTime ?: null;
 
                 // Soft lock check (skip for event-based bookings — capacity handled separately)
-                if (!$eventDateId && $serviceId !== null && Booked::getInstance()->getSoftLock()->isLocked($bookingDate, $startTime, $serviceId, $employeeId, $endTime, $locationId, $softLockToken)) {
-                    Craft::warning("Booking blocked by soft lock: date={$bookingDate}, time={$startTime}-{$endTime}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
-                    throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved'));
+                if (!$eventDateId && $serviceId !== null) {
+                    $endDate = $data['endDate'] ?? null;
+                    if ($isMultiDay && $endDate) {
+                        if (Booked::getInstance()->getSoftLock()->isDateRangeLocked($bookingDate, $endDate, $serviceId, $employeeId, $locationId, max(1, (int)($data['quantity'] ?? 1)), null, $softLockToken)) {
+                            Craft::warning("Booking blocked by multi-day soft lock: date={$bookingDate}-{$endDate}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
+                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved'));
+                        }
+                    } elseif (!$isMultiDay && Booked::getInstance()->getSoftLock()->isLocked($bookingDate, $startTime, $serviceId, $employeeId, $endTime, $locationId, $softLockToken)) {
+                        Craft::warning("Booking blocked by soft lock: date={$bookingDate}, time={$startTime}-{$endTime}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
+                        throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved'));
+                    }
                 }
 
                 $reservation = $this->createReservationModel();
@@ -199,15 +227,18 @@ class BookingService extends Component
                 if ($reservation->employeeId === null && !$eventDateId) {
                     if ($this->isEmployeeLessService($serviceId, $bookingDate)) {
                         Craft::debug("Employee-less service booking - employeeId remains null", __METHOD__);
-                    } else {
+                    } elseif (!$isMultiDay) {
                         $this->autoAssignEmployee($reservation, $softLockToken, $extrasDuration);
+                    } elseif ($isMultiDay) {
+                        // Multi-day bookings require explicit employee selection when employees exist
+                        throw new BookingValidationException(Craft::t('booked', 'booking.employeeRequired'));
                     }
                 }
 
                 // After autoAssignEmployee assigns the employee, acquire an employee-specific lock
                 // to prevent two concurrent "any available" requests from double-booking the same employee
                 $skipSlotValidation = false;
-                if ($reservation->employeeId && !$employeeId && !$eventDateId) {
+                if ($reservation->employeeId && !$employeeId && !$eventDateId && !$isMultiDay) {
                     $employeeLockKey = "booked-employee-lock-{$bookingDate}-{$startTime}-{$reservation->employeeId}-" . ($serviceId ?? 'any');
                     if (!$mutex->acquire($employeeLockKey, 10)) {
                         Craft::warning("Could not acquire employee-specific lock for employee {$reservation->employeeId}", __METHOD__);
@@ -237,7 +268,20 @@ class BookingService extends Component
 
                 $this->validateEmployeeService($reservation);
 
-                if (!$skipSlotValidation) {
+                if (!$skipSlotValidation && $isMultiDay && !$eventDateId) {
+                    $endDate = $data['endDate'] ?? null;
+                    $service = $serviceId ? \anvildev\booked\elements\Service::find()->id($serviceId)->siteId('*')->one() : null;
+                    $bufferBefore = $service->bufferBefore ?? 0;
+                    $bufferAfter = $service->bufferAfter ?? 0;
+                    if ($endDate && !Booked::getInstance()->getMultiDayAvailability()->isStartDateAvailable(
+                        $bookingDate, $endDate, $serviceId, $employeeId, $locationId,
+                        $reservation->quantity, $bufferBefore, $bufferAfter,
+                        Booked::getInstance()->getBlackoutDate(),
+                        Booked::getInstance()->scheduleResolver,
+                    )) {
+                        throw new BookingConflictException(Craft::t('booked', 'booking.slotNoLongerAvailable'));
+                    }
+                } elseif (!$skipSlotValidation && !$isMultiDay) {
                     $this->validateSlotAvailability($reservation, $eventDateId, $softLockToken, $extrasDuration);
                 }
 
@@ -349,13 +393,35 @@ class BookingService extends Component
         return "booked-booking-{$date}-{$time}-any-" . ($serviceId ?? 'any');
     }
 
+    /**
+     * Build the mutex lock key for mutating an existing reservation (cancel,
+     * reduce/increase quantity). Handles event bookings, multi-day bookings,
+     * and regular time-slot bookings — multi-day reservations have a null
+     * startTime so they cannot go through buildSlotLockKey().
+     */
+    private function buildReservationLockKey($reservation): string
+    {
+        if ($reservation->eventDateId) {
+            return "booked-event-booking-{$reservation->eventDateId}";
+        }
+        if ($reservation->isMultiDay()) {
+            return "booked-multiday-{$reservation->bookingDate}-" . ($reservation->employeeId ?? 'any') . "-{$reservation->serviceId}";
+        }
+        return $this->buildSlotLockKey(
+            $reservation->bookingDate,
+            $reservation->startTime,
+            $reservation->employeeId,
+            $reservation->serviceId,
+        );
+    }
+
     private function populateReservation(
         ReservationInterface $reservation,
         array $data,
         string $userEmail,
         string $bookingDate,
-        string $startTime,
-        string $endTime,
+        ?string $startTime,
+        ?string $endTime,
         ?int $employeeId,
         ?int $locationId,
         ?int $serviceId,
@@ -371,6 +437,7 @@ class BookingService extends Component
         $reservation->userPhone = $data['userPhone'] ?? null;
         $reservation->userTimezone = $data['userTimezone'] ?? $this->detectUserTimezone();
         $reservation->bookingDate = $bookingDate;
+        $reservation->endDate = $data['endDate'] ?? null;
         $reservation->startTime = $startTime;
         $reservation->endTime = $endTime;
         $allowedStatuses = [ReservationRecord::STATUS_CONFIRMED];
@@ -764,9 +831,7 @@ class BookingService extends Component
             throw new BookingValidationException(Craft::t('booked', 'booking.cannotCancel'));
         }
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
@@ -799,9 +864,7 @@ class BookingService extends Component
 
         $newQuantity = $currentQuantity - $reduceBy;
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {
@@ -914,9 +977,7 @@ class BookingService extends Component
             return false;
         }
 
-        $lockKey = $reservation->eventDateId
-            ? "booked-event-booking-{$reservation->eventDateId}"
-            : $this->buildSlotLockKey($reservation->bookingDate, $reservation->startTime, $reservation->employeeId, $reservation->serviceId);
+        $lockKey = $this->buildReservationLockKey($reservation);
         $mutex = $this->getMutex();
 
         if (!$mutex->acquire($lockKey, 10)) {

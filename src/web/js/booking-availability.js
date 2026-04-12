@@ -41,6 +41,59 @@ window.BookedAvailability = {
     },
 
     /**
+     * Fetch available start dates for a day-based service in a given month
+     */
+    async getDates(month, options = {}) {
+        const params = new URLSearchParams();
+        params.append('month', month);
+        if (options.serviceId) params.append('serviceId', options.serviceId);
+        if (options.employeeId) params.append('employeeId', options.employeeId);
+        if (options.locationId) params.append('locationId', options.locationId);
+        if (options.quantity) params.append('quantity', options.quantity);
+        if (options.extrasDuration) params.append('extrasDuration', options.extrasDuration);
+
+        try {
+            const response = await fetch('/actions/booked/slot/get-available-dates?' + params.toString(), {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.availableDates || [];
+        } catch (error) {
+            console.error('Booked: Failed to fetch available dates', error);
+            return [];
+        }
+    },
+
+    /**
+     * Fetch valid end dates for a flexible day service given a start date
+     */
+    async getValidEndDates(startDate, options = {}) {
+        const params = new URLSearchParams();
+        params.append('startDate', startDate);
+        if (options.serviceId) params.append('serviceId', options.serviceId);
+        if (options.employeeId) params.append('employeeId', options.employeeId);
+        if (options.locationId) params.append('locationId', options.locationId);
+        if (options.quantity) params.append('quantity', options.quantity);
+
+        try {
+            const response = await fetch('/actions/booked/slot/get-valid-end-dates?' + params.toString(), {
+                headers: { 'Accept': 'application/json' },
+            });
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Booked: Failed to fetch valid end dates', error);
+            return { validEndDates: [], minDays: 1, maxDays: 7 };
+        }
+    },
+
+    /**
      * Create a new booking
      */
     async createBooking(data) {

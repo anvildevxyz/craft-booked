@@ -36,7 +36,12 @@
 
 	<div class="highlight-box">
 		<div class="highlight-primary">📅
-			{{ formattedDateTime }}</div>
+			{% if isMultiDay is defined and isMultiDay %}
+			{{ formattedBookingDate }} – {{ formattedEndDate }}
+			{% else %}
+			{{ formattedDateTime }}
+			{% endif %}
+		</div>
 		{% if serviceName is defined and serviceName %}
 			<div class="highlight-secondary">{{ serviceName }}</div>
 		{% endif %}

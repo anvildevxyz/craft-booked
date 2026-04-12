@@ -11,6 +11,7 @@ A comprehensive booking and reservation management plugin for Craft CMS, designe
 - **Managed Employees**: Staff users can oversee multiple employees' bookings without each employee needing a Craft account
 - **Multi-Location Support**: Manage bookings across multiple physical locations with timezone handling
 - **Flexible Availability**: Define recurring schedules, one-time availability windows, and blackout dates
+- **Multi-day services**: Book fixed-length stays (`days`) or guest-chosen lengths between min/max (`flexible_days`), with date-range soft locks and calendar-based availability
 - **Capacity Management**: Support for group bookings with configurable capacity limits
 - **Service Extras**: Optional add-ons with pricing and duration (e.g., "Extended consultation +30 min")
 - **Waitlist Management**: Automatic waitlist with conversion when slots become available

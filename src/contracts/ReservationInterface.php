@@ -21,6 +21,7 @@ use craft\elements\User;
  * @property int|null $userId
  * @property string|null $userTimezone
  * @property string $bookingDate
+ * @property string|null $endDate
  * @property string $startTime
  * @property string $endTime
  * @property string|null $status
@@ -62,6 +63,9 @@ interface ReservationInterface
     public function getBookingDate(): string;
     public function getStartTime(): string;
     public function getEndTime(): string;
+    public function getEndDate(): ?string;
+    public function isMultiDay(): bool;
+    public function getDurationDays(): ?int;
     public function getStatus(): ?string;
     public function getNotes(): ?string;
     public function getSessionNotes(): ?string;

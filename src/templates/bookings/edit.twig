@@ -103,6 +103,8 @@
 
         <h2>{{ 'labels.dateTime'|t('booked') }}</h2>
 
+        {% set isMultiDay = reservation.endDate is defined and reservation.endDate %}
+
         {{ forms.dateField({
             label: 'form.bookingDate'|t('booked'),
             id: 'bookingDate',
@@ -112,6 +114,15 @@
             errors: reservation.getErrors('bookingDate')
         }) }}
 
+        {% if isMultiDay %}
+        {{ forms.dateField({
+            label: 'labels.endDate'|t('booked'),
+            id: 'endDate',
+            name: 'endDate',
+            value: reservation.endDate,
+            errors: reservation.getErrors('endDate')
+        }) }}
+        {% else %}
         <div class="flex-fields">
             {{ forms.timeField({
                 label: 'labels.startTime'|t('booked'),
@@ -131,6 +142,7 @@
                 errors: reservation.getErrors('endTime')
             }) }}
         </div>
+        {% endif %}
 
         <div class="flex-fields">
             {{ forms.textField({

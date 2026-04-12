@@ -10,6 +10,7 @@ use anvildev\booked\elements\EventDate;
 use anvildev\booked\elements\Service;
 use anvildev\booked\helpers\DateHelper;
 use anvildev\booked\helpers\SiteHelper;
+use anvildev\booked\services\MultiDayAvailabilityService;
 use Craft;
 use craft\web\Controller;
 use craft\web\Response;
@@ -26,9 +27,12 @@ class SlotController extends Controller
 
     protected array|bool|int $allowAnonymous = [
         'get-available-slots',
+        'get-available-dates',
         'get-availability-calendar',
         'get-event-dates',
+        'get-valid-end-dates',
         'create-lock',
+        'create-multi-day-lock',
         'create-event-lock',
         'release-lock',
     ];
@@ -67,6 +71,114 @@ class SlotController extends Controller
         return $this->jsonSuccess('', [
             'slots' => $this->availabilityService->getAvailableSlots($date, $employeeId, $locationId, $serviceId, $quantity, null, null, $extrasDuration),
             'waitlistAvailable' => $this->isWaitlistAvailable($serviceId, $date, $employeeId),
+        ]);
+    }
+
+    /**
+     * Get available start dates for day-based (multi-day) services.
+     */
+    public function actionGetAvailableDates(): Response
+    {
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_dates_throttle', 30)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $request = Craft::$app->request;
+        $serviceId = $this->normalizeId($request->getParam('serviceId'));
+        if (!$serviceId) {
+            throw new BadRequestHttpException(Craft::t('booked', 'errors.serviceRequired'));
+        }
+
+        $month = $request->getParam('month'); // YYYY-MM
+        if (!$month || !preg_match('/^\d{4}-\d{2}$/', $month)) {
+            throw new BadRequestHttpException(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        $rangeStart = $month . '-01';
+        $rangeEnd = (new \DateTime($rangeStart))->modify('last day of this month')->format('Y-m-d');
+
+        $today = DateHelper::today();
+        if ($rangeStart < $today) {
+            $rangeStart = $today;
+        }
+
+        $employeeId = $this->normalizeId($request->getParam('employeeId'));
+        $locationId = $this->normalizeId($request->getParam('locationId'));
+        $quantity = $this->normalizeQuantity((int)($request->getParam('quantity') ?? 1));
+        $extrasDuration = max(0, (int)($request->getParam('extrasDuration') ?? 0));
+
+        $availableDates = Booked::getInstance()->getMultiDayAvailability()->getAvailableStartDates(
+            $rangeStart,
+            $rangeEnd,
+            $serviceId,
+            $employeeId,
+            $locationId,
+            $quantity,
+            $extrasDuration,
+        );
+
+        return $this->jsonSuccess('', [
+            'availableDates' => $availableDates,
+            'month' => $month,
+        ]);
+    }
+
+    public function actionGetValidEndDates(): Response
+    {
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_dates_throttle', 30)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $request = Craft::$app->request;
+        $serviceId = $this->normalizeId($request->getParam('serviceId'));
+        if (!$serviceId) {
+            throw new BadRequestHttpException(Craft::t('booked', 'errors.serviceRequired'));
+        }
+
+        $startDate = $request->getParam('startDate');
+        if (!$startDate || !$this->validateDate($startDate)) {
+            throw new BadRequestHttpException(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        $service = \anvildev\booked\elements\Service::find()->id($serviceId)->siteId('*')->one();
+        if (!$service || !$service->isFlexibleDayService()) {
+            throw new BadRequestHttpException('Service is not a flexible day service');
+        }
+
+        $minDays = $service->minDays ?? 1;
+        $maxDays = $service->maxDays ?? 7;
+        $employeeId = $this->normalizeId($request->getParam('employeeId'));
+        $locationId = $this->normalizeId($request->getParam('locationId'));
+        $quantity = $this->normalizeQuantity((int)($request->getParam('quantity') ?? 1));
+
+        $multiDay = Booked::getInstance()->getMultiDayAvailability();
+        $blackoutService = Booked::getInstance()->getBlackoutDate();
+        $scheduleResolver = Booked::getInstance()->scheduleResolver;
+        $bufferBefore = $service->bufferBefore ?? 0;
+        $bufferAfter = $service->bufferAfter ?? 0;
+
+        $validEndDates = [];
+        for ($days = $minDays; $days <= $maxDays; $days++) {
+            $candidateEnd = MultiDayAvailabilityService::calculateEndDate($startDate, $days);
+            if ($multiDay->isStartDateAvailable(
+                $startDate, $candidateEnd, $serviceId, $employeeId, $locationId,
+                $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver,
+            )) {
+                $validEndDates[] = $candidateEnd;
+            } else {
+                break;
+            }
+        }
+
+        return $this->jsonSuccess('', [
+            'validEndDates' => $validEndDates,
+            'startDate' => $startDate,
+            'minDays' => $minDays,
+            'maxDays' => $maxDays,
         ]);
     }
 
@@ -271,6 +383,60 @@ class SlotController extends Controller
             'locationId' => $locationId ? (int)$locationId : null,
             'quantity' => $quantity,
             'capacity' => $capacity,
+        ], $durationMinutes);
+
+        if ($token === false) {
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+        }
+
+        return $this->jsonSuccess('', [
+            'token' => $token,
+            'expiresIn' => $durationMinutes * 60,
+        ]);
+    }
+
+    public function actionCreateMultiDayLock(): Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_lock_throttle', 30)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $request = Craft::$app->request;
+        $date = $request->getRequiredBodyParam('date');
+        $endDate = $request->getRequiredBodyParam('endDate');
+        $serviceId = $request->getRequiredBodyParam('serviceId');
+
+        if (!$this->validateDate($date) || !$this->validateDate($endDate)) {
+            return $this->jsonError(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        if ($endDate < $date) {
+            return $this->jsonError(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        // Cap date range to prevent abuse (max 365 days)
+        $rangeDays = (int)(new \DateTime($date))->diff(new \DateTime($endDate))->days + 1;
+        if ($rangeDays > 365) {
+            return $this->jsonError(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
+        $employeeId = $this->normalizeId($request->getBodyParam('employeeId'));
+        $locationId = $this->normalizeId($request->getBodyParam('locationId'));
+        $quantity = max(1, (int)($request->getBodyParam('quantity') ?? 1));
+
+        $token = Booked::getInstance()->getSoftLock()->createLock([
+            'date' => $date,
+            'endDate' => $endDate,
+            'startTime' => null,
+            'endTime' => null,
+            'serviceId' => (int)$serviceId,
+            'employeeId' => $employeeId ? (int)$employeeId : null,
+            'locationId' => $locationId ? (int)$locationId : null,
+            'quantity' => $quantity,
         ], $durationMinutes);
 
         if ($token === false) {

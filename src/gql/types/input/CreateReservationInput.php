@@ -36,7 +36,7 @@ class CreateReservationInput
                         'description' => 'The booking date in YYYY-MM-DD format.',
                     ],
                     'startTime' => [
-                        'type' => Type::nonNull(Type::string()),
+                        'type' => Type::string(),
                         'description' => 'The start time in HH:MM format.',
                     ],
                     'userName' => [
@@ -70,6 +70,10 @@ class CreateReservationInput
                     'extraQuantities' => [
                         'type' => Type::listOf(Type::int()),
                         'description' => 'Quantities for each extra (must match extraIds order).',
+                    ],
+                    'endDate' => [
+                        'type' => Type::string(),
+                        'description' => 'End date for multi-day bookings (YYYY-MM-DD)',
                     ],
                 ],
             ]));

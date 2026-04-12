@@ -76,7 +76,9 @@ trait HasCancellationPolicy
             }
         }
 
-        $bookingDateTime = DateHelper::parseDateTime($this->bookingDate, $this->startTime);
+        // For multi-day bookings, startTime is null — use midnight as the booking start time
+        $startTime = $this->startTime ?? '00:00:00';
+        $bookingDateTime = DateHelper::parseDateTime($this->bookingDate, $startTime);
         if (!$bookingDateTime) {
             return false;
         }

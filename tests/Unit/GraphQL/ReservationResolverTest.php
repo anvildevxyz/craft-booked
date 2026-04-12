@@ -52,7 +52,7 @@ class ReservationResolverTest extends TestCase
         $source = file_get_contents(
             dirname(__DIR__, 3) . '/src/gql/resolvers/elements/ReservationResolver.php'
         );
-        $requiredArgs = ['bookingDate', 'serviceId', 'employeeId', 'locationId', 'userId'];
+        $requiredArgs = ['bookingDate', 'endDate', 'serviceId', 'employeeId', 'locationId', 'userId'];
         foreach ($requiredArgs as $arg) {
             $this->assertStringContainsString(
                 "'" . $arg . "'",

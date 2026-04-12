@@ -138,7 +138,7 @@ class ControllerReflectionTest extends TestCase
     {
         return [
             'BookingController' => ['anvildev\booked\controllers\BookingController', 1],
-            'SlotController' => ['anvildev\booked\controllers\SlotController', 6],
+            'SlotController' => ['anvildev\booked\controllers\SlotController', 9],
             'WaitlistController' => ['anvildev\booked\controllers\WaitlistController', 2],
             'BookingDataController' => ['anvildev\booked\controllers\BookingDataController', 4],
             'BookingManagementController' => ['anvildev\booked\controllers\BookingManagementController', 7],

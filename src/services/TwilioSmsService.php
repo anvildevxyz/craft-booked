@@ -187,7 +187,7 @@ class TwilioSmsService extends Component
         $language = $this->getReservationLanguage($reservation);
         $message = $this->renderWithLanguage(
             fn() => $this->renderMessage(
-                $this->getTemplate($type),
+                $this->getTemplate($type, $reservation),
                 $this->getReservationVariables($reservation)
             ),
             $language
@@ -243,6 +243,12 @@ class TwilioSmsService extends Component
             'dateFull' => $formatter->asDate($reservation->bookingDate, 'full'),
             'time' => $reservation->startTime,
             'endTime' => $reservation->endTime,
+            'endDate' => $reservation->getEndDate() ? $formatter->asDate($reservation->getEndDate(), 'short') : '',
+            'endDateMedium' => $reservation->getEndDate() ? $formatter->asDate($reservation->getEndDate(), 'medium') : '',
+            'endDateLong' => $reservation->getEndDate() ? $formatter->asDate($reservation->getEndDate(), 'long') : '',
+            'endDateFull' => $reservation->getEndDate() ? $formatter->asDate($reservation->getEndDate(), 'full') : '',
+            'durationDays' => $reservation->getDurationDays() ?? '',
+            'isMultiDay' => $reservation->isMultiDay() ? 'true' : 'false',
             'employee' => $employee?->title ?? '',
             'location' => $location?->title ?? '',
             'customerName' => $reservation->userName,
@@ -412,11 +418,23 @@ class TwilioSmsService extends Component
         };
     }
 
-    public function getTemplate(string $type): string
+    /**
+     * @param string $type One of: confirmation, reminder, cancellation
+     */
+    public function getTemplate(string $type, ?ReservationInterface $reservation = null): string
     {
         $settings = Booked::getInstance()->getSettings();
         $settingKey = 'sms' . ucfirst($type) . 'Template';
-        return $settings->$settingKey ?? Craft::t('booked', "sms.{$type}");
+        $custom = $settings->$settingKey ?? null;
+        if ($custom !== null && $custom !== '') {
+            return $custom;
+        }
+
+        if ($reservation !== null && $reservation->isMultiDay()) {
+            return Craft::t('booked', "sms.{$type}.multiday");
+        }
+
+        return Craft::t('booked', "sms.{$type}");
     }
 
     /**
@@ -431,7 +449,7 @@ class TwilioSmsService extends Component
 
         return $this->renderWithLanguage(
             fn() => $this->renderMessage(
-                $this->getTemplate($type),
+                $this->getTemplate($type, $reservation),
                 $this->getReservationVariables($reservation)
             ),
             $language

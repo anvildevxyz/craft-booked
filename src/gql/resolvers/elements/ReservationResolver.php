@@ -62,6 +62,7 @@ class ReservationResolver extends ElementResolver
         'revisionCreator',
         // Reservation-specific arguments
         'bookingDate',
+        'endDate',
         'serviceId',
         'employeeId',
         'locationId',

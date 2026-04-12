@@ -71,6 +71,8 @@ parameters:
         - '#Call to an undefined method craft\\elements\\db\\ElementQueryInterface::\w+\(\)#'
         # BaseNumberConditionRule::queryParamValue() not resolved by PHPStan
         - '#Call to an undefined method anvildev\\booked\\elements\\conditions\\Service\w+ConditionRule::queryParamValue\(\)#'
+        # Craft's AssetManager::getPublishedUrl() has a $publish param not present in Yii2 stub
+        - '#Method yii\\web\\AssetManager::getPublishedUrl\(\) invoked with 2 parameters, 1 required#'
 
     # Rules for stricter code
     checkFunctionNameCase: true

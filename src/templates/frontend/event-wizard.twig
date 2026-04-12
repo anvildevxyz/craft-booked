@@ -608,7 +608,7 @@
     </div>{# end x-show="!managementMode" #}
 </div>
 
-{% js %}
+<script>
     window.csrfTokenName = "{{ craft.app.config.general.csrfTokenName }}";
     window.csrfTokenValue = "{{ craft.app.request.csrfToken }}";
-{% endjs %}
+</script>

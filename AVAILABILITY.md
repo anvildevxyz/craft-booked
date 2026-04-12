@@ -5,6 +5,7 @@ This document explains how the Booked plugin calculates availability and manages
 ## Table of Contents
 
 - [Overview](#overview)
+- [Multi-day and flexible-day services](#multi-day-and-flexible-day-services)
 - [Subtractive Availability Model](#subtractive-availability-model)
 - [Schedule System](#schedule-system)
 - [Capacity Management](#capacity-management)
@@ -22,6 +23,51 @@ The system supports two types of schedules:
 2. **Service Schedules** - Define when services are available (for employee-less bookings)
 
 Both schedule types use the same structure: weekly patterns with optional date ranges and sortOrder-based matching.
+
+## Multi-day and flexible-day services
+
+Services can use a **day-based** duration mode instead of clock times. This path is separate from the subtractive **time-slot** pipeline: customers pick calendar dates (and optionally an end date), not a start time.
+
+### Duration types (`durationType`)
+
+| Value | Meaning |
+|--------|---------|
+| `minutes` | Default. Duration is minutes; availability uses time slots as described in the rest of this document. |
+| `days` | **Fixed-length stay.** `duration` is the number of consecutive calendar days. The customer chooses a **start date**; the end date is derived (inclusive range). |
+| `flexible_days` | **Variable-length stay.** `minDays` and `maxDays` define the allowed inclusive length. The customer chooses a **start date**, then an **end date** that must be one of the valid lengths and must pass the same availability rules as a fixed stay of that length. |
+
+Day-based services still use employee or service **schedules**: every calendar day from start through end (including buffers—see below) must fall on a day the schedule marks as working. **Blackout dates** that touch that span also disqualify the range.
+
+### Buffers (day-based)
+
+For day-based services, **buffer before** and **buffer after** are interpreted as **whole days**, not minutes. They extend the span used for blackout checks and conflict detection outward from the customer-facing start/end dates.
+
+### Availability and conflicts
+
+`MultiDayAvailabilityService` evaluates whether a given start date can accommodate a stay of N days:
+
+- Enumerates each day in the booking range (and buffer-expanded range for blackouts).
+- Requires schedule coverage on each booking day via `ScheduleResolverService`.
+- Treats overlapping confirmed/pending reservations on the same service (and same employee/location when scoped) as reducing **capacity**; the sum of `quantity` must not exceed the service `capacity` (default 1).
+
+**Flexible days:** When listing which **start dates** are bookable in a month, the system uses **at least** `minDays` as the length to verify (so a start date is only shown if the minimum stay fits). After the customer picks a start date, `get-valid-end-dates` returns end dates for each length from `minDays` upward until the range fails availability (or `maxDays` is reached).
+
+### Service extras and `extrasDuration`
+
+AJAX endpoints that compute multi-day availability accept an optional **`extrasDuration`** integer. It is **added to the number of days** used for that calculation. The booking wizard sends the sum of selected extras’ `duration` fields; for day-based services you should treat those values as **extra days** (not minutes) so the calendar stays consistent.
+
+### Frontend / API entry points
+
+- **List bookable start dates (month):** `GET /actions/booked/slot/get-available-dates?serviceId=&month=YYYY-MM` (optional: `employeeId`, `locationId`, `quantity`, `extrasDuration`).
+- **Valid end dates (flexible days only):** `GET /actions/booked/slot/get-valid-end-dates?serviceId=&startDate=YYYY-MM-DD` (optional: `employeeId`, `locationId`, `quantity`).
+- **Soft lock:** `POST /actions/booked/slot/create-multi-day-lock` with `date` (start), `endDate`, `serviceId`, optional `employeeId`, `locationId`, `quantity`.
+- **Create booking:** `POST /actions/booked/booking/create-booking` with `bookingDate` (start), `endDate` (inclusive end), and **no** `startTime` / `endTime` for multi-day.
+
+The built-in booking wizard switches to a date (or date-range) flow when the selected service is day-based.
+
+### Developer service
+
+`Booked::getInstance()->getMultiDayAvailability()` exposes `getAvailableStartDates()`, `isStartDateAvailable()`, and static helpers such as `calculateEndDate()` and `getDatesInRange()`.
 
 ## Subtractive Availability Model
 
@@ -546,7 +592,8 @@ The schedule system uses **Schedule elements** that can be shared across employe
 
 ### Service Classes
 
-- **`AvailabilityService`**: Main service for calculating availability
+- **`AvailabilityService`**: Main service for calculating **time-slot** availability
+- **`MultiDayAvailabilityService`**: **Day-based** availability (fixed or flexible multi-day services)
 - **`ScheduleAssignmentService`**: Manages many-to-many relationships between schedules and employees/services
 - **`ScheduleResolverService`**: Resolves which schedule is active for a given date
 - **`CapacityService`**: Handles capacity checking for slots

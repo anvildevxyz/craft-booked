@@ -13,8 +13,9 @@ use craft\db\ActiveRecord;
  * @property int|null $userId
  * @property string|null $userTimezone
  * @property string $bookingDate
- * @property string $startTime
- * @property string $endTime
+ * @property string|null $endDate
+ * @property string|null $startTime
+ * @property string|null $endTime
  * @property string $status
  * @property string|null $notes
  * @property string|null $sessionNotes

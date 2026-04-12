@@ -65,6 +65,15 @@ Planned features and improvements for the Booked plugin.
 - Configurable lookahead (1 / 3 / 7 days)
 - Staff-scoped view — filter to managed employees via PermissionService
 
+## Repeat Customers View
+
+- Dedicated CP view listing customers with 2+ confirmed bookings (email, name, booking count, lifetime value, last booking date)
+- Drill-down from the dashboard "Repeat Customers" KPI card (currently a dead-end metric — the card has no link because the bookings index has no matching filter)
+- Sortable/filterable by booking count, revenue, recency
+- Staff-scoped via PermissionService so managers only see their own repeat customers
+- Consider: align the dashboard KPI's time window with its sparkline/trend (currently the headline counts lifetime repeats while the trend is windowed to 7 days, so the numbers tell different stories)
+- Consider: filter option on the bookings index (`repeatCustomersOnly=1`) as a lighter-weight alternative to a dedicated view
+
 ## CSV Element Exporters
 
 - Reservation exporter — customer name, email, phone, service, employee, location, date, time, duration, status, price, notes

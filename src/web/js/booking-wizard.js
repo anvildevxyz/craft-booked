@@ -75,13 +75,27 @@
             prefetchedMonths: {}, // Tracks which year-month combos have been fetched
             slotCache: {}, // Caches slot data by date string (entries expire after SLOT_CACHE_TTL_MS)
             SLOT_CACHE_TTL_MS: 2 * 60 * 1000, // 2 minutes
-            showAvailabilityIndicators: false, // Only show after first date selection
+            showAvailabilityIndicators: true, // Show colored dates from the very first render
 
             // Selected objects
             selectedService: null,
             selectedEmployee: null,
             selectedLocation: null,
             selectedExtras: {}, // { extraId: quantity }
+
+            // Day-service state
+            isDayService: false,
+            isFlexibleDayService: false,
+            serviceDuration: 0,
+            endDate: null,
+            availableStartDates: [],
+            calendarMonth: null,
+            // Flexible day-service state
+            selectingEndDate: false,
+            validEndDates: [],
+            hoveredDate: null,
+            flexMinDays: 1,
+            flexMaxDays: 7,
 
             // Flow control
             employeeRequired: false,
@@ -402,7 +416,50 @@
                 return null;
             },
 
+            async fetchAvailableDates() {
+                this.loading = true;
+                try {
+                    const currentMonth = this.calendarMonth || new Date().toISOString().slice(0, 7);
+                    this.availableStartDates = await window.BookedAvailability.getDates(currentMonth, {
+                        serviceId: this.serviceId,
+                        employeeId: this.employeeId,
+                        locationId: this.locationId,
+                        quantity: this.quantity,
+                        extrasDuration: this.getExtrasDuration ? this.getExtrasDuration() : 0,
+                    });
+                    // Redraw calendar so onDayCreate picks up the new available dates
+                    if (this.flatpickrInstance) {
+                        this.flatpickrInstance.redraw();
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch available dates:', e);
+                    this.availableStartDates = [];
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async fetchValidEndDates(startDate) {
+                try {
+                    const result = await window.BookedAvailability.getValidEndDates(startDate, {
+                        serviceId: this.serviceId,
+                        employeeId: this.employeeId,
+                        locationId: this.locationId,
+                        quantity: this.slotQuantity,
+                    });
+                    this.validEndDates = result.validEndDates || [];
+                    this.flexMinDays = result.minDays || 1;
+                    this.flexMaxDays = result.maxDays || 7;
+                } catch (e) {
+                    console.error('Failed to fetch valid end dates:', e);
+                    this.validEndDates = [];
+                }
+            },
+
             async fetchSlots() {
+                if (this.isDayService) {
+                    return this.fetchAvailableDates();
+                }
                 if (!this.date) return;
                 const requestDate = this.date;
                 this.loading = true;
@@ -438,6 +495,17 @@
             async selectService(service) {
                 this.serviceId = service.id;
                 this.selectedService = service;
+                // Detect day-based service and store duration
+                this.isDayService = (service.durationType === 'days' || service.durationType === 'flexible_days');
+                this.isFlexibleDayService = (service.durationType === 'flexible_days');
+                this.serviceDuration = service.duration || 0;
+                this.flexMinDays = service.minDays || 1;
+                this.flexMaxDays = service.maxDays || 7;
+                this.endDate = null;
+                this.selectingEndDate = false;
+                this.validEndDates = [];
+                this.hoveredDate = null;
+                this.availableStartDates = [];
                 // Clear cached availability when service changes
                 this.availabilityCalendar = {};
                 this.slotCache = {};
@@ -506,7 +574,12 @@
             },
 
             getServicePrice() {
-                return this.selectedService?.price || 0;
+                const basePrice = this.selectedService?.price || 0;
+                // Per-unit day pricing: price × number of days
+                if (this.isDayService && this.selectedService?.pricingMode === 'per_unit' && this.getDurationDays() > 0) {
+                    return basePrice * this.getDurationDays();
+                }
+                return basePrice;
             },
 
             getTotalPrice() {
@@ -543,6 +616,51 @@
                 } catch (e) {
                     return dateStr;
                 }
+            },
+
+            /**
+             * Format a date range (startDate to endDate) for display.
+             * Used in the review step for multi-day services.
+             */
+            formatDisplayDateRange(startDateStr, endDateStr) {
+                if (!startDateStr) return '';
+                const start = this.formatDisplayDate(startDateStr);
+                if (!endDateStr || endDateStr === startDateStr) return start;
+                const end = this.formatDisplayDate(endDateStr);
+                return `${start} – ${end}`;
+            },
+
+            getDurationDays() {
+                if (!this.date || !this.endDate) return 0;
+                const start = new Date(this.date);
+                const end = new Date(this.endDate);
+                return Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            },
+
+            resetMultiDayState() {
+                if (this.softLockToken) {
+                    this.releaseSoftLock(this.softLockToken);
+                    this.softLockToken = null;
+                }
+                this.date = null;
+                this.endDate = null;
+                this.selectingEndDate = false;
+                this.validEndDates = [];
+                this.hoveredDate = null;
+                this.availableStartDates = [];
+            },
+
+            /**
+             * Get the date/time display string for the review step.
+             * Returns a date range for multi-day services, or date + time for regular services.
+             */
+            getReviewDateTimeDisplay() {
+                if (this.isDayService) {
+                    return this.formatDisplayDateRange(this.date, this.endDate);
+                }
+                const datePart = this.formatDisplayDate(this.date);
+                const timePart = this.formatDisplayTime(this.time);
+                return timePart ? `${datePart} ${timePart}` : datePart;
             },
 
             /**
@@ -616,10 +734,11 @@
                 this.selectedEmployee = null;
                 this.employees = []; // Clear employees array before fetching new ones
                 this.skipEmployeeStep = false; // Reset skip flag
-                // Clear cached availability when location changes
+                // Clear cached availability and multi-day state when location changes
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.resetMultiDayState();
                 await this.checkEmployeesAndProceed();
             },
 
@@ -697,10 +816,11 @@
             selectEmployee(employee) {
                 this.employeeId = employee.id;
                 this.selectedEmployee = employee;
-                // Clear cached availability when employee changes
+                // Clear cached availability and multi-day state when employee changes
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.resetMultiDayState();
                 this.initDateSelection();
             },
 
@@ -708,10 +828,11 @@
                 // User chose "Any available" employee
                 this.employeeId = null;
                 this.selectedEmployee = null;
-                // Clear cached availability when employee changes
+                // Clear cached availability and multi-day state when employee changes
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.resetMultiDayState();
                 this.initDateSelection();
             },
 
@@ -732,16 +853,21 @@
             /**
              * Initialize Flatpickr datepicker with availability highlighting
              */
-            initDatePicker() {
+            async initDatePicker() {
                 const input = this.$refs.dateInput;
                 if (!input || !window.flatpickr) {
                     console.warn('[BookingWizard] Flatpickr not available');
                     return;
                 }
 
-                // Destroy existing instance if any
+                // Destroy existing instance if any. Null the reference before
+                // the async pre-fetch below so that fetchAvailableDates /
+                // fetchAvailabilityCalendar don't try to redraw() a destroyed
+                // instance (which throws "Cannot read properties of undefined
+                // (reading 'noCalendar')" inside Flatpickr).
                 if (this.flatpickrInstance) {
                     this.flatpickrInstance.destroy();
+                    this.flatpickrInstance = null;
                 }
 
                 // Determine locale from config (set by Craft's app.language) or HTML lang
@@ -759,6 +885,25 @@
                     const max = new Date();
                     max.setDate(max.getDate() + this.config.maximumAdvanceBookingDays);
                     maxDate = max;
+                }
+
+                // Pre-fetch availability for the initial month BEFORE creating the
+                // flatpickr instance, so the very first onDayCreate pass has data to
+                // style with. Without this, the first render paints all days neutral
+                // (gray) and only gets colored once an async fetch redraws.
+                this.showAvailabilityIndicators = true;
+                const initialDate = this.date ? new Date(this.date) : new Date();
+                const initYear = initialDate.getFullYear();
+                const initMonth = initialDate.getMonth() + 1;
+                this.calendarMonth = `${initYear}-${String(initMonth).padStart(2, '0')}`;
+                try {
+                    if (this.isDayService) {
+                        await this.fetchAvailableDates();
+                    } else {
+                        await this.fetchAvailabilityCalendar(initYear, initMonth);
+                    }
+                } catch (e) {
+                    console.warn('[BookingWizard] Initial availability fetch failed:', e);
                 }
 
                 this.flatpickrInstance = flatpickr(input, {
@@ -780,15 +925,25 @@
                     onMonthChange: (selectedDates, dateStr, instance) => {
                         const year = instance.currentYear;
                         const month = instance.currentMonth + 1; // 0-indexed
-                        self.fetchAvailabilityCalendar(year, month);
-                        self.prefetchAdjacentMonths(year, month);
+                        self.calendarMonth = `${year}-${String(month).padStart(2, '0')}`;
+                        if (self.isDayService) {
+                            self.fetchAvailableDates();
+                        } else {
+                            self.fetchAvailabilityCalendar(year, month);
+                            self.prefetchAdjacentMonths(year, month);
+                        }
                     },
 
                     onYearChange: (selectedDates, dateStr, instance) => {
                         const year = instance.currentYear;
                         const month = instance.currentMonth + 1;
-                        self.fetchAvailabilityCalendar(year, month);
-                        self.prefetchAdjacentMonths(year, month);
+                        self.calendarMonth = `${year}-${String(month).padStart(2, '0')}`;
+                        if (self.isDayService) {
+                            self.fetchAvailableDates();
+                        } else {
+                            self.fetchAvailabilityCalendar(year, month);
+                            self.prefetchAdjacentMonths(year, month);
+                        }
                     },
 
                     // Style each day based on availability
@@ -802,6 +957,51 @@
                         }
 
                         const dateStr = self.formatDateForCalendar(dayElem.dateObj);
+
+                        // For day-based services, highlight available dates and range
+                        if (self.isDayService) {
+                            if (self.isFlexibleDayService && self.selectingEndDate && self.date) {
+                                // End-date selection mode
+                                const firstValidEnd = self.validEndDates.length > 0 ? self.validEndDates[0] : null;
+
+                                if (dateStr === self.date) {
+                                    dayElem.classList.add('booked-range-start');
+                                } else if (self.validEndDates.includes(dateStr)) {
+                                    dayElem.classList.add('booked-available');
+                                    dayElem.setAttribute('title', self.config.messages?.available || 'Available');
+                                } else if (dateStr > self.date && firstValidEnd && dateStr < firstValidEnd) {
+                                    // Between start and first valid end = included in minimum range, not an error
+                                    dayElem.classList.add('booked-in-range');
+                                }
+                                // Dates before start or after valid range: no styling (neutral)
+
+                                // Highlight range between start and hovered/selected end
+                                const rangeEnd = self.hoveredDate || self.endDate;
+                                if (rangeEnd && dateStr > self.date && dateStr <= rangeEnd && self.validEndDates.includes(rangeEnd)) {
+                                    dayElem.classList.add('booked-in-range');
+                                }
+                            } else if (self.isFlexibleDayService && self.date && self.endDate) {
+                                // Range already selected: highlight the full range
+                                if (dateStr >= self.date && dateStr <= self.endDate) {
+                                    dayElem.classList.add('booked-in-range');
+                                    if (dateStr === self.date) dayElem.classList.add('booked-range-start');
+                                    if (dateStr === self.endDate) dayElem.classList.add('booked-range-end');
+                                }
+                            } else {
+                                // Start date selection (fixed-day or flexible first click).
+                                // Only apply styling once availableStartDates has loaded — otherwise
+                                // every day flashes "Fully booked" before the fetch resolves.
+                                if (self.availableStartDates.includes(dateStr)) {
+                                    dayElem.classList.add('booked-available');
+                                    dayElem.setAttribute('title', self.config.messages?.available || 'Available');
+                                } else if (self.availableStartDates.length > 0) {
+                                    dayElem.classList.add('booked-unavailable');
+                                    dayElem.setAttribute('title', self.config.messages?.fullyBooked || 'Fully booked');
+                                }
+                            }
+                            return;
+                        }
+
                         const availability = self.availabilityCalendar[dateStr];
 
                         // Show availability status if we have data for this date
@@ -837,19 +1037,40 @@
                             instance.setDate(self.date, false);
                         }
 
-                        // Fetch availability for the current month immediately
-                        // This ensures users see availability indicators right away
+                        // Initial availability fetch already ran in initDatePicker()
+                        // before this instance was created, so onDayCreate has
+                        // already painted the right classes. Only schedule
+                        // adjacent-month / slot prefetches here.
                         self.showAvailabilityIndicators = true;
                         const year = instance.currentYear;
                         const month = instance.currentMonth + 1;
-                        self.fetchAvailabilityCalendar(year, month);
-                        // Prefetch adjacent months + likely slots after initial load
-                        setTimeout(() => {
-                            if (self.step === 5 && self.flatpickrInstance) {
-                                self.prefetchAdjacentMonths(year, month);
-                                self.prefetchLikelySlots();
-                            }
-                        }, 500);
+                        if (!self.isDayService) {
+                            setTimeout(() => {
+                                if (self.step === 5 && self.flatpickrInstance) {
+                                    self.prefetchAdjacentMonths(year, month);
+                                    self.prefetchLikelySlots();
+                                }
+                            }, 500);
+                        }
+
+                        // Add hover tracking for flexible day range preview
+                        if (self.isFlexibleDayService && instance.calendarContainer) {
+                            instance.calendarContainer.addEventListener('mouseover', function(e) {
+                                const dayElem = e.target.closest('.flatpickr-day');
+                                if (!dayElem || !self.selectingEndDate) return;
+                                const dateStr = self.formatDateForCalendar(dayElem.dateObj);
+                                if (dateStr !== self.hoveredDate) {
+                                    self.hoveredDate = dateStr;
+                                    instance.redraw();
+                                }
+                            });
+                            instance.calendarContainer.addEventListener('mouseleave', function() {
+                                if (self.selectingEndDate && self.hoveredDate) {
+                                    self.hoveredDate = null;
+                                    instance.redraw();
+                                }
+                            });
+                        }
                     }
                 });
             },
@@ -1019,6 +1240,116 @@
             },
 
             selectDate(date) {
+                // Fixed-duration day service: compute end date and advance
+                if (this.isDayService && !this.isFlexibleDayService) {
+                    // Reject clicks on unavailable start dates so users don't
+                    // accidentally advance to the next step with a bad date.
+                    if (this.availableStartDates.length > 0 && !this.availableStartDates.includes(date)) {
+                        if (this.flatpickrInstance) {
+                            this.flatpickrInstance.clear();
+                            this.flatpickrInstance.redraw();
+                        }
+                        return;
+                    }
+                    this.date = date;
+                    const duration = Math.max(1, this.serviceDuration);
+                    // Use UTC to avoid timezone shift issues with toISOString()
+                    const parts = date.split('-');
+                    const start = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+                    const end = new Date(start);
+                    end.setUTCDate(end.getUTCDate() + duration - 1);
+                    this.endDate = end.toISOString().slice(0, 10);
+                    this.time = null;
+                    this.nextStep();
+                    return;
+                }
+
+                // Flexible day service: two-click selection
+                if (this.isFlexibleDayService) {
+                    // Clicking the currently selected start date unselects it
+                    // and returns to start-date selection mode. This is the
+                    // only escape hatch users have when they've picked a start
+                    // date they don't want. Preserve the current month view so
+                    // the calendar doesn't jump back to today.
+                    if (this.selectingEndDate && date === this.date) {
+                        this.date = null;
+                        this.endDate = null;
+                        this.selectingEndDate = false;
+                        this.validEndDates = [];
+                        this.hoveredDate = null;
+                        if (this.flatpickrInstance) {
+                            const currentYear = this.flatpickrInstance.currentYear;
+                            const currentMonth = this.flatpickrInstance.currentMonth;
+                            this.flatpickrInstance.clear();
+                            this.flatpickrInstance.changeMonth(currentMonth, false);
+                            this.flatpickrInstance.currentYear = currentYear;
+                            this.flatpickrInstance.redraw();
+                        }
+                        this.announce(this.config.messages?.pickStartDateHint || 'Pick a start date');
+                        return;
+                    }
+
+                    if (this.selectingEndDate && date < this.date) {
+                        // Clicked before the start date: treat as re-picking a new earlier start
+                        this.selectingEndDate = false;
+                        this.validEndDates = [];
+                        this.hoveredDate = null;
+                        this.endDate = null;
+                    }
+
+                    if (!this.selectingEndDate) {
+                        // Reject clicks on dates that aren't valid start dates
+                        if (this.availableStartDates.length > 0 && !this.availableStartDates.includes(date)) {
+                            if (this.flatpickrInstance) {
+                                this.flatpickrInstance.clear();
+                                this.flatpickrInstance.redraw();
+                            }
+                            return;
+                        }
+                        // Select start date
+                        this.date = date;
+                        this.endDate = null;
+                        this.selectingEndDate = true;
+                        this.loading = true;
+                        this.announce(this.config.messages?.selectEndDate || 'Select your end date');
+                        // Clear Flatpickr's internal selected state so it doesn't override our styling
+                        // Preserve the current month view to avoid jumping back
+                        if (this.flatpickrInstance) {
+                            const currentYear = this.flatpickrInstance.currentYear;
+                            const currentMonth = this.flatpickrInstance.currentMonth;
+                            this.flatpickrInstance.clear();
+                            this.flatpickrInstance.changeMonth(currentMonth, false);
+                            this.flatpickrInstance.currentYear = currentYear;
+                            this.flatpickrInstance.redraw();
+                        }
+                        this.fetchValidEndDates(date).then(() => {
+                            this.loading = false;
+                            if (this.flatpickrInstance) {
+                                // redraw() alone doesn't re-run onDayCreate, so the new
+                                // validEndDates don't paint. changeMonth(current, false)
+                                // forces a full day-cell rebuild without navigating.
+                                const m = this.flatpickrInstance.currentMonth;
+                                this.flatpickrInstance.changeMonth(m, false);
+                            }
+                        });
+                        return;
+                    } else {
+                        // Select end date
+                        if (!this.validEndDates.includes(date)) {
+                            return; // Invalid end date, ignore
+                        }
+                        this.endDate = date;
+                        this.selectingEndDate = false;
+                        this.hoveredDate = null;
+                        this.time = null;
+                        if (this.flatpickrInstance) {
+                            this.flatpickrInstance.redraw();
+                        }
+                        this.nextStep();
+                        return;
+                    }
+                }
+
                 this.date = date;
                 // Show loading immediately and clear old slots
                 this.loading = true;
@@ -1126,6 +1457,13 @@
             },
 
             async createSoftLock() {
+                // For day-services, require date + endDate instead of time
+                if (this.isDayService) {
+                    if (!this.date || !this.endDate || !this.serviceId) {
+                        return;
+                    }
+                    return this.createMultiDayLock();
+                }
                 if (!this.date || !this.time || !this.serviceId) {
                     return;
                 }
@@ -1178,6 +1516,52 @@
                 } catch (error) {
                     console.error('Error creating soft lock:', error);
                     // Continue anyway - lock is not critical for booking
+                    this.softLockToken = null;
+                }
+            },
+
+            async createMultiDayLock() {
+                try {
+                    const csrfTokenName = window.csrfTokenName || 'CRAFT_CSRF_TOKEN';
+                    const csrfTokenValue = window.csrfTokenValue || '';
+
+                    const formData = new URLSearchParams();
+                    formData.append(csrfTokenName, csrfTokenValue);
+                    formData.append('date', this.date);
+                    formData.append('endDate', this.endDate);
+                    formData.append('serviceId', this.serviceId);
+                    if (this.employeeId) {
+                        formData.append('employeeId', this.employeeId);
+                    }
+                    if (this.locationId) {
+                        formData.append('locationId', this.locationId);
+                    }
+                    if (this.slotQuantity > 1) {
+                        formData.append('quantity', this.slotQuantity);
+                    }
+
+                    const response = await fetch('/actions/booked/slot/create-multi-day-lock', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        body: formData.toString()
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.softLockToken = result.token;
+                    } else {
+                        console.warn('Failed to create multi-day soft lock:', result.message);
+                        this.softLockToken = null;
+                    }
+                } catch (error) {
+                    console.error('Error creating multi-day soft lock:', error);
                     this.softLockToken = null;
                 }
             },
@@ -1392,6 +1776,13 @@
                     addToCart: this.addToCartOnly ? '1' : '0',
                     siteHandle: this.config.siteHandle || ''
                 };
+
+                if (this.isDayService && this.endDate) {
+                    data.endDate = this.endDate;
+                    // Don't send time for multi-day bookings
+                    delete data.time;
+                }
+
                 this.appendHoneypotData(data);
 
                 try {
@@ -1567,6 +1958,16 @@
                 this.hasSchedules = false;
                 this.skipEmployeeStep = false;
                 this.serviceHasSchedule = false;
+                this.isDayService = false;
+                this.isFlexibleDayService = false;
+                this.serviceDuration = 0;
+                this.endDate = null;
+                this.selectingEndDate = false;
+                this.validEndDates = [];
+                this.hoveredDate = null;
+                this.flexMinDays = 1;
+                this.flexMaxDays = 7;
+                this.availableStartDates = [];
 
                 // Reset waitlist state
                 this.showWaitlistForm = false;
