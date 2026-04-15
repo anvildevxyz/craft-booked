@@ -183,6 +183,52 @@ class ScheduleResolverService extends Component
     }
 
     /**
+     * Day-based capacity lives on Schedule.workingHours[day].capacity, not on Service.
+     * Resolution order mirrors hasScheduleForDay(). Null = no constraint.
+     *
+     * @param int $dayOfWeek ISO-8601 day (1=Mon, 7=Sun)
+     */
+    public function getCapacityForDay(int $serviceId, ?int $employeeId, string $date, int $dayOfWeek): ?int
+    {
+        $scheduleAssignment = Booked::getInstance()->getScheduleAssignment();
+
+        $service = Service::find()->siteId('*')->id($serviceId)->one();
+        if ($service?->hasAvailabilitySchedule()) {
+            $serviceSchedule = $scheduleAssignment->getActiveScheduleForServiceOnDate($serviceId, $date);
+            if ($serviceSchedule !== null && $serviceSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
+                return $serviceSchedule->getCapacityForDay($dayOfWeek) ?? 1;
+            }
+        }
+
+        if ($employeeId) {
+            $empSchedule = $scheduleAssignment->getActiveScheduleForDate($employeeId, $date);
+            if ($empSchedule !== null && $empSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
+                return $empSchedule->getCapacityForDay($dayOfWeek) ?? 1;
+            }
+            return null;
+        }
+
+        $employees = Employee::find()->siteId('*')->serviceId($serviceId)->all();
+        $employeeIds = array_map(fn($e) => $e->id, $employees);
+        if (empty($employeeIds)) {
+            return null;
+        }
+
+        $schedulesByEmployee = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
+        $total = 0;
+        $anyFound = false;
+        foreach ($schedulesByEmployee as $sched) {
+            if ($sched->getWorkingHoursForDay($dayOfWeek) === null) {
+                continue;
+            }
+            $anyFound = true;
+            $total += $sched->getCapacityForDay($dayOfWeek) ?? 1;
+        }
+
+        return $anyFound ? $total : null;
+    }
+
+    /**
      * Check if a service/employee has any schedule configured for a specific day.
      * Used to determine if waitlist should be offered.
      *

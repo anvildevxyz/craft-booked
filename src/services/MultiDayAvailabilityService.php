@@ -41,7 +41,6 @@ class MultiDayAvailabilityService extends Component
 
         $bufferBefore = $service->bufferBefore ?? 0;
         $bufferAfter = $service->bufferAfter ?? 0;
-        $capacity = $service->capacity ?? 1;
         $blackoutService = Booked::getInstance()->getBlackoutDate();
         $scheduleResolver = Booked::getInstance()->scheduleResolver;
 
@@ -51,7 +50,7 @@ class MultiDayAvailabilityService extends Component
 
             if ($this->isStartDateAvailable(
                 $candidateStart, $candidateEnd, $serviceId, $employeeId, $locationId,
-                $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver, $capacity
+                $quantity, $bufferBefore, $bufferAfter, $blackoutService, $scheduleResolver,
             )) {
                 $availableDates[] = $candidateStart;
             }
@@ -86,6 +85,66 @@ class MultiDayAvailabilityService extends Component
         return $dates;
     }
 
+    /**
+     * Minimum remaining capacity across the range (tightest day wins). 0 = blocked, null = unconstrained.
+     */
+    public function getRemainingCapacityForRange(
+        string $startDate,
+        string $endDate,
+        int $serviceId,
+        ?int $employeeId = null,
+        ?int $locationId = null,
+    ): ?int {
+        $service = Service::find()->id($serviceId)->siteId('*')->one();
+        if (!$service || !$service->isDayService()) {
+            return null;
+        }
+
+        $blackoutService = Booked::getInstance()->getBlackoutDate();
+        $scheduleResolver = Booked::getInstance()->scheduleResolver;
+
+        $bookingDates = self::getDatesInRange($startDate, $endDate);
+        if (empty($bookingDates)) {
+            return 0;
+        }
+
+        $existingByDate = $this->getExistingQuantitiesByDate(
+            $serviceId, $employeeId, $locationId, $startDate, $endDate,
+        );
+
+        $minRemaining = null;
+        foreach ($bookingDates as $date) {
+            if ($blackoutService->isDateBlackedOut($date, $employeeId, $locationId)) {
+                return 0;
+            }
+
+            $dateObj = \DateTime::createFromFormat('Y-m-d', $date);
+            if (!$dateObj) {
+                return 0;
+            }
+            $dayOfWeek = (int)$dateObj->format('N');
+
+            if (!$scheduleResolver->hasScheduleForDay($serviceId, $employeeId, $date, $dayOfWeek)) {
+                return 0;
+            }
+
+            $dayCapacity = $scheduleResolver->getCapacityForDay($serviceId, $employeeId, $date, $dayOfWeek);
+            if ($dayCapacity === null) {
+                continue;
+            }
+
+            $remaining = $dayCapacity - ($existingByDate[$date] ?? 0);
+            if ($remaining <= 0) {
+                return 0;
+            }
+            if ($minRemaining === null || $remaining < $minRemaining) {
+                $minRemaining = $remaining;
+            }
+        }
+
+        return $minRemaining;
+    }
+
     public function isStartDateAvailable(
         string $startDate,
         string $endDate,
@@ -97,9 +156,8 @@ class MultiDayAvailabilityService extends Component
         int $bufferAfter,
         BlackoutDateService $blackoutService,
         ScheduleResolverService $scheduleResolver,
-        ?int $capacity = null,
     ): bool {
-        // For day-based services, buffer values are stored as days directly
+        // Buffer values are stored as days for day-based services.
         $bufferedStart = $bufferBefore > 0
             ? (new \DateTime($startDate))->modify("-{$bufferBefore} days")->format('Y-m-d')
             : $startDate;
@@ -108,7 +166,6 @@ class MultiDayAvailabilityService extends Component
             : $endDate;
 
         $allDates = self::getDatesInRange($bufferedStart, $bufferedEnd);
-        $bookingDates = self::getDatesInRange($startDate, $endDate);
 
         foreach ($allDates as $date) {
             if ($blackoutService->isDateBlackedOut($date, $employeeId, $locationId)) {
@@ -116,41 +173,71 @@ class MultiDayAvailabilityService extends Component
             }
         }
 
-        foreach ($bookingDates as $date) {
+        $existingByDate = $this->getExistingQuantitiesByDate(
+            $serviceId, $employeeId, $locationId, $bufferedStart, $bufferedEnd,
+        );
+
+        foreach ($allDates as $date) {
             $dateObj = \DateTime::createFromFormat('Y-m-d', $date);
             if (!$dateObj) {
                 return false;
             }
             $dayOfWeek = (int)$dateObj->format('N');
-            if (!$scheduleResolver->hasScheduleForDay($serviceId, $employeeId, $date, $dayOfWeek)) {
+            $isBookingDay = $date >= $startDate && $date <= $endDate;
+
+            if ($isBookingDay && !$scheduleResolver->hasScheduleForDay($serviceId, $employeeId, $date, $dayOfWeek)) {
+                return false;
+            }
+
+            $dayCapacity = $scheduleResolver->getCapacityForDay($serviceId, $employeeId, $date, $dayOfWeek);
+            if ($dayCapacity === null) {
+                continue;
+            }
+
+            $existing = $existingByDate[$date] ?? 0;
+            if (($existing + $quantity) > $dayCapacity) {
                 return false;
             }
         }
 
-        $conflictQuery = (new \craft\db\Query())
+        return true;
+    }
+
+    /** @return array<string, int> Quantities keyed by YYYY-MM-DD. */
+    private function getExistingQuantitiesByDate(
+        int $serviceId,
+        ?int $employeeId,
+        ?int $locationId,
+        string $rangeStart,
+        string $rangeEnd,
+    ): array {
+        $query = (new \craft\db\Query())
+            ->select(['r.quantity', 'r.bookingDate', 'r.endDate'])
             ->from('{{%booked_reservations}} r')
             ->where(['in', 'r.status', [ReservationRecord::STATUS_CONFIRMED, ReservationRecord::STATUS_PENDING]])
-            ->andWhere(['r.serviceId' => $serviceId]);
+            ->andWhere(['r.serviceId' => $serviceId])
+            ->andWhere(['<=', 'r.bookingDate', $rangeEnd])
+            ->andWhere(['>=', new \yii\db\Expression('COALESCE(r.endDate, r.bookingDate)'), $rangeStart]);
 
         if ($employeeId) {
-            $conflictQuery->andWhere(['r.employeeId' => $employeeId]);
+            $query->andWhere(['r.employeeId' => $employeeId]);
         }
-
         if ($locationId) {
-            $conflictQuery->andWhere(['r.locationId' => $locationId]);
+            $query->andWhere(['r.locationId' => $locationId]);
         }
 
-        $conflictQuery->andWhere(['<=', 'r.bookingDate', $bufferedEnd]);
-        $conflictQuery->andWhere(['>=', "COALESCE(r.endDate, r.bookingDate)", $bufferedStart]);
-
-        // Check capacity: sum existing quantities, not just existence
-        $existingQuantity = (int)$conflictQuery->sum('r.quantity');
-        if ($capacity === null) {
-            $service = Service::find()->id($serviceId)->siteId('*')->one();
-            $capacity = $service->capacity ?? 1;
+        $perDay = [];
+        foreach ($query->all() as $row) {
+            $rStart = (string)$row['bookingDate'];
+            $rEnd = !empty($row['endDate']) ? (string)$row['endDate'] : $rStart;
+            $overlapStart = $rStart < $rangeStart ? $rangeStart : $rStart;
+            $overlapEnd = $rEnd > $rangeEnd ? $rangeEnd : $rEnd;
+            foreach (self::getDatesInRange($overlapStart, $overlapEnd) as $d) {
+                $perDay[$d] = ($perDay[$d] ?? 0) + (int)$row['quantity'];
+            }
         }
 
-        return ($existingQuantity + $quantity) <= $capacity;
+        return $perDay;
     }
 
     public static function calculateEndDate(string $startDate, int $durationDays): string
