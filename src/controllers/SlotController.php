@@ -31,6 +31,7 @@ class SlotController extends Controller
         'get-availability-calendar',
         'get-event-dates',
         'get-valid-end-dates',
+        'get-range-capacity',
         'create-lock',
         'create-multi-day-lock',
         'create-event-lock',
@@ -53,7 +54,7 @@ class SlotController extends Controller
         $this->requirePostRequest();
         $this->requireAcceptsJson();
 
-        if (!$this->checkRateLimit('booked_slots_throttle', 60)) {
+        if (!$this->checkRateLimit('booked_slots_throttle', 120)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
 
@@ -81,7 +82,7 @@ class SlotController extends Controller
     {
         $this->requireAcceptsJson();
 
-        if (!$this->checkRateLimit('booked_dates_throttle', 30)) {
+        if (!$this->checkRateLimit('booked_dates_throttle', 120)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
 
@@ -125,11 +126,49 @@ class SlotController extends Controller
         ]);
     }
 
+    public function actionGetRangeCapacity(): Response
+    {
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_dates_throttle', 120)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $request = Craft::$app->request;
+        $serviceId = $this->normalizeId($request->getParam('serviceId'));
+        if (!$serviceId) {
+            throw new BadRequestHttpException(Craft::t('booked', 'errors.serviceRequired'));
+        }
+
+        $startDate = $request->getParam('startDate');
+        $endDate = $request->getParam('endDate');
+        if (!$startDate || !$this->validateDate($startDate) || !$endDate || !$this->validateDate($endDate)) {
+            throw new BadRequestHttpException(Craft::t('booked', 'booking.invalidDate'));
+        }
+
+        $employeeId = $this->normalizeId($request->getParam('employeeId'));
+        $locationId = $this->normalizeId($request->getParam('locationId'));
+
+        $remaining = Booked::getInstance()->getMultiDayAvailability()->getRemainingCapacityForRange(
+            $startDate,
+            $endDate,
+            $serviceId,
+            $employeeId,
+            $locationId,
+        );
+
+        return $this->jsonSuccess('', [
+            'remainingCapacity' => $remaining,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+    }
+
     public function actionGetValidEndDates(): Response
     {
         $this->requireAcceptsJson();
 
-        if (!$this->checkRateLimit('booked_dates_throttle', 30)) {
+        if (!$this->checkRateLimit('booked_dates_throttle', 120)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
 
@@ -186,7 +225,7 @@ class SlotController extends Controller
     {
         $this->requireAcceptsJson();
 
-        if (!$this->checkRateLimit('booked_event_dates_throttle', 60)) {
+        if (!$this->checkRateLimit('booked_event_dates_throttle', 120)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
 
@@ -254,7 +293,7 @@ class SlotController extends Controller
     {
         $this->requireAcceptsJson();
 
-        if (!$this->checkRateLimit('booked_calendar_throttle', 30)) {
+        if (!$this->checkRateLimit('booked_calendar_throttle', 120)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
 

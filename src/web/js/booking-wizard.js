@@ -96,6 +96,10 @@
             hoveredDate: null,
             flexMinDays: 1,
             flexMaxDays: 7,
+            dayRangeCapacity: null, // null = not fetched or unconstrained
+            dayRangeCapacityLoading: false,
+            dayDatesFetching: new Set(),
+            dayDatesCache: {},
 
             // Flow control
             employeeRequired: false,
@@ -417,26 +421,105 @@
             },
 
             async fetchAvailableDates() {
+                const currentMonth = this.calendarMonth || new Date().toISOString().slice(0, 7);
+                const extrasDur = this.getExtrasDuration ? this.getExtrasDuration() : 0;
+                const fetchKey = `${currentMonth}-s${this.serviceId ?? 'any'}-e${this.employeeId ?? 'any'}-l${this.locationId ?? 'any'}-q${this.quantity || 1}-x${extrasDur}`;
+
+                if (Object.prototype.hasOwnProperty.call(this.dayDatesCache, fetchKey)) {
+                    this.availableStartDates = this.dayDatesCache[fetchKey];
+                    this.bookingError = null;
+                    if (this.flatpickrInstance) this.flatpickrInstance.redraw();
+                    return;
+                }
+                if (this.dayDatesFetching.has(fetchKey)) return;
+
+                this.dayDatesFetching.add(fetchKey);
                 this.loading = true;
                 try {
-                    const currentMonth = this.calendarMonth || new Date().toISOString().slice(0, 7);
-                    this.availableStartDates = await window.BookedAvailability.getDates(currentMonth, {
+                    const result = await window.BookedAvailability.getDates(currentMonth, {
                         serviceId: this.serviceId,
                         employeeId: this.employeeId,
                         locationId: this.locationId,
                         quantity: this.quantity,
-                        extrasDuration: this.getExtrasDuration ? this.getExtrasDuration() : 0,
+                        extrasDuration: extrasDur,
                     });
-                    // Redraw calendar so onDayCreate picks up the new available dates
-                    if (this.flatpickrInstance) {
-                        this.flatpickrInstance.redraw();
+                    const dates = result?.availableDates || [];
+                    // Don't cache error responses so the user can retry.
+                    if (!result?.error) {
+                        this.dayDatesCache[fetchKey] = dates;
                     }
+                    this.availableStartDates = dates;
+                    if (result?.error) {
+                        this.bookingError = result.error;
+                        this.announce(result.error);
+                    } else {
+                        this.bookingError = null;
+                    }
+                    if (this.flatpickrInstance) this.flatpickrInstance.redraw();
                 } catch (e) {
                     console.error('Failed to fetch available dates:', e);
                     this.availableStartDates = [];
                 } finally {
+                    this.dayDatesFetching.delete(fetchKey);
                     this.loading = false;
                 }
+            },
+
+            async fetchDayRangeCapacity() {
+                if (!this.isDayService || !this.date || !this.endDate || !this.serviceId) {
+                    this.dayRangeCapacity = null;
+                    return false;
+                }
+                // Snapshot selection so a stale fetch can't overwrite state or
+                // advance the wizard if the user re-picks dates mid-flight.
+                const reqStart = this.date;
+                const reqEnd = this.endDate;
+                const reqServiceId = this.serviceId;
+                this.dayRangeCapacityLoading = true;
+                try {
+                    const result = await window.BookedAvailability.getRangeCapacity(reqStart, reqEnd, {
+                        serviceId: reqServiceId,
+                        employeeId: this.employeeId,
+                        locationId: this.locationId,
+                    });
+                    if (this.date !== reqStart || this.endDate !== reqEnd || this.serviceId !== reqServiceId) {
+                        return false;
+                    }
+                    const remaining = result?.remainingCapacity ?? null;
+                    this.dayRangeCapacity = remaining;
+                    if (typeof remaining === 'number') {
+                        if (this.quantity > remaining) this.quantity = remaining;
+                        if (this.quantity < 1) this.quantity = 1;
+                    }
+                    return true;
+                } catch (e) {
+                    console.error('Failed to fetch day-range capacity:', e);
+                    if (this.date === reqStart && this.endDate === reqEnd && this.serviceId === reqServiceId) {
+                        this.dayRangeCapacity = null;
+                    }
+                    return false;
+                } finally {
+                    this.dayRangeCapacityLoading = false;
+                }
+            },
+
+            dayRangeCapacityNeedsPicker() {
+                return typeof this.dayRangeCapacity === 'number' && this.dayRangeCapacity > 1;
+            },
+
+            incrementDayQuantity() {
+                const max = typeof this.dayRangeCapacity === 'number' ? this.dayRangeCapacity : 99;
+                if (this.quantity < max) this.quantity++;
+            },
+
+            decrementDayQuantity() {
+                if (this.quantity > 1) this.quantity--;
+            },
+
+            validateDayQuantity() {
+                const max = typeof this.dayRangeCapacity === 'number' ? this.dayRangeCapacity : 99;
+                if (!Number.isFinite(this.quantity) || this.quantity < 1) this.quantity = 1;
+                if (this.quantity > max) this.quantity = max;
             },
 
             async fetchValidEndDates(startDate) {
@@ -445,7 +528,7 @@
                         serviceId: this.serviceId,
                         employeeId: this.employeeId,
                         locationId: this.locationId,
-                        quantity: this.slotQuantity,
+                        quantity: this.quantity,
                     });
                     this.validEndDates = result.validEndDates || [];
                     this.flexMinDays = result.minDays || 1;
@@ -510,6 +593,7 @@
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
 
                 // Fetch extras for this service
                 await this.fetchExtras();
@@ -716,6 +800,7 @@
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
 
                 // Proceed from extras step
                 // Employees were already fetched in selectService(), so we know skipLocationStep
@@ -738,6 +823,7 @@
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
                 this.resetMultiDayState();
                 await this.checkEmployeesAndProceed();
             },
@@ -820,6 +906,7 @@
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
                 this.resetMultiDayState();
                 this.initDateSelection();
             },
@@ -832,6 +919,7 @@
                 this.availabilityCalendar = {};
                 this.slotCache = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
                 this.resetMultiDayState();
                 this.initDateSelection();
             },
@@ -1260,7 +1348,15 @@
                     end.setUTCDate(end.getUTCDate() + duration - 1);
                     this.endDate = end.toISOString().slice(0, 10);
                     this.time = null;
-                    this.nextStep();
+                    const fixedReqStart = this.date;
+                    const fixedReqEnd = this.endDate;
+                    this.fetchDayRangeCapacity().then((fresh) => {
+                        if (!fresh) return;
+                        if (this.date !== fixedReqStart || this.endDate !== fixedReqEnd) return;
+                        if (!this.dayRangeCapacityNeedsPicker()) {
+                            this.nextStep();
+                        }
+                    });
                     return;
                 }
 
@@ -1277,6 +1373,7 @@
                         this.selectingEndDate = false;
                         this.validEndDates = [];
                         this.hoveredDate = null;
+                        this.dayRangeCapacity = null;
                         if (this.flatpickrInstance) {
                             const currentYear = this.flatpickrInstance.currentYear;
                             const currentMonth = this.flatpickrInstance.currentMonth;
@@ -1310,6 +1407,7 @@
                         this.date = date;
                         this.endDate = null;
                         this.selectingEndDate = true;
+                        this.dayRangeCapacity = null;
                         this.loading = true;
                         this.announce(this.config.messages?.selectEndDate || 'Select your end date');
                         // Clear Flatpickr's internal selected state so it doesn't override our styling
@@ -1345,7 +1443,15 @@
                         if (this.flatpickrInstance) {
                             this.flatpickrInstance.redraw();
                         }
-                        this.nextStep();
+                        const flexReqStart = this.date;
+                        const flexReqEnd = this.endDate;
+                        this.fetchDayRangeCapacity().then((fresh) => {
+                            if (!fresh) return;
+                            if (this.date !== flexReqStart || this.endDate !== flexReqEnd) return;
+                            if (!this.dayRangeCapacityNeedsPicker()) {
+                                this.nextStep();
+                            }
+                        });
                         return;
                     }
                 }
@@ -1978,6 +2084,7 @@
                 // Reset Flatpickr state
                 this.availabilityCalendar = {};
                 this.prefetchedMonths = {};
+                this.dayDatesCache = {};
                 this.slotCache = {};
                 this.showAvailabilityIndicators = false;
                 if (this.flatpickrInstance) {

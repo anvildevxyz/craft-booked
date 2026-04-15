@@ -485,6 +485,12 @@
     </div>
 
     <div x-show="step === 5" x-cloak>
+        <template x-if="bookingError">
+            <div class="{{ cssPrefix }}-booking-error" role="alert">
+                <strong>{{ labels.bookingErrorTitle }}</strong>
+                <span x-text="bookingError"></span>
+            </div>
+        </template>
         <h3 tabindex="-1">
             <template x-if="!isDayService">
                 <span>{{ labels.selectDateTime }}</span>
@@ -546,6 +552,30 @@
                 </template>
             </div>
         </div>
+
+        <template x-if="isDayService && date && endDate && dayRangeCapacityNeedsPicker()">
+            <div class="{{ cssPrefix }}-slot-quantity" role="group" aria-labelledby="booked-day-qty-label">
+                <label id="booked-day-qty-label">{{ labels.quantityLabel }}:</label>
+                <div class="{{ cssPrefix }}-quantity-controls">
+                    <button type="button" class="btn btn-sm"
+                            @click.stop.prevent="decrementDayQuantity()"
+                            :disabled="quantity <= 1"
+                            aria-label="{{ 'wizard.ariaDecreaseQuantity'|t('booked') }}">−</button>
+                    <input type="number"
+                           x-model.number="quantity"
+                           :max="dayRangeCapacity || 99"
+                           min="1"
+                           class="text-input text-center"
+                           aria-label="{{ 'wizard.ariaSlotQuantity'|t('booked') }}"
+                           @change="validateDayQuantity()">
+                    <button type="button" class="btn btn-sm"
+                            @click.stop.prevent="incrementDayQuantity()"
+                            :disabled="quantity >= (dayRangeCapacity || 99)"
+                            aria-label="{{ 'wizard.ariaIncreaseQuantity'|t('booked') }}">+</button>
+                    <span class="text-xs" x-text="dayRangeCapacity + ' {{ labels.capacityAvailable }}'"></span>
+                </div>
+            </div>
+        </template>
 
         <div class="{{ cssPrefix }}-time-section" x-show="date && !isDayService">
             <template x-if="availableSlots.length > 0">
@@ -708,11 +738,11 @@
 
         <div class="{{ cssPrefix }}-step-nav">
             <button class="btn" @click="prevStep()">{{ labels.btnBack }}</button>
-            <button 
-                class="btn btn-primary" 
-                @click="nextStep()" 
-                x-show="selectedSlot && (selectedSlot.availableCapacity === null || selectedSlot.availableCapacity <= 1 || slotQuantity > 0)"
-                :disabled="selectedSlot && selectedSlot.availableCapacity !== null && selectedSlot.availableCapacity > 1 && slotQuantity < 1">
+            <button
+                class="btn btn-primary"
+                @click="nextStep()"
+                x-show="(isDayService && date && endDate && dayRangeCapacityNeedsPicker()) || (selectedSlot && (selectedSlot.availableCapacity === null || selectedSlot.availableCapacity <= 1 || slotQuantity > 0))"
+                :disabled="(isDayService && (!date || !endDate || quantity < 1 || (typeof dayRangeCapacity === 'number' && quantity > dayRangeCapacity))) || (selectedSlot && selectedSlot.availableCapacity !== null && selectedSlot.availableCapacity > 1 && slotQuantity < 1)">
                 {{ labels.btnNext }}
             </button>
         </div>
@@ -804,10 +834,10 @@
                     </template>
                     <template x-if="isFlexibleDayService && selectedService?.price > 0">
                         <div class="col-span-2 text-sm text-gray-500">
-                            <span x-text="getDurationDays() + ' {{ 'labels.days'|t('booked') }} × ' + selectedService.price + ' {{ labels.currencySymbol }} / {{ 'labels.day'|t('booked') }}'"></span>
+                            <span x-text="getDurationDays() + ' {{ 'labels.days'|t('booked') }} × ' + (selectedService?.price ?? 0) + ' {{ labels.currencySymbol }} / {{ 'labels.day'|t('booked') }}'"></span>
                             <span x-show="quantity > 1" x-text="' × ' + quantity"></span>
                             <span> = </span>
-                            <span class="font-medium text-black" x-text="(getDurationDays() * selectedService.price * quantity) + ' {{ labels.currencySymbol }}'"></span>
+                            <span class="font-medium text-black" x-text="(getDurationDays() * (selectedService?.price ?? 0) * quantity) + ' {{ labels.currencySymbol }}'"></span>
                         </div>
                     </template>
                     <template x-if="!isDayService">

@@ -60,7 +60,7 @@ class QuantityMutations extends Mutation
 
     protected static function getPayloadType(string $typeName, string $mutationName, string $verb): ObjectType
     {
-        return GqlEntityRegistry::getEntity($typeName) ?? GqlEntityRegistry::createEntity($typeName, new ObjectType([
+        return GqlEntityRegistry::getEntity($typeName) ?: GqlEntityRegistry::createEntity($typeName, new ObjectType([
             'name' => $typeName,
             'description' => "Payload for the {$mutationName} mutation.",
             'fields' => [

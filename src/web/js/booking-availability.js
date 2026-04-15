@@ -58,14 +58,19 @@ window.BookedAvailability = {
                     'Accept': 'application/json',
                 },
             });
+            let result = null;
+            try { result = await response.json(); } catch (e) { result = null; }
             if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
+                return {
+                    availableDates: [],
+                    error: (result && result.message) || `Server error: ${response.status}`,
+                    status: response.status,
+                };
             }
-            const result = await response.json();
-            return result.availableDates || [];
+            return { availableDates: result?.availableDates || [] };
         } catch (error) {
             console.error('Booked: Failed to fetch available dates', error);
-            return [];
+            return { availableDates: [], error: error.message || 'Network error' };
         }
     },
 
@@ -90,6 +95,26 @@ window.BookedAvailability = {
         } catch (error) {
             console.error('Booked: Failed to fetch valid end dates', error);
             return { validEndDates: [], minDays: 1, maxDays: 7 };
+        }
+    },
+
+    async getRangeCapacity(startDate, endDate, options = {}) {
+        const params = new URLSearchParams();
+        params.append('startDate', startDate);
+        params.append('endDate', endDate);
+        if (options.serviceId) params.append('serviceId', options.serviceId);
+        if (options.employeeId) params.append('employeeId', options.employeeId);
+        if (options.locationId) params.append('locationId', options.locationId);
+
+        try {
+            const response = await fetch('/actions/booked/slot/get-range-capacity?' + params.toString(), {
+                headers: { 'Accept': 'application/json' },
+            });
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Booked: Failed to fetch range capacity', error);
+            return { remainingCapacity: null };
         }
     },
 
@@ -137,14 +162,19 @@ window.BookedAvailability = {
                 },
                 body: formData.toString()
             });
+            // Parse body even on 4xx so handleBookingResult sees the backend's message.
+            let result = null;
+            try { result = await response.json(); } catch (parseErr) { result = null; }
             if (!response.ok) {
+                if (result && typeof result === 'object') {
+                    return { success: false, ...result };
+                }
                 throw new Error(`Server error: ${response.status}`);
             }
-            const result = await response.json();
             return result;
         } catch (error) {
             console.error('Booked: Failed to create booking', error);
-            return { success: false, message: 'Server error' };
+            return { success: false, message: error.message || 'Server error' };
         }
     },
 

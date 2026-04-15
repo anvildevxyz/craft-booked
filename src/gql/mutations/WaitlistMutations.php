@@ -36,7 +36,7 @@ class WaitlistMutations extends Mutation
     {
         $typeName = 'ConvertBookedWaitlistEntryPayload';
 
-        return GqlEntityRegistry::getEntity($typeName) ?? GqlEntityRegistry::createEntity($typeName, new ObjectType([
+        return GqlEntityRegistry::getEntity($typeName) ?: GqlEntityRegistry::createEntity($typeName, new ObjectType([
             'name' => $typeName,
             'description' => 'Payload for the convertBookedWaitlistEntry mutation.',
             'fields' => [
