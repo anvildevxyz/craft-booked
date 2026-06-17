@@ -297,6 +297,90 @@ class McpToolsTest extends TestCase
         );
     }
 
+    public function testGetReservationRedactsPii(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
+
+        $this->assertMatchesRegularExpression(
+            '/getReservationById\(\$id\);.*?Presenter::reservation\(\$reservation,\s*redactPii:\s*true\)/s',
+            $src,
+            'booked_get_reservation must redact PII; ids are enumerable so an un-redacted get defeats list redaction.',
+        );
+    }
+
+    public function testListReservationsSingleBoundDateFilterUsesOperatorArray(): void
+    {
+        // The string form ">= {$date}" matches literally and finds nothing.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
+
+        $this->assertStringContainsString("bookingDate(['>=', \$fromDate])", $src);
+        $this->assertStringContainsString("bookingDate(['<=', \$toDate])", $src);
+        $this->assertStringNotContainsString('bookingDate(">= {$fromDate}")', $src);
+        $this->assertStringNotContainsString('bookingDate("<= {$toDate}")', $src);
+    }
+
+    public function testUpdateReservationRejectsCancelStatus(): void
+    {
+        // status=cancelled here would skip the refund/capacity-release flow.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
+
+        $this->assertStringContainsString("if (\$status === 'cancelled') {", $src);
+        $this->assertStringContainsString('booked_cancel_reservation', $src);
+    }
+
+    public function testListEventDatesIncludesDisabled(): void
+    {
+        // Admin assistant must see retired events to be able to re-enable them.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/EventDateTools.php');
+
+        $this->assertStringContainsString('enabledOnly: false', $src);
+    }
+
+    public function testRevenueReportSummarisesReservationsAsCount(): void
+    {
+        // getRevenueData returns raw reservation models (for the CP view); over MCP
+        // those are opaque stubs + per-customer detail, so the tool must reduce them.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReportTools.php');
+
+        $this->assertStringContainsString("\$revenue['reservationCount']", $src);
+        $this->assertStringContainsString("unset(\$revenue['reservations'])", $src);
+    }
+
+    public function testEventDateGetUpdateDeleteResolveDisabled(): void
+    {
+        // Listing disabled events is useless if get/update/delete can't then act
+        // on them (getEventDateById is enabled-only by default).
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/EventDateTools.php');
+
+        $this->assertSame(
+            3,
+            substr_count($src, 'includeDisabled: true'),
+            'get/update/delete event-date tools must resolve disabled events.',
+        );
+    }
+
+    public function testEmployeeServiceIdsAreValidated(): void
+    {
+        // serviceIds linking to bogus ids corrupts downstream availability/assignment.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/CatalogTools.php');
+
+        $this->assertStringContainsString('unknownServiceIds', $src);
+        $this->assertSame(
+            2,
+            substr_count($src, '$this->unknownServiceIds('),
+            'Both createEmployee and updateEmployee must validate serviceIds.',
+        );
+    }
+
+    public function testRateLimiterUsesFixedWindowAndRecordsAfterSuccess(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ToolResponseTrait.php');
+
+        // Pinned expiry = fixed window (no TTL reset); mutex = atomic increment.
+        $this->assertStringContainsString("'expiresAt'", $src);
+        $this->assertStringContainsString('getMutex()', $src);
+    }
+
     public function testGuardSanitisesNonBookedExceptionMessages(): void
     {
         $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ToolResponseTrait.php');
@@ -306,7 +390,8 @@ class McpToolsTest extends TestCase
             $src,
             'guard() must only pass through messages from Booked\'s own exceptions; others leak DB/internal detail.',
         );
-        $this->assertStringContainsString('withinRateLimit', $src, 'A notification rate-limit helper must exist.');
+        $this->assertStringContainsString('rateLimitReached', $src, 'A rate-limit check helper must exist.');
+        $this->assertStringContainsString('recordRateLimitedCall', $src, 'A rate-limit record helper must exist.');
     }
 
     public function testNotificationToolsAreRateLimited(): void
@@ -314,9 +399,10 @@ class McpToolsTest extends TestCase
         $resv = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
         $wait = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/WaitlistTools.php');
 
-        // create + cancel (reservations) and add x2 + notify (waitlist) must all be throttled.
-        $this->assertGreaterThanOrEqual(3, substr_count($resv, "withinRateLimit('notify'"));
-        $this->assertGreaterThanOrEqual(3, substr_count($wait, "withinRateLimit('notify'"));
+        // All side-effecting reservation writes (create/cancel/update/quantity/refund)
+        // and the three notifying waitlist tools (add x2 + notify) must be throttled.
+        $this->assertGreaterThanOrEqual(3, substr_count($resv, 'rateLimitReached('));
+        $this->assertGreaterThanOrEqual(3, substr_count($wait, 'rateLimitReached('));
     }
 
     public function testEmployeeToolsDoNotAcceptUserId(): void

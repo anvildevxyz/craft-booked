@@ -73,9 +73,11 @@ class ReservationTools
             if ($fromDate !== null && $toDate !== null) {
                 $query->bookingDate(['and', ">= {$fromDate}", "<= {$toDate}"]);
             } elseif ($fromDate !== null) {
-                $query->bookingDate(">= {$fromDate}");
+                // Array form, not ">= {$fromDate}": ReservationModelQuery treats
+                // the string as a literal equality match and finds nothing.
+                $query->bookingDate(['>=', $fromDate]);
             } elseif ($toDate !== null) {
-                $query->bookingDate("<= {$toDate}");
+                $query->bookingDate(['<=', $toDate]);
             }
 
             $reservations = $query->all();
@@ -106,7 +108,9 @@ class ReservationTools
                 return ['error' => "Reservation #{$id} not found."];
             }
 
-            return ['reservation' => Presenter::reservation($reservation)];
+            // Redact here too — ids are enumerable, so an un-redacted get would
+            // bypass the bulk-list redaction one record at a time.
+            return ['reservation' => Presenter::reservation($reservation, redactPii: true)];
         });
     }
 
@@ -170,8 +174,11 @@ class ReservationTools
             $quantity,
             $userTimezone,
         ): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before creating more bookings.'];
+            if ($quantity < 1) {
+                return ['error' => 'quantity must be at least 1.'];
+            }
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('creating more bookings');
             }
 
             $reservation = Booked::getInstance()->getBooking()->createReservation([
@@ -183,10 +190,13 @@ class ReservationTools
                 'userPhone' => $userPhone,
                 'employeeId' => $employeeId,
                 'locationId' => $locationId,
-                'quantity' => max(1, $quantity),
+                'quantity' => $quantity,
                 'userTimezone' => $userTimezone,
                 'source' => 'mcp',
             ]);
+
+            // Record only after success, so failed attempts don't consume budget.
+            $this->recordRateLimitedCall();
 
             return [
                 'success' => true,
@@ -219,8 +229,11 @@ class ReservationTools
         int $quantity = 1,
     ): array {
         return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $quantity): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before creating more bookings.'];
+            if ($quantity < 1) {
+                return ['error' => 'quantity must be at least 1.'];
+            }
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('creating more bookings');
             }
 
             $reservation = Booked::getInstance()->getBooking()->createReservation([
@@ -228,9 +241,11 @@ class ReservationTools
                 'userName' => $userName,
                 'userEmail' => $userEmail,
                 'userPhone' => $userPhone,
-                'quantity' => max(1, $quantity),
+                'quantity' => $quantity,
                 'source' => 'mcp',
             ]);
+
+            $this->recordRateLimitedCall();
 
             return [
                 'success' => true,
@@ -253,11 +268,16 @@ class ReservationTools
     public function cancelReservation(int $id, string $reason = ''): array
     {
         return $this->guard(function() use ($id, $reason): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before cancelling more bookings.'];
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('cancelling more bookings');
             }
 
             $ok = Booked::getInstance()->getBooking()->cancelReservation($id, $reason);
+
+            // Only a real cancellation notifies; a no-op doesn't, so don't charge it.
+            if ($ok) {
+                $this->recordRateLimitedCall();
+            }
 
             return [
                 'success' => $ok,
@@ -277,7 +297,7 @@ class ReservationTools
      * @param string|null $startTime New start time, HH:MM (reschedule).
      * @param int|null $employeeId Reassign to this employee (reschedule).
      * @param int|null $locationId Reassign to this location (reschedule).
-     * @param string|null $status New status: confirmed or cancelled. (pending is reserved for Commerce; cancelling here does not run the refund/capacity-release flow — use booked_cancel_reservation for that.)
+     * @param string|null $status New status: confirmed. (pending is reserved for Commerce; to cancel, use booked_cancel_reservation — this tool rejects status=cancelled because flipping the field here skips the refund/capacity-release flow.)
      * @param string|null $userName Customer name.
      * @param string|null $userEmail Customer email.
      * @param string|null $userPhone Customer phone.
@@ -287,8 +307,8 @@ class ReservationTools
     #[McpTool(
         name: 'booked_update_reservation',
         description: 'Update a reservation: edit customer details, reschedule (date/time/employee/location), '
-            . 'or set status (confirmed or cancelled). Reschedules are availability-validated and slot-locked. '
-            . 'To cancel with refund/capacity release, prefer booked_cancel_reservation.',
+            . 'or set status to confirmed. Reschedules are availability-validated and slot-locked. '
+            . 'To cancel, use booked_cancel_reservation (status=cancelled is rejected here, as it would skip refund/capacity release).',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function updateReservation(
@@ -304,6 +324,12 @@ class ReservationTools
         ?string $notes = null,
     ): array {
         return $this->guard(function() use ($id, $bookingDate, $startTime, $employeeId, $locationId, $status, $userName, $userEmail, $userPhone, $notes): array {
+            // Flipping status to cancelled here skips the refund, capacity
+            // release and waitlist notify that executeCancellation() runs.
+            if ($status === 'cancelled') {
+                return ['error' => 'Use booked_cancel_reservation to cancel; it runs the refund and capacity-release flow that updating the status directly would skip.'];
+            }
+
             $data = array_filter([
                 'bookingDate' => $bookingDate,
                 'startTime' => $startTime,
@@ -320,7 +346,21 @@ class ReservationTools
                 return ['error' => 'Provide at least one field to update.'];
             }
 
+            // A status change or reschedule notifies; a bare detail edit doesn't.
+            $willNotify = $status !== null
+                || $bookingDate !== null
+                || $startTime !== null
+                || $employeeId !== null
+                || $locationId !== null;
+            if ($willNotify && $this->rateLimitReached()) {
+                return $this->rateLimitError('updating more reservations');
+            }
+
             $reservation = Booked::getInstance()->getBooking()->updateReservation($id, $data);
+
+            if ($willNotify) {
+                $this->recordRateLimitedCall();
+            }
 
             return ['success' => true, 'reservation' => Presenter::reservation($reservation)];
         });
@@ -340,10 +380,19 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function reduceReservationQuantity(int $id, int $reduceBy, string $reason = ''): array
     {
-        return $this->guard(static fn(): array => [
-            'success' => Booked::getInstance()->getBooking()->reduceQuantity($id, $reduceBy, $reason),
-            'id' => $id,
-        ]);
+        return $this->guard(function() use ($id, $reduceBy, $reason): array {
+            // Notifies the waitlist and emails the customer (and refunds under Commerce).
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('changing more reservation quantities');
+            }
+
+            $ok = Booked::getInstance()->getBooking()->reduceQuantity($id, $reduceBy, $reason);
+            if ($ok) {
+                $this->recordRateLimitedCall();
+            }
+
+            return ['success' => $ok, 'id' => $id];
+        });
     }
 
     /**
@@ -358,10 +407,18 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function increaseReservationQuantity(int $id, int $increaseBy): array
     {
-        return $this->guard(static fn(): array => [
-            'success' => Booked::getInstance()->getBooking()->increaseQuantity($id, $increaseBy),
-            'id' => $id,
-        ]);
+        return $this->guard(function() use ($id, $increaseBy): array {
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('changing more reservation quantities');
+            }
+
+            $ok = Booked::getInstance()->getBooking()->increaseQuantity($id, $increaseBy);
+            if ($ok) {
+                $this->recordRateLimitedCall();
+            }
+
+            return ['success' => $ok, 'id' => $id];
+        });
     }
 
     /**
@@ -390,8 +447,18 @@ class ReservationTools
                 return ['error' => "Reservation #{$id} not found."];
             }
 
+            // Own budget — a refund spree shouldn't lock out cancellations.
+            if ($this->rateLimitReached('refund')) {
+                return $this->rateLimitError('issuing more refunds');
+            }
+
+            $ok = $booked->getRefund()->processFullRefund($reservation);
+            if ($ok) {
+                $this->recordRateLimitedCall('refund');
+            }
+
             return [
-                'success' => $booked->getRefund()->processFullRefund($reservation),
+                'success' => $ok,
                 'id' => $id,
             ];
         });

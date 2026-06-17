@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-06-17
 
 ### Added
-- MCP integration: Booked now registers ~50 tools with the optional [craft-mcp](https://github.com/stimmtdigital/craft-mcp) plugin, exposing near-complete headless admin to AI assistants — services, employees, locations, schedules, blackout dates, service extras, availability, reservations, event dates, waitlist and reporting. Covers reads, create/update (soft-disable via `enabled` rather than hard delete), reschedule, quantity changes, refunds and analytics. The dependency is soft (`class_exists`-guarded) — Booked runs unchanged when craft-mcp is absent. Customer PII is redacted in bulk list output and booking capability tokens are never exposed. See [MCP.md](MCP.md).
+- MCP integration: Booked now registers ~50 tools with the optional [craft-mcp](https://github.com/stimmtdigital/craft-mcp) plugin, exposing near-complete headless admin to AI assistants — services, employees, locations, schedules, blackout dates, service extras, availability, reservations, event dates, waitlist and reporting. Covers reads, create/update (soft-disable via `enabled` rather than hard delete), reschedule, quantity changes, refunds and analytics. The dependency is soft (`class_exists`-guarded) — Booked runs unchanged when craft-mcp is absent. See [MCP.md](MCP.md).
+- MCP safety model: customer email/phone are redacted on every reservation/waitlist read (not just bulk lists); booking capability tokens and virtual-meeting URLs are never exposed; cancellations always run the refund/capacity-release flow (status cannot be force-set to `cancelled` via update); retired (disabled) services/events remain listable and re-enablable; inputs are validated (quantity ≥ 1, employee `serviceIds` must exist); and notification/refund side effects are rate-limited with a fixed-window, mutex-guarded limiter (separate budgets, charged only on success) since Booked's IP-based limiter does not apply over MCP. Authorization is delegated to the craft-mcp server (IP allowlist / dangerous-tool gating). All 50 tools verified end-to-end against the live MCP server.
 
 ## 1.1.1 - 2026-04-15
 

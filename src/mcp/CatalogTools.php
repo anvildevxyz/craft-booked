@@ -26,6 +26,24 @@ class CatalogTools
     use ToolResponseTrait;
 
     /**
+     * Return the $serviceIds that don't match an existing service, so an
+     * employee can't be linked to bogus ids. Empty means all are valid.
+     *
+     * @param int[] $serviceIds
+     * @return int[]
+     */
+    private function unknownServiceIds(array $serviceIds): array
+    {
+        if ($serviceIds === []) {
+            return [];
+        }
+        $ids = array_map('intval', $serviceIds);
+        $existing = array_map('intval', Service::find()->siteId('*')->status(null)->id($ids)->ids());
+
+        return array_values(array_diff(array_unique($ids), $existing));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     #[McpTool(
@@ -383,6 +401,10 @@ class CatalogTools
         #[Schema(type: 'object')] ?array $workingHours = null,
     ): array {
         return $this->guard(function() use ($title, $email, $locationId, $serviceIds, $workingHours): array {
+            if ($serviceIds !== null && ($unknown = $this->unknownServiceIds($serviceIds)) !== []) {
+                return ['error' => 'Unknown serviceIds: ' . implode(', ', $unknown) . '.'];
+            }
+
             $employee = new Employee();
             $employee->title = $title;
             $employee->email = $email;
@@ -425,6 +447,10 @@ class CatalogTools
         ?bool $enabled = null,
     ): array {
         return $this->guard(function() use ($id, $title, $email, $locationId, $serviceIds, $workingHours, $enabled): array {
+            if ($serviceIds !== null && ($unknown = $this->unknownServiceIds($serviceIds)) !== []) {
+                return ['error' => 'Unknown serviceIds: ' . implode(', ', $unknown) . '.'];
+            }
+
             $employee = Employee::find()->siteId('*')->status(null)->id($id)->one();
             if (!$employee instanceof Employee) {
                 return ['error' => "Employee #{$id} not found."];

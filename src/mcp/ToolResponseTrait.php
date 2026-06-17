@@ -50,25 +50,68 @@ trait ToolResponseTrait
         }
     }
 
+    private const RATE_LIMIT_MAX = 120;
+    private const RATE_LIMIT_WINDOW = 3600;
+
     /**
-     * Cache-backed throttle for tools that send real notifications (email/SMS).
+     * Throttle for tools with real side effects (email/SMS/refunds), since
+     * Booked's own IP-keyed rate limiting is unreachable in the MCP/console
+     * context. Split into this peek and {@see self::recordRateLimitedCall()} so
+     * callers record only after the operation succeeds — a failed call never
+     * burns a slot. Distinct $keys ('notify', 'refund') keep one class of
+     * side effect from locking out another.
      *
-     * Booked's own rate limiting is IP-keyed and unreachable in the MCP/console
-     * context, so without this an untrusted client could loop a notifying tool
-     * and spam arbitrary addresses. Returns false once $max calls have been
-     * recorded for $key within the rolling window.
+     * Peek only: returns true when the budget for $key is already exhausted.
      */
-    private function withinRateLimit(string $key, int $max, int $windowSeconds = 3600): bool
+    private function rateLimitReached(string $key = 'notify', int $max = self::RATE_LIMIT_MAX): bool
+    {
+        $bucket = Craft::$app->getCache()->get("booked:mcp:ratelimit:{$key}");
+        return is_array($bucket) && (int)($bucket['count'] ?? 0) >= $max;
+    }
+
+    /**
+     * Record one successful call against the counter for $key. The window end is
+     * pinned in the payload so later calls never extend the TTL (a fixed window,
+     * not a sliding one), and the read-modify-write is mutex-serialised so
+     * concurrent calls can't both slip past the ceiling.
+     */
+    private function recordRateLimitedCall(string $key = 'notify', int $windowSeconds = self::RATE_LIMIT_WINDOW): void
     {
         $cache = Craft::$app->getCache();
         $cacheKey = "booked:mcp:ratelimit:{$key}";
-        $count = (int)$cache->get($cacheKey);
+        $mutex = Craft::$app->getMutex();
+        $lockKey = "booked:mcp:ratelimit-lock:{$key}";
+        $locked = $mutex->acquire($lockKey, 2);
 
-        if ($count >= $max) {
-            return false;
+        try {
+            $now = time();
+            $bucket = $cache->get($cacheKey);
+            if (!is_array($bucket) || (int)($bucket['expiresAt'] ?? 0) <= $now) {
+                $cache->set($cacheKey, ['count' => 1, 'expiresAt' => $now + $windowSeconds], $windowSeconds);
+                return;
+            }
+
+            $bucket['count'] = (int)$bucket['count'] + 1;
+            // TTL tracks the original window end, never reset.
+            $cache->set($cacheKey, $bucket, max(1, (int)$bucket['expiresAt'] - $now));
+        } finally {
+            if ($locked) {
+                $mutex->release($lockKey);
+            }
         }
+    }
 
-        $cache->set($cacheKey, $count + 1, $windowSeconds);
-        return true;
+    /**
+     * Standard rate-limit error payload.
+     *
+     * @return array{error: string}
+     */
+    private function rateLimitError(string $action): array
+    {
+        return ['error' => sprintf(
+            'Booked MCP rate limit reached (%d/hour); pause before %s.',
+            self::RATE_LIMIT_MAX,
+            $action,
+        )];
     }
 }

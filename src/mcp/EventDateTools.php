@@ -35,7 +35,8 @@ class EventDateTools
     public function listEventDates(?string $fromDate = null, ?string $toDate = null): array
     {
         return $this->guard(function() use ($fromDate, $toDate): array {
-            $events = Booked::getInstance()->getEventDate()->getEventDates($fromDate, $toDate, '*');
+            // enabledOnly: false — admin listing includes retired events, like the other catalog tools.
+            $events = Booked::getInstance()->getEventDate()->getEventDates($fromDate, $toDate, '*', enabledOnly: false);
 
             return [
                 'count' => count($events),
@@ -55,16 +56,19 @@ class EventDateTools
     public function getEventDate(int $id): array
     {
         return $this->guard(function() use ($id): array {
-            $service = Booked::getInstance()->getEventDate();
-            $event = $service->getEventDateById($id);
+            $event = Booked::getInstance()->getEventDate()->getEventDateById($id, includeDisabled: true);
             if (!$event instanceof EventDate) {
                 return ['error' => "Event date #{$id} not found."];
             }
 
+            // Read off the loaded element: getRemainingCapacity() reuses this
+            // memoised count, so it's one count query rather than three.
+            $bookedCount = $event->getBookedCountCached();
+
             return [
                 'eventDate' => Presenter::eventDate($event),
-                'remainingCapacity' => $service->getRemainingCapacity($id),
-                'bookedCount' => $service->getBookedCount($id),
+                'remainingCapacity' => $event->getRemainingCapacity(),
+                'bookedCount' => $bookedCount,
             ];
         });
     }
@@ -171,7 +175,7 @@ class EventDateTools
                 return ['error' => 'Provide at least one field to update.'];
             }
 
-            $event = Booked::getInstance()->getEventDate()->updateEventDate($id, $data);
+            $event = Booked::getInstance()->getEventDate()->updateEventDate($id, $data, includeDisabled: true);
 
             return ['success' => true, 'eventDate' => Presenter::eventDate($event)];
         });
@@ -193,7 +197,7 @@ class EventDateTools
     public function deleteEventDate(int $id): array
     {
         return $this->guard(static fn(): array => [
-            'success' => Booked::getInstance()->getEventDate()->deleteEventDate($id),
+            'success' => Booked::getInstance()->getEventDate()->deleteEventDate($id, includeDisabled: true),
             'id' => $id,
         ]);
     }

@@ -86,7 +86,7 @@ class EventDateServiceTest extends TestCase
     public function testUpdateEventDateThrowsWhenEventNotFound(): void
     {
         $service = $this->makePartialService();
-        $service->shouldReceive('getEventDateById')->with(999)->andReturn(null);
+        $service->shouldReceive('getEventDateById')->with(999, false)->andReturn(null);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Event date with ID 999 not found');
@@ -101,7 +101,7 @@ class EventDateServiceTest extends TestCase
     public function testDeleteEventDateThrowsWhenEventNotFound(): void
     {
         $service = $this->makePartialService();
-        $service->shouldReceive('getEventDateById')->with(999)->andReturn(null);
+        $service->shouldReceive('getEventDateById')->with(999, false)->andReturn(null);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Event date with ID 999 not found');

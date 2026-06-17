@@ -87,8 +87,8 @@ class WaitlistTools
         ?string $notes = null,
     ): array {
         return $this->guard(function() use ($serviceId, $userName, $userEmail, $userPhone, $employeeId, $locationId, $preferredDate, $preferredTimeStart, $preferredTimeEnd, $notes): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before adding more waitlist entries.'];
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('adding more waitlist entries');
             }
 
             $entry = Booked::getInstance()->getWaitlist()->addToWaitlist([
@@ -107,6 +107,8 @@ class WaitlistTools
             if (!$entry instanceof WaitlistRecord) {
                 return ['error' => 'Could not add to waitlist (already listed, or waitlist disabled for this service).'];
             }
+
+            $this->recordRateLimitedCall();
 
             return ['success' => true, 'entry' => Presenter::waitlistEntry($entry)];
         });
@@ -135,8 +137,8 @@ class WaitlistTools
         ?string $notes = null,
     ): array {
         return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $notes): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before adding more waitlist entries.'];
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('adding more waitlist entries');
             }
 
             $entry = Booked::getInstance()->getWaitlist()->addToEventWaitlist([
@@ -150,6 +152,8 @@ class WaitlistTools
             if (!$entry instanceof WaitlistRecord) {
                 return ['error' => 'Could not add to event waitlist (already listed, or waitlist disabled).'];
             }
+
+            $this->recordRateLimitedCall();
 
             return ['success' => true, 'entry' => Presenter::waitlistEntry($entry)];
         });
@@ -186,12 +190,17 @@ class WaitlistTools
     public function notifyWaitlistEntry(int $entryId): array
     {
         return $this->guard(function() use ($entryId): array {
-            if (!$this->withinRateLimit('notify', 120)) {
-                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before sending more waitlist notifications.'];
+            if ($this->rateLimitReached()) {
+                return $this->rateLimitError('sending more waitlist notifications');
+            }
+
+            $ok = Booked::getInstance()->getWaitlist()->manualNotify($entryId);
+            if ($ok) {
+                $this->recordRateLimitedCall();
             }
 
             return [
-                'success' => Booked::getInstance()->getWaitlist()->manualNotify($entryId),
+                'success' => $ok,
                 'entryId' => $entryId,
             ];
         });

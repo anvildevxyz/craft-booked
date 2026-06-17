@@ -33,10 +33,19 @@ class ReportTools
     {
         return $this->guard(static function() use ($startDate, $endDate, $includePreviousPeriod): array {
             $reports = Booked::getInstance()->getReports();
+            $revenue = $reports->getRevenueData($startDate, $endDate, $includePreviousPeriod);
+
+            // getRevenueData carries the underlying reservation models for the CP
+            // view/CSV export; over MCP they serialise to opaque {_class} stubs and
+            // would leak per-customer detail into a totals report, so summarise as a count.
+            if (is_array($revenue['reservations'] ?? null)) {
+                $revenue['reservationCount'] = count($revenue['reservations']);
+                unset($revenue['reservations']);
+            }
 
             return [
                 'currency' => $reports->getCurrency(),
-                'revenue' => $reports->getRevenueData($startDate, $endDate, $includePreviousPeriod),
+                'revenue' => $revenue,
             ];
         });
     }
