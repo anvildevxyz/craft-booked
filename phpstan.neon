@@ -14,6 +14,13 @@ parameters:
         - ../../vendor/craftcms/cms/bootstrap/console.php
         - stubs/phpstan-bootstrap.php
     ignoreErrors:
+        # Optional stimmt/craft-mcp integration (see composer.json "suggest") — the package and
+        # its mcp/sdk attributes are not installed in this repo; src/mcp tools are only ever
+        # loaded by craft-mcp's registry when it is present (registration is class_exists-guarded).
+        - '#Attribute class Mcp\\Capability\\Attribute\\\w+ does not exist#'
+        - '#Attribute class stimmt\\craft\\Mcp\\attributes\\McpToolMeta does not exist#'
+        - '#on an unknown class stimmt\\craft\\Mcp\\#'
+        - '#has invalid type stimmt\\craft\\Mcp\\events\\RegisterToolsEvent#'
         # Common patterns for Craft CMS plugins
         - '#Cannot access offset .+ on mixed#'
         - '#Cannot cast mixed to#'

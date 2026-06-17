@@ -90,6 +90,7 @@ ddev php craft plugin/install booked
 - [Developer Guide](DEVELOPER_GUIDE.md) - API reference and extension guide
 - [Event System](EVENT_SYSTEM.md) - Comprehensive event system documentation with examples
 - [GraphQL API](GRAPHQL.md) - GraphQL schema and query examples
+- [MCP Tools](MCP.md) - Expose Booked to AI assistants via the craft-mcp plugin
 - [Console Commands](CONSOLE_COMMANDS.md) - CLI commands for reminders, cleanup, and diagnostics
 
 ## Support

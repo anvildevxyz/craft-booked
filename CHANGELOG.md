@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- MCP integration: Booked now registers ~50 tools with the optional [craft-mcp](https://github.com/stimmtdigital/craft-mcp) plugin, exposing near-complete headless admin to AI assistants — services, employees, locations, schedules, blackout dates, service extras, availability, reservations, event dates, waitlist and reporting. Covers reads, create/update (soft-disable via `enabled` rather than hard delete), reschedule, quantity changes, refunds and analytics. The dependency is soft (`class_exists`-guarded) — Booked runs unchanged when craft-mcp is absent. Customer PII is redacted in bulk list output and booking capability tokens are never exposed. See [MCP.md](MCP.md).
+
 ## 1.1.1 - 2026-04-15
 
 ### Added
