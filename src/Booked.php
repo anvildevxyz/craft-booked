@@ -98,7 +98,7 @@ class Booked extends Plugin
      */
     public const EDITION_PRO = 'pro';
 
-    public string $schemaVersion = '1.2.0';
+    public string $schemaVersion = '1.2.1';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
 
@@ -134,6 +134,7 @@ class Booked extends Plugin
         $this->registerGraphQl();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
+        $this->registerMcpTools();
     }
 
     public static function displayName(): string
@@ -158,6 +159,37 @@ class Booked extends Plugin
 
         Event::on(View::class, View::EVENT_REGISTER_CP_TEMPLATE_ROOTS, $handler);
         Event::on(View::class, View::EVENT_REGISTER_SITE_TEMPLATE_ROOTS, $handler);
+    }
+
+    /**
+     * Register Booked's tools with the craft-mcp plugin, when it is installed.
+     *
+     * Booked only soft-depends on stimmt/craft-mcp: the integration is wired up
+     * by listening for its tool-registration event, so Booked runs unchanged
+     * when the MCP plugin is absent. Each tool class declares its tools via
+     * `#[McpTool]` attributes, which craft-mcp reads reflectively.
+     */
+    private function registerMcpTools(): void
+    {
+        if (!class_exists(\stimmt\craft\Mcp\Mcp::class)) {
+            return;
+        }
+
+        Event::on(
+            \stimmt\craft\Mcp\Mcp::class,
+            \stimmt\craft\Mcp\Mcp::EVENT_REGISTER_TOOLS,
+            static function(\stimmt\craft\Mcp\events\RegisterToolsEvent $event): void {
+                $event->addTool(\anvildev\booked\mcp\CatalogTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\AvailabilityTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\ReservationTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\EventDateTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\ScheduleTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\BlackoutDateTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\ServiceExtraTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\ReportTools::class, 'booked');
+                $event->addTool(\anvildev\booked\mcp\WaitlistTools::class, 'booked');
+            }
+        );
     }
 
     private function registerServices(): void

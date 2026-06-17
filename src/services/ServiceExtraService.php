@@ -27,11 +27,17 @@ class ServiceExtraService extends Component
      *
      * @return ServiceExtra[]
      */
-    public function getAllExtras(bool $enabledOnly = false): array
+    public function getAllExtras(bool $enabledOnly = false, ?int $limit = null, ?int $offset = null): array
     {
         $query = ServiceExtra::find()->orderBy(['title' => SORT_ASC]);
         if ($enabledOnly) {
             $query->status('enabled');
+        }
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+        if ($offset !== null) {
+            $query->offset($offset);
         }
         return $query->all();
     }

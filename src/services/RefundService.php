@@ -27,14 +27,26 @@ class RefundService extends Component
 
         $transactions = $order->getTransactions();
         $totalPaid = 0.0;
+        $totalRefunded = 0.0;
         foreach ($transactions as $transaction) {
-            if ($transaction->status === 'success' && $transaction->type !== 'refund') {
+            if ($transaction->status !== 'success') {
+                continue;
+            }
+            if ($transaction->type === 'refund') {
+                $totalRefunded += $transaction->paymentAmount;
+            } else {
                 $totalPaid += $transaction->paymentAmount;
             }
         }
 
+        // Idempotency guard: never refund more than what is still outstanding.
+        // Without this, a second call (or a call after a partial refund) would
+        // recompute the full paid amount — refund transactions are excluded from
+        // $totalPaid — and over-refund the customer.
+        $remaining = max(0.0, $totalPaid - $totalRefunded);
+
         $percentage = Booked::getInstance()->refundPolicy->calculateRefundPercentage($reservation);
-        $refundAmount = $totalPaid * ($percentage / 100);
+        $refundAmount = min($totalPaid * ($percentage / 100), $remaining);
         if ($refundAmount <= 0) {
             return true;
         }
@@ -72,9 +84,15 @@ class RefundService extends Component
         try {
             $transactions = $order->getTransactions();
             $successfulTransactions = [];
+            $alreadyRefunded = 0.0;
 
             foreach ($transactions as $transaction) {
-                if ($transaction->status === 'success' && $transaction->type !== 'refund') {
+                if ($transaction->status !== 'success') {
+                    continue;
+                }
+                if ($transaction->type === 'refund') {
+                    $alreadyRefunded += $transaction->paymentAmount;
+                } else {
                     $successfulTransactions[] = $transaction;
                 }
             }
@@ -84,12 +102,19 @@ class RefundService extends Component
                 return false;
             }
 
-            // Sum all successful non-refund transactions for the refund cap.
+            // Cap at what is still outstanding (paid minus already-refunded), so a
+            // repeat/partial-then-full sequence can never refund more than was paid.
             $totalPaid = array_sum(array_map(fn($t) => $t->paymentAmount, $successfulTransactions));
+            $remaining = max(0.0, $totalPaid - $alreadyRefunded);
 
-            if ($refundAmount > $totalPaid) {
-                Craft::warning("Refund amount ({$refundAmount}) exceeds total paid ({$totalPaid}) for order #{$order->id} — clamping to total paid", __METHOD__);
-                $refundAmount = $totalPaid;
+            if ($remaining <= 0) {
+                Craft::warning("Order #{$order->id} is already fully refunded — skipping refund", __METHOD__);
+                return true;
+            }
+
+            if ($refundAmount > $remaining) {
+                Craft::warning("Refund amount ({$refundAmount}) exceeds remaining refundable ({$remaining}) for order #{$order->id} — clamping", __METHOD__);
+                $refundAmount = $remaining;
             }
 
             // Use the most recent successful transaction for the gateway call,

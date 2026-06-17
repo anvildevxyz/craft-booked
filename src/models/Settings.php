@@ -116,6 +116,13 @@ class Settings extends Model
     public int $waitlistNotificationLimit = 10;
     public int $waitlistConversionMinutes = 30;
     public string $mutexDriver = 'auto';
+
+    // MCP (Model Context Protocol) — off by default; the AI tool surface can
+    // create/cancel/refund real bookings, so writes and refunds must be opted
+    // into explicitly by an administrator.
+    public bool $mcpWriteEnabled = false;
+    public bool $mcpAllowRefunds = false;
+
     // Frontend
     public ?int $defaultTimeSlotLength = null;
     public ?string $bookingPageUrl = null;
@@ -252,6 +259,7 @@ class Settings extends Model
             [['defaultTimeSlotLength'], 'integer', 'min' => 5],
             [['bookingPageUrl'], 'url', 'skipOnEmpty' => true],
             [['mutexDriver'], 'in', 'range' => ['auto', 'file', 'db', 'redis']],
+            [['mcpWriteEnabled', 'mcpAllowRefunds'], 'boolean'],
         ];
     }
 
@@ -352,6 +360,7 @@ class Settings extends Model
                 'enableHoneypot', 'honeypotFieldName',
                 'enableIpBlocking', 'blockedIps', 'enableTimeBasedLimits', 'minimumSubmissionTime',
                 'enableAuditLog',
+                'mcpWriteEnabled', 'mcpAllowRefunds',
             ],
             'calendar' => [
                 'googleCalendarEnabled', 'googleCalendarClientId', 'googleCalendarClientSecret',

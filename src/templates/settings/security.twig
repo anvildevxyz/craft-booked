@@ -239,5 +239,28 @@
             name: 'settings[enableAuditLog]',
             on: settings.enableAuditLog
         }) }}
+
+		<hr>
+
+		<h3>{{ 'settings.security.mcp'|t('booked') }}</h3>
+
+		{{ forms.lightswitchField({
+            label: 'settings.security.mcpWriteEnabled'|t('booked'),
+            instructions: 'settings.security.mcpWriteEnabledInstructions'|t('booked'),
+            id: 'mcpWriteEnabled',
+            name: 'settings[mcpWriteEnabled]',
+            on: settings.mcpWriteEnabled,
+            toggle: '#mcp-refund-settings'
+        }) }}
+
+		<div id="mcp-refund-settings" class="{% if not settings.mcpWriteEnabled %}hidden{% endif %}">
+			{{ forms.lightswitchField({
+                label: 'settings.security.mcpAllowRefunds'|t('booked'),
+                instructions: 'settings.security.mcpAllowRefundsInstructions'|t('booked'),
+                id: 'mcpAllowRefunds',
+                name: 'settings[mcpAllowRefunds]',
+                on: settings.mcpAllowRefunds
+            }) }}
+		</div>
 	</form>
 {% endblock %}

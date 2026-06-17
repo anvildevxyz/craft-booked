@@ -3,6 +3,7 @@
 namespace anvildev\booked\services;
 
 use anvildev\booked\elements\EventDate;
+use anvildev\booked\exceptions\BookingConflictException;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\DateHelper;
 use Craft;
@@ -16,19 +17,32 @@ class EventDateService extends Component
     /**
      * @param int|string|null $siteId Site ID, '*' for all sites, or null for all sites (legacy default)
      */
-    public function getEventDates(?string $dateFrom = null, ?string $dateTo = null, int|string|null $siteId = '*'): array
+    public function getEventDates(?string $dateFrom = null, ?string $dateTo = null, int|string|null $siteId = '*', bool $enabledOnly = true, ?int $limit = null, ?int $offset = null): array
     {
         $query = EventDate::find()
             ->siteId($siteId)
             ->unique()
-            ->enabled(true)
             ->orderBy(['eventDate' => SORT_ASC, 'startTime' => SORT_ASC]);
+
+        if ($enabledOnly) {
+            $query->enabled(true);
+        } else {
+            // Include retired events so they can be found and re-enabled.
+            $query->status(null);
+        }
 
         if ($dateFrom) {
             $query->andWhere(['>=', 'booked_event_dates.eventDate', $dateFrom]);
         }
         if ($dateTo) {
             $query->andWhere(['<=', 'booked_event_dates.eventDate', $dateTo]);
+        }
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+        if ($offset !== null) {
+            $query->offset($offset);
         }
 
         return $query->all();
@@ -47,9 +61,15 @@ class EventDateService extends Component
         ));
     }
 
-    public function getEventDateById(int $id): ?EventDate
+    public function getEventDateById(int $id, bool $includeDisabled = false): ?EventDate
     {
-        return EventDate::find()->siteId('*')->id($id)->one();
+        $query = EventDate::find()->siteId('*')->id($id);
+        if ($includeDisabled) {
+            // Admin/MCP management needs to resolve retired events too; booking
+            // flows keep the default enabled-only lookup.
+            $query->status(null);
+        }
+        return $query->one();
     }
 
     /** @throws \Exception */
@@ -60,18 +80,18 @@ class EventDateService extends Component
     }
 
     /** @throws \Exception */
-    public function updateEventDate(int $id, array $data): EventDate
+    public function updateEventDate(int $id, array $data, bool $includeDisabled = false): EventDate
     {
-        $event = $this->getEventDateById($id)
+        $event = $this->getEventDateById($id, $includeDisabled)
             ?? throw new \Exception("Event date with ID {$id} not found");
 
         return $this->saveEventDate($event, $data, 'update');
     }
 
     /** @throws \Exception */
-    public function deleteEventDate(int $id): bool
+    public function deleteEventDate(int $id, bool $includeDisabled = false): bool
     {
-        $event = $this->getEventDateById($id)
+        $event = $this->getEventDateById($id, $includeDisabled)
             ?? throw new \Exception("Event date with ID {$id} not found");
 
         $transaction = Craft::$app->getDb()->beginTransaction();
@@ -85,7 +105,10 @@ class EventDateService extends Component
             $count = ReservationFactory::find()->eventDateId($id)->count();
             if ($count > 0) {
                 $transaction->rollBack();
-                throw new \Exception("Cannot delete event date: {$count} reservation(s) exist for this event");
+                // Typed (Booked) exception so the message survives the MCP guard()
+                // sanitiser — the caller needs the actionable "retire instead" reason,
+                // not a generic "internal error".
+                throw new BookingConflictException("Cannot delete event date: {$count} reservation(s) exist for this event. Retire it with enabled=false instead.");
             }
 
             $result = Craft::$app->elements->deleteElement($event);
