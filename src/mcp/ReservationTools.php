@@ -55,8 +55,8 @@ class ReservationTools
             $query = ReservationFactory::find()
                 ->siteId('*')
                 ->status(null)
-                ->limit($limit)
-                ->offset($offset);
+                ->limit($this->clampLimit($limit))
+                ->offset($this->clampOffset($offset));
 
             if ($status !== null) {
                 $query->reservationStatus($status);
@@ -162,7 +162,7 @@ class ReservationTools
         int $quantity = 1,
         ?string $userTimezone = null,
     ): array {
-        return $this->guard(function() use (
+        return $this->guardWrite(function() use (
             $serviceId,
             $bookingDate,
             $startTime,
@@ -228,7 +228,7 @@ class ReservationTools
         ?string $userPhone = null,
         int $quantity = 1,
     ): array {
-        return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $quantity): array {
+        return $this->guardWrite(function() use ($eventDateId, $userName, $userEmail, $userPhone, $quantity): array {
             if ($quantity < 1) {
                 return ['error' => 'quantity must be at least 1.'];
             }
@@ -267,7 +267,7 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function cancelReservation(int $id, string $reason = ''): array
     {
-        return $this->guard(function() use ($id, $reason): array {
+        return $this->guardWrite(function() use ($id, $reason): array {
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('cancelling more bookings');
             }
@@ -323,7 +323,7 @@ class ReservationTools
         ?string $userPhone = null,
         ?string $notes = null,
     ): array {
-        return $this->guard(function() use ($id, $bookingDate, $startTime, $employeeId, $locationId, $status, $userName, $userEmail, $userPhone, $notes): array {
+        return $this->guardWrite(function() use ($id, $bookingDate, $startTime, $employeeId, $locationId, $status, $userName, $userEmail, $userPhone, $notes): array {
             // Flipping status to cancelled here skips the refund, capacity
             // release and waitlist notify that executeCancellation() runs.
             if ($status === 'cancelled') {
@@ -380,7 +380,7 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function reduceReservationQuantity(int $id, int $reduceBy, string $reason = ''): array
     {
-        return $this->guard(function() use ($id, $reduceBy, $reason): array {
+        return $this->guardWrite(function() use ($id, $reduceBy, $reason): array {
             // Notifies the waitlist and emails the customer (and refunds under Commerce).
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('changing more reservation quantities');
@@ -407,7 +407,7 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function increaseReservationQuantity(int $id, int $increaseBy): array
     {
-        return $this->guard(function() use ($id, $increaseBy): array {
+        return $this->guardWrite(function() use ($id, $increaseBy): array {
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('changing more reservation quantities');
             }
@@ -436,8 +436,16 @@ class ReservationTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function refundReservation(int $id): array
     {
-        return $this->guard(function() use ($id): array {
+        return $this->guardWrite(function() use ($id): array {
             $booked = Booked::getInstance();
+            // Refunds move real money, so they need their own opt-in on top of the
+            // general MCP write gate enforced by guardWrite().
+            if (!$booked->getSettings()->mcpAllowRefunds) {
+                return ['error' =>
+                    'Booked MCP refunds are disabled. An administrator must enable '
+                    . '"Allow MCP refunds" in Booked\'s settings before this tool can be used.',
+                ];
+            }
             if (!$booked->isCommerceEnabled()) {
                 return ['error' => 'Commerce integration is not enabled; refunds are unavailable.'];
             }

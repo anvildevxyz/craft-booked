@@ -154,11 +154,12 @@ final class Presenter
     }
 
     /**
-     * @param bool $redactPii Mask customer email/phone — set for bulk list output, where one
-     *                        call could otherwise exfiltrate the whole customer base.
+     * @param bool $redactPii Mask customer email/phone. Defaults to true: the MCP surface never
+     *                        returns raw customer contact details unless a caller explicitly opts
+     *                        out, so a forgotten flag fails safe rather than leaking PII.
      * @return array<string, mixed>
      */
-    public static function reservation(ReservationInterface $reservation, bool $redactPii = false): array
+    public static function reservation(ReservationInterface $reservation, bool $redactPii = true): array
     {
         $email = $reservation->getUserEmail();
         $phone = $reservation->getUserPhone();
@@ -239,10 +240,11 @@ final class Presenter
     }
 
     /**
-     * @param bool $redactPii Mask customer email/phone for bulk list output.
+     * @param bool $redactPii Mask customer email/phone. Defaults to true (fail-safe); see
+     *                        {@see self::reservation()}.
      * @return array<string, mixed>
      */
-    public static function waitlistEntry(WaitlistRecord $entry, bool $redactPii = false): array
+    public static function waitlistEntry(WaitlistRecord $entry, bool $redactPii = true): array
     {
         return [
             'id' => $entry->id,

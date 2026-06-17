@@ -423,6 +423,122 @@ class McpToolsTest extends TestCase
         $this->assertStringContainsString('instanceof \\stdClass', $src, 'Only plain stdClass should be expanded via get_object_vars.');
     }
 
+    public function testMutatingToolsRouteThroughWriteAuthorization(): void
+    {
+        // Every tool flagged `dangerous: true` must run behind guardWrite() (the
+        // write-authorization gate), and read tools must NOT — so the count of
+        // guardWrite() calls in each class equals its count of dangerous tools.
+        $base = dirname(__DIR__, 3) . '/src/mcp';
+        foreach ([
+            'CatalogTools.php',
+            'ReservationTools.php',
+            'EventDateTools.php',
+            'ScheduleTools.php',
+            'BlackoutDateTools.php',
+            'ServiceExtraTools.php',
+            'WaitlistTools.php',
+        ] as $file) {
+            $src = file_get_contents($base . '/' . $file);
+            $this->assertSame(
+                substr_count($src, 'dangerous: true'),
+                substr_count($src, '$this->guardWrite('),
+                "{$file}: every dangerous tool must use guardWrite() and no read tool may.",
+            );
+        }
+    }
+
+    public function testWriteAuthorizationGateIsDefaultDeny(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ToolResponseTrait.php');
+
+        $this->assertStringContainsString('function guardWrite(', $src, 'A write-authorization wrapper must exist.');
+        $this->assertStringContainsString('mcpWriteEnabled', $src, 'Writes must be gated by the default-off mcpWriteEnabled setting.');
+        $this->assertStringContainsString(
+            "can('booked-manageBookings')",
+            $src,
+            'In a web context the CP permission must be enforced as defense in depth.',
+        );
+    }
+
+    public function testRefundRequiresExplicitOptIn(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
+
+        // Refunds move money, so they need their own opt-in on top of the write gate.
+        $this->assertStringContainsString('mcpAllowRefunds', $src, 'refund_reservation must check the dedicated mcpAllowRefunds setting.');
+    }
+
+    public function testMcpWriteSettingsDefaultOff(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/models/Settings.php');
+
+        $this->assertMatchesRegularExpression('/public bool \$mcpWriteEnabled = false;/', $src);
+        $this->assertMatchesRegularExpression('/public bool \$mcpAllowRefunds = false;/', $src);
+    }
+
+    public function testRefundServiceCapsAtRemainingRefundable(): void
+    {
+        // Without an idempotency guard, a repeat (or partial-then-full) refund
+        // recomputes the full paid amount and over-refunds the customer.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/services/RefundService.php');
+
+        $this->assertStringContainsString("\$transaction->type === 'refund'", $src, 'Prior refunds must be summed, not ignored.');
+        $this->assertStringContainsString('$remaining', $src, 'Refund must be capped at the outstanding (paid minus already-refunded) amount.');
+    }
+
+    public function testPresenterRedactsPiiByDefault(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/support/Presenter.php');
+
+        // Fail-safe default: a new caller that forgets the flag still redacts.
+        $this->assertStringContainsString('ReservationInterface $reservation, bool $redactPii = true', $src);
+        $this->assertStringContainsString('WaitlistRecord $entry, bool $redactPii = true', $src);
+    }
+
+    public function testListToolsClampPageSize(): void
+    {
+        $trait = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ToolResponseTrait.php');
+        $this->assertStringContainsString('LIST_LIMIT_MAX', $trait, 'A hard page-size ceiling must exist.');
+        $this->assertStringContainsString('function clampLimit(', $trait);
+
+        // Every list tool must clamp its caller-supplied limit (no unbounded ->all()).
+        $base = dirname(__DIR__, 3) . '/src/mcp';
+        foreach ([
+            'CatalogTools.php',
+            'ReservationTools.php',
+            'ScheduleTools.php',
+            'BlackoutDateTools.php',
+            'EventDateTools.php',
+            'ServiceExtraTools.php',
+            'WaitlistTools.php',
+        ] as $file) {
+            $this->assertStringContainsString(
+                'clampLimit(',
+                file_get_contents($base . '/' . $file),
+                "{$file}: list tools must clamp the page size.",
+            );
+        }
+    }
+
+    public function testDeleteEventDateConflictUsesBookedException(): void
+    {
+        // delete_event_date on an event with reservations must refuse with a
+        // Booked typed exception so guard() surfaces the actionable "retire
+        // instead" message rather than masking it as a generic internal error.
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/services/EventDateService.php');
+
+        $this->assertMatchesRegularExpression(
+            '/throw new BookingConflictException\([^)]*reservation\(s\) exist/',
+            $src,
+            'The "reservations exist" delete refusal must throw a Booked exception, not a plain \\Exception.',
+        );
+        $this->assertStringNotContainsString(
+            'throw new \\Exception("Cannot delete event date',
+            $src,
+            'The delete-conflict path must no longer throw a plain \\Exception (guard() would mask it).',
+        );
+    }
+
     /**
      * @return array<string, array{class-string, list<string>}>
      */

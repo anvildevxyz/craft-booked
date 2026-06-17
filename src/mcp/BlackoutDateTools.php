@@ -32,7 +32,7 @@ class BlackoutDateTools
     public function listBlackoutDates(int $limit = 100): array
     {
         return $this->guard(function() use ($limit): array {
-            $blackouts = BlackoutDate::find()->siteId('*')->status(null)->limit($limit)->all();
+            $blackouts = BlackoutDate::find()->siteId('*')->status(null)->limit($this->clampLimit($limit))->all();
 
             return [
                 'count' => count($blackouts),
@@ -63,7 +63,7 @@ class BlackoutDateTools
         ?array $locationIds = null,
         ?array $employeeIds = null,
     ): array {
-        return $this->guard(function() use ($title, $startDate, $endDate, $locationIds, $employeeIds): array {
+        return $this->guardWrite(function() use ($title, $startDate, $endDate, $locationIds, $employeeIds): array {
             $blackout = new BlackoutDate();
             $blackout->title = $title;
             $blackout->startDate = $startDate;
@@ -95,7 +95,7 @@ class BlackoutDateTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function setBlackoutDateActive(int $id, bool $isActive): array
     {
-        return $this->guard(function() use ($id, $isActive): array {
+        return $this->guardWrite(function() use ($id, $isActive): array {
             $blackout = BlackoutDate::find()->siteId('*')->status(null)->id($id)->one();
             if (!$blackout instanceof BlackoutDate) {
                 return ['error' => "Blackout date #{$id} not found."];

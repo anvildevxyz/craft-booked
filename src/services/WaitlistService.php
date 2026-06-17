@@ -253,12 +253,20 @@ class WaitlistService extends Component
     }
 
     /** @return WaitlistRecord[] */
-    public function getActiveEntriesForService(int $serviceId): array
+    public function getActiveEntriesForService(int $serviceId, ?int $limit = null, ?int $offset = null): array
     {
-        return WaitlistRecord::find()
+        $query = WaitlistRecord::find()
             ->where(['serviceId' => $serviceId, 'status' => WaitlistRecord::STATUS_ACTIVE])
-            ->orderBy(['priority' => SORT_ASC, 'dateCreated' => SORT_ASC])
-            ->all();
+            ->orderBy(['priority' => SORT_ASC, 'dateCreated' => SORT_ASC]);
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+        if ($offset !== null) {
+            $query->offset($offset);
+        }
+
+        return $query->all();
     }
 
     public function isOnWaitlist(string $email, int $serviceId): bool

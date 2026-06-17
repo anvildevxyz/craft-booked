@@ -1488,6 +1488,11 @@ return [
     'settings.security.auditLogging' => 'Audit Logging',
     'settings.security.enableAuditLog' => 'Enable Audit Log',
     'settings.security.enableAuditLogInstructions' => 'Log security-relevant events (cancellations, status changes, failed auth, rate limits, settings changes) to storage/logs/booked-audit.log in JSON-lines format.',
+    'settings.security.mcp' => 'AI / MCP Access',
+    'settings.security.mcpWriteEnabled' => 'Allow MCP write operations',
+    'settings.security.mcpWriteEnabledInstructions' => 'Let the AI/MCP tool surface create, edit, cancel and delete bookings, services, schedules and other records. Off by default — leave disabled unless an automated MCP client is explicitly trusted. Read-only tools are always available.',
+    'settings.security.mcpAllowRefunds' => 'Allow MCP refunds',
+    'settings.security.mcpAllowRefundsInstructions' => 'Additionally allow the MCP refund tool to issue real Commerce refunds. Requires "Allow MCP write operations" and the Commerce integration. Off by default.',
 
     // Settings - Commerce
     'settings.commerce.title' => 'Commerce Integration',

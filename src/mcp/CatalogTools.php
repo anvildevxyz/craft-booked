@@ -59,8 +59,8 @@ class CatalogTools
                 ->siteId('*')
                 ->status(null)
                 ->unique()
-                ->limit($limit)
-                ->offset($offset)
+                ->limit($this->clampLimit($limit))
+                ->offset($this->clampOffset($offset))
                 ->all();
 
             return [
@@ -114,7 +114,7 @@ class CatalogTools
         ?int $timeSlotLength = null,
         bool $enabled = true,
     ): array {
-        return $this->guard(function() use ($title, $duration, $durationType, $price, $timeSlotLength, $enabled): array {
+        return $this->guardWrite(function() use ($title, $duration, $durationType, $price, $timeSlotLength, $enabled): array {
             $service = new Service();
             $service->title = $title;
             $service->duration = $duration;
@@ -148,7 +148,7 @@ class CatalogTools
     public function listEmployees(?int $serviceId = null, ?int $locationId = null, int $limit = 50): array
     {
         return $this->guard(function() use ($serviceId, $locationId, $limit): array {
-            $query = Employee::find()->siteId('*')->status(null)->limit($limit);
+            $query = Employee::find()->siteId('*')->status(null)->limit($this->clampLimit($limit));
             if ($serviceId !== null) {
                 $query->serviceId($serviceId);
             }
@@ -175,7 +175,7 @@ class CatalogTools
     public function listLocations(int $limit = 50): array
     {
         return $this->guard(function() use ($limit): array {
-            $locations = Location::find()->siteId('*')->status(null)->limit($limit)->all();
+            $locations = Location::find()->siteId('*')->status(null)->limit($this->clampLimit($limit))->all();
 
             return [
                 'count' => count($locations),
@@ -206,7 +206,7 @@ class CatalogTools
         ?int $timeSlotLength = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $duration, $durationType, $price, $timeSlotLength, $enabled): array {
+        return $this->guardWrite(function() use ($id, $title, $duration, $durationType, $price, $timeSlotLength, $enabled): array {
             $service = Service::find()->siteId('*')->status(null)->unique()->id($id)->one();
             if (!$service instanceof Service) {
                 return ['error' => "Service #{$id} not found."];
@@ -285,7 +285,7 @@ class CatalogTools
         ?string $postalCode = null,
         ?string $countryCode = null,
     ): array {
-        return $this->guard(function() use ($title, $timezone, $addressLine1, $locality, $administrativeArea, $postalCode, $countryCode): array {
+        return $this->guardWrite(function() use ($title, $timezone, $addressLine1, $locality, $administrativeArea, $postalCode, $countryCode): array {
             $location = new Location();
             $location->title = $title;
             $location->timezone = $timezone;
@@ -326,7 +326,7 @@ class CatalogTools
         ?string $countryCode = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $timezone, $addressLine1, $locality, $administrativeArea, $postalCode, $countryCode, $enabled): array {
+        return $this->guardWrite(function() use ($id, $title, $timezone, $addressLine1, $locality, $administrativeArea, $postalCode, $countryCode, $enabled): array {
             $location = Location::find()->siteId('*')->status(null)->id($id)->one();
             if (!$location instanceof Location) {
                 return ['error' => "Location #{$id} not found."];
@@ -400,7 +400,7 @@ class CatalogTools
         ?array $serviceIds = null,
         #[Schema(type: 'object')] ?array $workingHours = null,
     ): array {
-        return $this->guard(function() use ($title, $email, $locationId, $serviceIds, $workingHours): array {
+        return $this->guardWrite(function() use ($title, $email, $locationId, $serviceIds, $workingHours): array {
             if ($serviceIds !== null && ($unknown = $this->unknownServiceIds($serviceIds)) !== []) {
                 return ['error' => 'Unknown serviceIds: ' . implode(', ', $unknown) . '.'];
             }
@@ -446,7 +446,7 @@ class CatalogTools
         #[Schema(type: 'object')] ?array $workingHours = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $email, $locationId, $serviceIds, $workingHours, $enabled): array {
+        return $this->guardWrite(function() use ($id, $title, $email, $locationId, $serviceIds, $workingHours, $enabled): array {
             if ($serviceIds !== null && ($unknown = $this->unknownServiceIds($serviceIds)) !== []) {
                 return ['error' => 'Unknown serviceIds: ' . implode(', ', $unknown) . '.'];
             }

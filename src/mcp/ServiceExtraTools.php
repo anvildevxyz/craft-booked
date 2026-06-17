@@ -30,10 +30,14 @@ class ServiceExtraTools
         description: 'List all Booked service extras (bookable add-ons) with price, duration and required flag.',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
-    public function listServiceExtras(): array
+    public function listServiceExtras(int $limit = 50, int $offset = 0): array
     {
-        return $this->guard(static function(): array {
-            $extras = Booked::getInstance()->getServiceExtra()->getAllExtras(false);
+        return $this->guard(function() use ($limit, $offset): array {
+            $extras = Booked::getInstance()->getServiceExtra()->getAllExtras(
+                false,
+                $this->clampLimit($limit),
+                $this->clampOffset($offset),
+            );
 
             return [
                 'count' => count($extras),
@@ -66,7 +70,7 @@ class ServiceExtraTools
         bool $isRequired = false,
         ?string $description = null,
     ): array {
-        return $this->guard(function() use ($title, $price, $duration, $maxQuantity, $isRequired, $description): array {
+        return $this->guardWrite(function() use ($title, $price, $duration, $maxQuantity, $isRequired, $description): array {
             $extra = new ServiceExtra();
             $extra->title = $title;
             $extra->price = $price;
@@ -118,7 +122,7 @@ class ServiceExtraTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function setServiceExtras(int $serviceId, array $extraIds): array
     {
-        return $this->guard(static fn(): array => [
+        return $this->guardWrite(static fn(): array => [
             'success' => Booked::getInstance()->getServiceExtra()->setExtrasForService($serviceId, $extraIds),
             'serviceId' => $serviceId,
             'extraIds' => $extraIds,
@@ -160,7 +164,7 @@ class ServiceExtraTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function setServiceLocations(int $serviceId, array $locationIds): array
     {
-        return $this->guard(static fn(): array => [
+        return $this->guardWrite(static fn(): array => [
             'success' => Booked::getInstance()->getServiceLocation()->setLocationsForService($serviceId, $locationIds),
             'serviceId' => $serviceId,
             'locationIds' => $locationIds,

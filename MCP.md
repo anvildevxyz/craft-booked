@@ -43,25 +43,33 @@ for client-specific configuration.
 
 ## Security model
 
-**The MCP server is the trust boundary.** Booked's tools run in craft-mcp's
-console context, which has no logged-in user — so there is intentionally **no
-per-tool permission check or staff-scoping** (unlike the Control Panel, which
-gates the same operations behind `booked-manageBookings` etc.). Anyone who can
-reach the MCP server can read and mutate Booked data. Restrict access with
-craft-mcp's own settings:
+**The MCP server is the first trust boundary**, but Booked no longer relies on
+it alone for writes. craft-mcp's tools run in a console context with no
+logged-in user, so restrict access with its own settings first:
 
 - `enabled` — keep the server off in production unless you mean to expose it.
 - `enableDangerousTools` — gate the mutating tools (create/update/cancel/refund),
   all flagged `#[McpToolMeta(dangerous: true)]`.
 - `allowedIps` — limit which hosts may connect.
 
-Booked adds defence-in-depth on top of that boundary:
+On top of that, Booked applies its own authorization and abuse controls:
 
+- **Writes are default-deny.** Every mutating tool runs behind a write-authorization
+  gate. It is refused unless an administrator enables **Settings → Security → Allow
+  MCP write operations** (`mcpWriteEnabled`, off by default). Read-only tools are
+  always available. In a web context an authenticated user must additionally hold
+  `booked-manageBookings`, mirroring the Control Panel.
+- **Refunds need a second opt-in.** `booked_refund_reservation` also requires
+  **Allow MCP refunds** (`mcpAllowRefunds`, off by default) and is idempotent —
+  it never refunds more than the outstanding (paid minus already-refunded) amount.
 - **No capability tokens are exposed.** Booking `confirmationToken` (the sole
   auth for the public cancel/reschedule endpoints) and `virtualMeetingUrl` are
   never serialised; tools return only a `hasVirtualMeeting` flag.
-- **PII is redacted in bulk.** `booked_list_reservations` / `booked_list_waitlist`
-  mask customer email/phone; single-record `get` returns full detail.
+- **PII is redacted by default.** `Presenter` masks customer email/phone unless a
+  caller explicitly opts out, so list, get, create and update responses all redact
+  customer contact details — a forgotten flag fails safe.
+- **Result sets are bounded.** Every list tool clamps its page size to a hard
+  ceiling (200) so a single call can't materialise an entire table.
 - **Notification throttle.** Tools that send real email/SMS (create/cancel
   bookings, waitlist add/notify) share a cache-backed cap (120/hour) so a
   runaway client can't spam customers; callers get an `error` once it trips.
@@ -191,8 +199,11 @@ exist.
 
 Write tools route through Booked's services (`BookingService`,
 `EventDateService`, `ScheduleAssignmentService`, `ServiceExtraService`,
-`WaitlistService`, …) and element layer, so all validation, slot-locking,
-notification and webhook side effects behave identically to the Control Panel.
+`WaitlistService`, …) and element layer, so their validation, slot-locking,
+notification and webhook side effects match the Control Panel. Authorization,
+however, is enforced separately (see the Security model above): unlike the CP's
+public cancel/reschedule endpoints, MCP write tools act on raw ids and are gated
+by the `mcpWriteEnabled`/`mcpAllowRefunds` settings rather than a per-booking token.
 Every tool response is passed through a JSON-safe presenter, so reports that
 embed Craft elements are collapsed to compact `{id, title}` stubs.
 

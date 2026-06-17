@@ -26,10 +26,14 @@ class WaitlistTools
         description: 'List active waitlist entries for a service, in priority order.',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
-    public function listWaitlist(int $serviceId): array
+    public function listWaitlist(int $serviceId, int $limit = 50, int $offset = 0): array
     {
-        return $this->guard(function() use ($serviceId): array {
-            $entries = Booked::getInstance()->getWaitlist()->getActiveEntriesForService($serviceId);
+        return $this->guard(function() use ($serviceId, $limit, $offset): array {
+            $entries = Booked::getInstance()->getWaitlist()->getActiveEntriesForService(
+                $serviceId,
+                $this->clampLimit($limit),
+                $this->clampOffset($offset),
+            );
 
             return [
                 'serviceId' => $serviceId,
@@ -86,7 +90,7 @@ class WaitlistTools
         ?string $preferredTimeEnd = null,
         ?string $notes = null,
     ): array {
-        return $this->guard(function() use ($serviceId, $userName, $userEmail, $userPhone, $employeeId, $locationId, $preferredDate, $preferredTimeStart, $preferredTimeEnd, $notes): array {
+        return $this->guardWrite(function() use ($serviceId, $userName, $userEmail, $userPhone, $employeeId, $locationId, $preferredDate, $preferredTimeStart, $preferredTimeEnd, $notes): array {
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('adding more waitlist entries');
             }
@@ -136,7 +140,7 @@ class WaitlistTools
         ?string $userPhone = null,
         ?string $notes = null,
     ): array {
-        return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $notes): array {
+        return $this->guardWrite(function() use ($eventDateId, $userName, $userEmail, $userPhone, $notes): array {
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('adding more waitlist entries');
             }
@@ -170,7 +174,7 @@ class WaitlistTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function cancelWaitlistEntry(int $entryId): array
     {
-        return $this->guard(static fn(): array => [
+        return $this->guardWrite(static fn(): array => [
             'success' => Booked::getInstance()->getWaitlist()->cancelEntry($entryId),
             'entryId' => $entryId,
         ]);
@@ -189,7 +193,7 @@ class WaitlistTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function notifyWaitlistEntry(int $entryId): array
     {
-        return $this->guard(function() use ($entryId): array {
+        return $this->guardWrite(function() use ($entryId): array {
             if ($this->rateLimitReached()) {
                 return $this->rateLimitError('sending more waitlist notifications');
             }

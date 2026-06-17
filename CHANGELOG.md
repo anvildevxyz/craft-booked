@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.1 - 2026-06-17
+
+### Added
+- MCP authorization settings (Settings → Security): **Allow MCP write operations** (`mcpWriteEnabled`) and **Allow MCP refunds** (`mcpAllowRefunds`), both **off by default**. A migration adds the columns to existing installs.
+
+### Security
+- MCP write tools are now **default-deny**: every create/update/cancel/delete/refund tool is gated behind `mcpWriteEnabled` (and refunds additionally behind `mcpAllowRefunds`), rather than relying on the craft-mcp server config alone (this supersedes the 1.2.0 "authorization is delegated to the craft-mcp server" note). In a web context an authenticated user must also hold `booked-manageBookings`.
+- `booked_refund_reservation` is now idempotent — it nets out prior refunds and never refunds more than the outstanding (paid minus already-refunded) amount.
+- Customer PII (email/phone) is now redacted by default in all MCP responses — including create/update/booking responses, not just bulk lists — so a forgotten flag fails safe.
+- MCP list tools clamp their page size to a hard ceiling (200) to prevent unbounded result sets (memory exhaustion / bulk data export).
+
+### Fixed
+- `booked_delete_event_date` on an event that still has reservations now returns the actionable "retire it with `enabled=false` instead" message (via a typed exception) rather than a generic internal-error response.
+
 ## 1.2.0 - 2026-06-17
 
 ### Added

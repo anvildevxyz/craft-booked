@@ -98,7 +98,7 @@ class Booked extends Plugin
      */
     public const EDITION_PRO = 'pro';
 
-    public string $schemaVersion = '1.2.0';
+    public string $schemaVersion = '1.2.1';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
 

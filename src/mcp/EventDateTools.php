@@ -32,11 +32,18 @@ class EventDateTools
             . 'optionally bounded by a date range.',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
-    public function listEventDates(?string $fromDate = null, ?string $toDate = null): array
+    public function listEventDates(?string $fromDate = null, ?string $toDate = null, int $limit = 50, int $offset = 0): array
     {
-        return $this->guard(function() use ($fromDate, $toDate): array {
+        return $this->guard(function() use ($fromDate, $toDate, $limit, $offset): array {
             // enabledOnly: false — admin listing includes retired events, like the other catalog tools.
-            $events = Booked::getInstance()->getEventDate()->getEventDates($fromDate, $toDate, '*', enabledOnly: false);
+            $events = Booked::getInstance()->getEventDate()->getEventDates(
+                $fromDate,
+                $toDate,
+                '*',
+                enabledOnly: false,
+                limit: $this->clampLimit($limit),
+                offset: $this->clampOffset($offset),
+            );
 
             return [
                 'count' => count($events),
@@ -103,7 +110,7 @@ class EventDateTools
         ?string $description = null,
         bool $enabled = true,
     ): array {
-        return $this->guard(function() use (
+        return $this->guardWrite(function() use (
             $title,
             $eventDate,
             $startTime,
@@ -158,7 +165,7 @@ class EventDateTools
         ?string $description = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $eventDate, $startTime, $endTime, $capacity, $locationId, $price, $description, $enabled): array {
+        return $this->guardWrite(function() use ($id, $title, $eventDate, $startTime, $endTime, $capacity, $locationId, $price, $description, $enabled): array {
             $data = array_filter([
                 'title' => $title,
                 'eventDate' => $eventDate,
@@ -196,7 +203,7 @@ class EventDateTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function deleteEventDate(int $id): array
     {
-        return $this->guard(static fn(): array => [
+        return $this->guardWrite(static fn(): array => [
             'success' => Booked::getInstance()->getEventDate()->deleteEventDate($id, includeDisabled: true),
             'id' => $id,
         ]);

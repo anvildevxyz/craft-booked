@@ -34,7 +34,7 @@ class ScheduleTools
     public function listSchedules(int $limit = 50): array
     {
         return $this->guard(function() use ($limit): array {
-            $schedules = Schedule::find()->siteId('*')->status(null)->limit($limit)->all();
+            $schedules = Schedule::find()->siteId('*')->status(null)->limit($this->clampLimit($limit))->all();
 
             return [
                 'count' => count($schedules),
@@ -83,7 +83,7 @@ class ScheduleTools
         ?string $startDate = null,
         ?string $endDate = null,
     ): array {
-        return $this->guard(function() use ($title, $workingHours, $startDate, $endDate): array {
+        return $this->guardWrite(function() use ($title, $workingHours, $startDate, $endDate): array {
             $schedule = new Schedule();
             $schedule->title = $title;
             $schedule->workingHours = $workingHours ?? [];
@@ -117,7 +117,7 @@ class ScheduleTools
         ?string $endDate = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $workingHours, $startDate, $endDate, $enabled): array {
+        return $this->guardWrite(function() use ($id, $title, $workingHours, $startDate, $endDate, $enabled): array {
             $schedule = Schedule::find()->siteId('*')->status(null)->id($id)->one();
             if (!$schedule instanceof Schedule) {
                 return ['error' => "Schedule #{$id} not found."];
@@ -178,7 +178,7 @@ class ScheduleTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function setEmployeeSchedules(int $employeeId, array $scheduleIds): array
     {
-        return $this->guard(static fn(): array => [
+        return $this->guardWrite(static fn(): array => [
             'success' => Booked::getInstance()->getScheduleAssignment()->setSchedulesForEmployee($employeeId, $scheduleIds),
             'employeeId' => $employeeId,
             'scheduleIds' => $scheduleIds,
