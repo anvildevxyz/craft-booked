@@ -170,6 +170,10 @@ class ReservationTools
             $quantity,
             $userTimezone,
         ): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before creating more bookings.'];
+            }
+
             $reservation = Booked::getInstance()->getBooking()->createReservation([
                 'serviceId' => $serviceId,
                 'bookingDate' => $bookingDate,
@@ -215,6 +219,10 @@ class ReservationTools
         int $quantity = 1,
     ): array {
         return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $quantity): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before creating more bookings.'];
+            }
+
             $reservation = Booked::getInstance()->getBooking()->createReservation([
                 'eventDateId' => $eventDateId,
                 'userName' => $userName,
@@ -245,6 +253,10 @@ class ReservationTools
     public function cancelReservation(int $id, string $reason = ''): array
     {
         return $this->guard(function() use ($id, $reason): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before cancelling more bookings.'];
+            }
+
             $ok = Booked::getInstance()->getBooking()->cancelReservation($id, $reason);
 
             return [

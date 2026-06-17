@@ -297,6 +297,46 @@ class McpToolsTest extends TestCase
         );
     }
 
+    public function testGuardSanitisesNonBookedExceptionMessages(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ToolResponseTrait.php');
+
+        $this->assertStringContainsString(
+            "str_starts_with(\$e::class, 'anvildev\\\\booked\\\\exceptions\\\\')",
+            $src,
+            'guard() must only pass through messages from Booked\'s own exceptions; others leak DB/internal detail.',
+        );
+        $this->assertStringContainsString('withinRateLimit', $src, 'A notification rate-limit helper must exist.');
+    }
+
+    public function testNotificationToolsAreRateLimited(): void
+    {
+        $resv = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/ReservationTools.php');
+        $wait = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/WaitlistTools.php');
+
+        // create + cancel (reservations) and add x2 + notify (waitlist) must all be throttled.
+        $this->assertGreaterThanOrEqual(3, substr_count($resv, "withinRateLimit('notify'"));
+        $this->assertGreaterThanOrEqual(3, substr_count($wait, "withinRateLimit('notify'"));
+    }
+
+    public function testEmployeeToolsDoNotAcceptUserId(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/CatalogTools.php');
+
+        // userId controls CP booking visibility — it must not be client-settable over MCP.
+        $this->assertStringNotContainsString('$userId', $src, 'create/update_employee must not expose a userId param.');
+        $this->assertStringNotContainsString('->userId =', $src, 'Employee.userId must not be written from MCP input.');
+    }
+
+    public function testJsonSafeGuardsRecursionAndDoesNotDumpArbitraryObjects(): void
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/src/mcp/support/Presenter.php');
+
+        $this->assertStringContainsString('$depth', $src, 'jsonSafe must carry a recursion-depth guard.');
+        $this->assertStringContainsString("'_class' =>", $src, 'Unknown objects must collapse to an opaque class stub, not their internals.');
+        $this->assertStringContainsString('instanceof \\stdClass', $src, 'Only plain stdClass should be expanded via get_object_vars.');
+    }
+
     /**
      * @return array<string, array{class-string, list<string>}>
      */

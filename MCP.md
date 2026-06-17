@@ -41,6 +41,37 @@ for client-specific configuration.
 > craft-mcp requires PHP 8.3+. Booked itself supports PHP 8.2+; the higher floor
 > only applies when you opt into the MCP integration.
 
+## Security model
+
+**The MCP server is the trust boundary.** Booked's tools run in craft-mcp's
+console context, which has no logged-in user — so there is intentionally **no
+per-tool permission check or staff-scoping** (unlike the Control Panel, which
+gates the same operations behind `booked-manageBookings` etc.). Anyone who can
+reach the MCP server can read and mutate Booked data. Restrict access with
+craft-mcp's own settings:
+
+- `enabled` — keep the server off in production unless you mean to expose it.
+- `enableDangerousTools` — gate the mutating tools (create/update/cancel/refund),
+  all flagged `#[McpToolMeta(dangerous: true)]`.
+- `allowedIps` — limit which hosts may connect.
+
+Booked adds defence-in-depth on top of that boundary:
+
+- **No capability tokens are exposed.** Booking `confirmationToken` (the sole
+  auth for the public cancel/reschedule endpoints) and `virtualMeetingUrl` are
+  never serialised; tools return only a `hasVirtualMeeting` flag.
+- **PII is redacted in bulk.** `booked_list_reservations` / `booked_list_waitlist`
+  mask customer email/phone; single-record `get` returns full detail.
+- **Notification throttle.** Tools that send real email/SMS (create/cancel
+  bookings, waitlist add/notify) share a cache-backed cap (120/hour) so a
+  runaway client can't spam customers; callers get an `error` once it trips.
+- **Errors are sanitised.** Only Booked's own typed exceptions return their
+  message; anything else (DB/driver/internal) returns a generic error, with
+  detail kept in the server logs.
+- **Account/user links aren't editable over MCP.** `create/update_employee`
+  cannot set an employee's Craft `userId` (that controls CP booking visibility);
+  manage user links in the Control Panel.
+
 ## Tools
 
 All tools are registered under the `PLUGIN` category. Tools that mutate data are

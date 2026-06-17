@@ -87,6 +87,10 @@ class WaitlistTools
         ?string $notes = null,
     ): array {
         return $this->guard(function() use ($serviceId, $userName, $userEmail, $userPhone, $employeeId, $locationId, $preferredDate, $preferredTimeStart, $preferredTimeEnd, $notes): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before adding more waitlist entries.'];
+            }
+
             $entry = Booked::getInstance()->getWaitlist()->addToWaitlist([
                 'serviceId' => $serviceId,
                 'userName' => $userName,
@@ -131,6 +135,10 @@ class WaitlistTools
         ?string $notes = null,
     ): array {
         return $this->guard(function() use ($eventDateId, $userName, $userEmail, $userPhone, $notes): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before adding more waitlist entries.'];
+            }
+
             $entry = Booked::getInstance()->getWaitlist()->addToEventWaitlist([
                 'eventDateId' => $eventDateId,
                 'userName' => $userName,
@@ -177,9 +185,15 @@ class WaitlistTools
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function notifyWaitlistEntry(int $entryId): array
     {
-        return $this->guard(static fn(): array => [
-            'success' => Booked::getInstance()->getWaitlist()->manualNotify($entryId),
-            'entryId' => $entryId,
-        ]);
+        return $this->guard(function() use ($entryId): array {
+            if (!$this->withinRateLimit('notify', 120)) {
+                return ['error' => 'Booked MCP notification rate limit reached (120/hour); pause before sending more waitlist notifications.'];
+            }
+
+            return [
+                'success' => Booked::getInstance()->getWaitlist()->manualNotify($entryId),
+                'entryId' => $entryId,
+            ];
+        });
     }
 }

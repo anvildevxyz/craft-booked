@@ -364,14 +364,15 @@ class CatalogTools
      * @param string|null $email Contact email.
      * @param int|null $locationId Location this employee works at.
      * @param int[]|null $serviceIds Ids of services this employee delivers.
-     * @param int|null $userId Linked Craft user id, for self-service.
      * @param array<string, mixed>|null $workingHours Per-day hours keyed "1"(Mon)–"7"(Sun), each {enabled, start, end, breakStart?, breakEnd?}.
      * @return array<string, mixed>
      */
     #[McpTool(
         name: 'booked_create_employee',
         description: 'Create a new Booked employee (staff member who delivers services). '
-            . 'Optionally link services, a location, a Craft user, and inline working hours.',
+            . 'Optionally link services, a location, and inline working hours. '
+            . 'Linking to a Craft user account is intentionally not supported here (it controls '
+            . 'Control-Panel booking visibility) — do that in the CP.',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function createEmployee(
@@ -379,16 +380,14 @@ class CatalogTools
         ?string $email = null,
         ?int $locationId = null,
         ?array $serviceIds = null,
-        ?int $userId = null,
         #[Schema(type: 'object')] ?array $workingHours = null,
     ): array {
-        return $this->guard(function() use ($title, $email, $locationId, $serviceIds, $userId, $workingHours): array {
+        return $this->guard(function() use ($title, $email, $locationId, $serviceIds, $workingHours): array {
             $employee = new Employee();
             $employee->title = $title;
             $employee->email = $email;
             $employee->locationId = $locationId;
             $employee->serviceIds = $serviceIds ?? [];
-            $employee->userId = $userId;
             if ($workingHours !== null) {
                 $employee->workingHours = $workingHours;
             }
@@ -412,7 +411,8 @@ class CatalogTools
     #[McpTool(
         name: 'booked_update_employee',
         description: 'Update a Booked employee by id. Only the fields you pass are changed. '
-            . 'Set enabled=false to retire them; serviceIds replaces the full set.',
+            . 'Set enabled=false to retire them; serviceIds replaces the full set. '
+            . 'The Craft user link is intentionally not editable here (it controls CP booking visibility).',
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
     public function updateEmployee(
@@ -421,11 +421,10 @@ class CatalogTools
         ?string $email = null,
         ?int $locationId = null,
         ?array $serviceIds = null,
-        ?int $userId = null,
         #[Schema(type: 'object')] ?array $workingHours = null,
         ?bool $enabled = null,
     ): array {
-        return $this->guard(function() use ($id, $title, $email, $locationId, $serviceIds, $userId, $workingHours, $enabled): array {
+        return $this->guard(function() use ($id, $title, $email, $locationId, $serviceIds, $workingHours, $enabled): array {
             $employee = Employee::find()->siteId('*')->status(null)->id($id)->one();
             if (!$employee instanceof Employee) {
                 return ['error' => "Employee #{$id} not found."];
@@ -436,7 +435,6 @@ class CatalogTools
                 'email' => $email,
                 'locationId' => $locationId,
                 'serviceIds' => $serviceIds,
-                'userId' => $userId,
                 'workingHours' => $workingHours,
                 'enabled' => $enabled,
             ] as $field => $value) {

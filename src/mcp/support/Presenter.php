@@ -34,8 +34,13 @@ final class Presenter
      * / string / public-property form. Tool responses are passed through this
      * so a tool can never crash the transport with an unserialisable result.
      */
-    public static function jsonSafe(mixed $value): mixed
+    public static function jsonSafe(mixed $value, int $depth = 0): mixed
     {
+        // Hard depth cap — guards against cyclic / self-referential objects in
+        // report/dashboard data recursing until the stack overflows.
+        if ($depth > 16) {
+            return null;
+        }
         if ($value instanceof ElementInterface) {
             return ['id' => $value->id, 'title' => $value->title ?? (string)$value];
         }
@@ -43,15 +48,22 @@ final class Presenter
             return $value->format(\DateTimeInterface::ATOM);
         }
         if (is_array($value)) {
-            return array_map(self::jsonSafe(...), $value);
+            return array_map(static fn($v) => self::jsonSafe($v, $depth + 1), $value);
         }
         if ($value instanceof \JsonSerializable) {
-            return self::jsonSafe($value->jsonSerialize());
+            return self::jsonSafe($value->jsonSerialize(), $depth + 1);
+        }
+        if ($value instanceof \stdClass) {
+            // Plain data object (e.g. decoded JSON) — safe to expand.
+            return self::jsonSafe(get_object_vars($value), $depth + 1);
         }
         if (is_object($value)) {
+            // Never dump arbitrary class internals via get_object_vars() — a report
+            // row could carry a model/config/credential object. Collapse to a string
+            // (if stringable) or an opaque class stub.
             return method_exists($value, '__toString')
                 ? (string)$value
-                : self::jsonSafe(get_object_vars($value));
+                : ['_class' => $value::class];
         }
         if (is_float($value) && !is_finite($value)) {
             return null;
