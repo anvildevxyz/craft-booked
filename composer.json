@@ -29,7 +29,7 @@
         "php": "^8.2",
         "craftcms/cms": "^5.0",
         "google/apiclient": "^2.0",
-        "microsoft/microsoft-graph": "^1.0",
+        "microsoft/microsoft-graph": "^3.2",
         "league/oauth2-client": "^2.0",
         "twilio/sdk": "^6.0 || ^7.0 || ^8.0"
     },
