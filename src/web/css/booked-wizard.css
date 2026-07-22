@@ -1,0 +1,395 @@
+/**
+ * Booked vanilla wizard styles.
+ *
+ * Scoped to `.booked-wizard` and driven entirely by `--booked-*` custom
+ * properties, so a site themes the wizard by overriding those on the container
+ * (or :root) — no CSS framework, no build step. Targets the stable
+ * `data-booked-*` contract and the accessible calendar/listbox markup.
+ */
+
+.booked-wizard {
+  /* Theming surface — override these to restyle. */
+  --booked-fg: #111827;
+  --booked-bg: #ffffff;
+  --booked-muted: #6b7280;
+  --booked-border: #e5e7eb;
+  --booked-primary: #111827;
+  --booked-on-primary: #ffffff;
+  --booked-accent: #2563eb;
+  --booked-error: #dc2626;
+  --booked-disabled: #d1d5db;
+  --booked-radius: 10px;
+  --booked-space: 1rem;
+  --booked-gap: 0.75rem;
+
+  color: var(--booked-fg);
+  background: var(--booked-bg);
+  max-width: 40rem;
+  margin-inline: auto;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.booked-wizard *,
+.booked-wizard *::before,
+.booked-wizard *::after {
+  box-sizing: border-box;
+}
+
+/* Belt-and-braces: keep [hidden] hidden even under aggressive resets. */
+.booked-wizard [hidden] {
+  display: none !important;
+}
+
+/* --- Chrome ------------------------------------------------------------- */
+
+.booked-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.booked-progress {
+  color: var(--booked-muted);
+  font-size: 0.875rem;
+  margin-bottom: var(--booked-space);
+}
+
+[data-booked-error] {
+  color: var(--booked-error);
+  border: 1px solid currentColor;
+  border-radius: var(--booked-radius);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: var(--booked-space);
+}
+
+[data-booked-loading] {
+  color: var(--booked-muted);
+}
+
+.booked-wizard h2 {
+  font-size: 1.25rem;
+  margin: 0 0 var(--booked-space);
+}
+
+.booked-wizard h2:focus-visible {
+  outline: 2px solid var(--booked-accent);
+  outline-offset: 4px;
+}
+
+/* --- Choose-one card lists (service / location / employee) -------------- */
+
+.booked-cards {
+  display: grid;
+  gap: var(--booked-gap);
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  margin-bottom: var(--booked-space);
+}
+
+.booked-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  padding: var(--booked-space);
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  background: var(--booked-bg);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.booked-card:hover {
+  border-color: var(--booked-primary);
+}
+
+.booked-card[aria-pressed='true'] {
+  border-color: var(--booked-primary);
+  box-shadow: inset 0 0 0 1px var(--booked-primary);
+}
+
+.booked-card__name {
+  font-weight: 600;
+}
+
+.booked-card__price,
+.booked-card__bio {
+  color: var(--booked-muted);
+  font-size: 0.875rem;
+}
+
+/* --- Extras steppers ---------------------------------------------------- */
+
+.booked-extra {
+  display: flex;
+  align-items: center;
+  gap: var(--booked-gap);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--booked-border);
+}
+
+.booked-extra__name {
+  font-weight: 600;
+}
+
+.booked-extra__price {
+  color: var(--booked-muted);
+  margin-inline-start: auto;
+}
+
+.booked-extra button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  background: var(--booked-bg);
+  cursor: pointer;
+}
+
+.booked-extra [data-booked-extra-qty] {
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+/* --- Calendar ----------------------------------------------------------- */
+
+.booked-calendar {
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  padding: var(--booked-space);
+  margin-bottom: var(--booked-space);
+}
+
+.booked-calendar .booked-cal__header,
+.booked-calendar [class] {
+  /* no-op guard so unknown internal classes inherit sanely */
+}
+
+.booked-calendar [data-booked-cal='label'] {
+  text-align: center;
+  font-weight: 600;
+}
+
+.booked-calendar [data-booked-cal='prev'],
+.booked-calendar [data-booked-cal='next'] {
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  background: var(--booked-bg);
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+}
+
+.booked-calendar table[role='grid'] {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--booked-space);
+}
+
+.booked-calendar th {
+  color: var(--booked-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem;
+}
+
+.booked-calendar td[data-booked-date] {
+  text-align: center;
+  padding: 0.5rem 0;
+  border-radius: var(--booked-radius);
+  cursor: pointer;
+}
+
+.booked-calendar td[data-booked-date]:hover {
+  background: var(--booked-border);
+}
+
+.booked-calendar td[aria-disabled='true'] {
+  color: var(--booked-disabled);
+  cursor: default;
+}
+
+.booked-calendar td[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.booked-calendar td[aria-selected='true'] {
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+}
+
+/* Multi-day range highlighting. */
+.booked-calendar td[data-in-range='true'] {
+  background: color-mix(in srgb, var(--booked-primary) 15%, transparent);
+}
+
+.booked-calendar td[data-range-start='true'],
+.booked-calendar td[data-range-end='true'] {
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+}
+
+.booked-calendar td[data-booked-date]:focus-visible {
+  outline: 2px solid var(--booked-accent);
+  outline-offset: -2px;
+}
+
+/* --- Slot listbox ------------------------------------------------------- */
+
+.booked-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--booked-space);
+}
+
+.booked-slots [role='option'] {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  background: var(--booked-bg);
+  cursor: pointer;
+}
+
+.booked-slots [role='option'][aria-selected='true'] {
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+  border-color: var(--booked-primary);
+}
+
+.booked-slots [role='option'][aria-disabled='true'] {
+  color: var(--booked-disabled);
+  cursor: default;
+}
+
+/* --- Waitlist branch ---------------------------------------------------- */
+
+.booked-waitlist {
+  border: 1px dashed var(--booked-border);
+  border-radius: var(--booked-radius);
+  padding: var(--booked-space);
+  margin-bottom: var(--booked-space);
+}
+
+.booked-waitlist label {
+  display: block;
+  margin-bottom: var(--booked-gap);
+}
+
+.booked-waitlist input {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  font: inherit;
+}
+
+.booked-waitlist button {
+  padding: 0.5rem 1rem;
+  border-radius: var(--booked-radius);
+  border: 1px solid var(--booked-primary);
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+  cursor: pointer;
+}
+
+.booked-waitlist__success {
+  color: var(--booked-accent);
+  font-weight: 500;
+}
+
+/* --- Info form ---------------------------------------------------------- */
+
+[data-booked-step='info'] label {
+  display: block;
+  margin-bottom: var(--booked-gap);
+  font-weight: 500;
+}
+
+[data-booked-step='info'] input,
+[data-booked-step='info'] textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  font: inherit;
+}
+
+[data-booked-step='info'] input[aria-invalid='true'],
+[data-booked-step='info'] textarea[aria-invalid='true'] {
+  border-color: var(--booked-error);
+}
+
+.booked-field-error {
+  color: var(--booked-error);
+  font-size: 0.8125rem;
+  margin: 0.25rem 0 0;
+}
+
+/* --- Review ------------------------------------------------------------- */
+
+.booked-summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin-bottom: var(--booked-space);
+}
+
+.booked-summary dt {
+  color: var(--booked-muted);
+}
+
+.booked-summary dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.booked-payment-notice {
+  color: var(--booked-accent);
+}
+
+/* --- Navigation --------------------------------------------------------- */
+
+.booked-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--booked-gap);
+  margin-top: var(--booked-space);
+}
+
+.booked-nav button {
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--booked-radius);
+  border: 1px solid var(--booked-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.booked-nav [data-booked-action='next'],
+.booked-nav [data-booked-action='submit'] {
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+  margin-inline-start: auto;
+}
+
+.booked-nav [data-booked-action='back'] {
+  background: var(--booked-bg);
+  color: var(--booked-fg);
+  border-color: var(--booked-border);
+}
+
+.booked-wizard button:focus-visible {
+  outline: 2px solid var(--booked-accent);
+  outline-offset: 2px;
+}

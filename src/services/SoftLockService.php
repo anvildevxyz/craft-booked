@@ -148,6 +148,43 @@ class SoftLockService extends Component
         return (bool)$this->deleteRecord($record);
     }
 
+    /**
+     * Extend a held lock, re-issuing its TTL from now.
+     *
+     * Verifies the session hash (like {@see releaseLock()}) and refuses to
+     * resurrect a lock that is missing or already expired, so a client can
+     * never keep a slot indefinitely. Returns the new UTC expiry on success.
+     *
+     * @param string $token
+     * @param int $durationMinutes
+     * @param string|null $sessionHash
+     * @return DateTime|false New expiry on success, false if the lock is gone or the session mismatches
+     */
+    public function extendLock(string $token, int $durationMinutes = 5, ?string $sessionHash = null): DateTime|false
+    {
+        $record = $this->getRecordByToken($token);
+        if (!$record) {
+            return false;
+        }
+
+        if ($record->sessionHash && !hash_equals($record->sessionHash, $sessionHash ?? '')) {
+            Craft::warning("Soft lock extend denied: session mismatch for token (lock_id=" . substr(hash('sha256', $token), 0, 8) . ")", __METHOD__);
+            return false;
+        }
+
+        // Refuse to resurrect an already-expired lock — the slot may be gone.
+        $now = new DateTime('now', new DateTimeZone('UTC'));
+        $currentExpiry = new DateTime((string)$record->expiresAt, new DateTimeZone('UTC'));
+        if ($currentExpiry <= $now) {
+            return false;
+        }
+
+        $newExpiry = (clone $now)->modify("+{$durationMinutes} minutes");
+        $record->expiresAt = Db::prepareDateForDb($newExpiry);
+
+        return $this->saveRecord($record) ? $newExpiry : false;
+    }
+
     public function cleanupExpiredLocks(): int
     {
         return $this->deleteExpiredRecords();

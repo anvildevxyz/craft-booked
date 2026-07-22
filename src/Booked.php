@@ -122,6 +122,7 @@ class Booked extends Plugin
         $this->registerServices();
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
+        $this->registerApiRoutes();
         $this->registerCommerceListeners();
         $this->registerQuantityChangeListeners();
         $this->registerCalendarSyncListeners();
@@ -665,6 +666,54 @@ class Booked extends Plugin
                     'booked/account/upcoming' => 'booked/account/upcoming',
                     'booked/account/past' => 'booked/account/past',
                     'booked/account/<id:\d+>' => 'booked/account/view',
+                ]);
+            }
+        );
+    }
+
+    /**
+     * Versioned headless API (/booked/api/v1/…).
+     *
+     * These are thin aliases onto the existing frontend controller actions: the
+     * headless wizard core targets only the versioned paths, while the original
+     * action routes keep working through the Alpine deprecation window. Route
+     * tokens (e.g. serviceId) merge into request params, so the backing actions
+     * read them unchanged. Management-mode routes are added when that flow is
+     * wired into the core.
+     */
+    private function registerApiRoutes(): void
+    {
+        Event::on(
+            \craft\web\UrlManager::class,
+            \craft\web\UrlManager::EVENT_REGISTER_SITE_URL_RULES,
+            function(\craft\events\RegisterUrlRulesEvent $event) {
+                $event->rules = array_merge($event->rules, [
+                    // Booking data
+                    'booked/api/v1/services' => 'booked/booking-data/get-services',
+                    'booked/api/v1/services/extras' => 'booked/booking-data/get-service-extras',
+                    'booked/api/v1/services/employees' => 'booked/booking-data/get-employees',
+                    'booked/api/v1/commerce-settings' => 'booked/booking-data/get-commerce-settings',
+                    // Availability
+                    'booked/api/v1/availability/slots' => 'booked/slot/get-available-slots',
+                    'booked/api/v1/availability/dates' => 'booked/slot/get-available-dates',
+                    'booked/api/v1/availability/end-dates' => 'booked/slot/get-valid-end-dates',
+                    'booked/api/v1/availability/range-capacity' => 'booked/slot/get-range-capacity',
+                    'booked/api/v1/availability/calendar' => 'booked/slot/get-availability-calendar',
+                    'booked/api/v1/events/dates' => 'booked/slot/get-event-dates',
+                    // Locks
+                    'booked/api/v1/locks/slot' => 'booked/slot/create-lock',
+                    'booked/api/v1/locks/range' => 'booked/slot/create-multi-day-lock',
+                    'booked/api/v1/locks/event' => 'booked/slot/create-event-lock',
+                    'booked/api/v1/locks/extend' => 'booked/slot/extend-lock',
+                    'booked/api/v1/locks/release' => 'booked/slot/release-lock',
+                    // Booking
+                    'booked/api/v1/bookings' => 'booked/booking/create-booking',
+                    // Waitlist
+                    'booked/api/v1/waitlist/event' => 'booked/waitlist/join-event-waitlist',
+                    'booked/api/v1/waitlist/convert' => 'booked/waitlist-conversion/convert',
+                    'booked/api/v1/waitlist' => 'booked/waitlist/join-waitlist',
+                    // Account
+                    'booked/api/v1/me' => 'booked/account/current-user',
                 ]);
             }
         );

@@ -35,6 +35,7 @@ class SlotController extends Controller
         'create-lock',
         'create-multi-day-lock',
         'create-event-lock',
+        'extend-lock',
         'release-lock',
     ];
 
@@ -516,6 +517,35 @@ class SlotController extends Controller
 
         if ($token === false) {
             return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+        }
+
+        return $this->jsonSuccess('', [
+            'token' => $token,
+            'expiresIn' => $durationMinutes * 60,
+        ]);
+    }
+
+    public function actionExtendLock(): Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_lock_throttle', 30)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $token = Craft::$app->request->getBodyParam('token');
+        if (!$token) {
+            return $this->jsonError(Craft::t('booked', 'slot.noTokenProvided'));
+        }
+
+        $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
+        $softLockService = Booked::getInstance()->getSoftLock();
+        $newExpiry = $softLockService->extendLock($token, $durationMinutes, $softLockService->getSessionHash());
+
+        // A gone/expired lock returns 410 so the client can drop into its expired flow.
+        if ($newExpiry === false) {
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'), statusCode: 410);
         }
 
         return $this->jsonSuccess('', [

@@ -1,0 +1,113 @@
+{# ==========================================================================
+   Booked — vanilla EVENT booking wizard (zero-dependency, CSP-safe)
+
+   The event-flow counterpart to wizard-vanilla.twig: pick an event date, enter
+   details, review, book. Shares the same bundle, auto-init and `data-booked-*`
+   contract; only the first step differs (event dates instead of service →
+   date/time). Config sets `flow: 'event'`.
+
+   Include params (all optional): labels {}.
+   ========================================================================== #}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWizardAsset") %}
+
+{% set settings = craft.booked.getSettings() %}
+{% set labels = {
+    selectEvent: 'wizard.selectEvent'|t('booked'),
+    enterInfo: 'wizard.enterInfo'|t('booked'),
+    confirmBooking: 'wizard.confirmBooking'|t('booked'),
+    next: 'wizard.btnNext'|t('booked'),
+    back: 'wizard.btnBack'|t('booked'),
+    book: 'wizard.btnBook'|t('booked'),
+    name: 'labels.name'|t('booked'),
+    email: 'labels.email'|t('booked'),
+    phone: 'labels.phone'|t('booked'),
+    notes: 'labels.notes'|t('booked'),
+    success: 'wizard.successTitle'|t('booked'),
+}|merge(labels ?? {}) %}
+
+{% set bookedConfig = {
+    flow: 'event',
+    api: {
+        baseUrl: '/booked/api/v1',
+        site: craft.app.sites.currentSite.handle,
+        csrf: {
+            name: craft.app.config.general.csrfTokenName,
+            value: craft.app.request.csrfToken,
+        },
+    },
+    config: {
+        requirePhone: requirePhone ?? false,
+        showNotes: showNotes ?? true,
+        defaultQuantity: defaultQuantity ?? 1,
+        siteHandle: craft.app.sites.currentSite.handle,
+    },
+    locale: craft.app.language,
+} %}
+
+<div data-booked-wizard data-booked-auto class="booked-wizard">
+    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode|raw }}</script>
+
+    {% set honeypotName = craft.booked.getSettings().honeypotFieldName ?? null %}
+    {% if honeypotName %}
+        <input type="text" data-booked-honeypot name="{{ honeypotName }}" class="booked-sr-only" tabindex="-1" autocomplete="off" aria-hidden="true">
+    {% endif %}
+
+    <div data-booked-loading hidden>{{ 'wizard.loadingEvents'|t('booked') }}</div>
+    <p data-booked-error role="alert" hidden></p>
+    <div class="booked-progress" data-booked-progress role="progressbar" aria-valuemin="1">
+        <span data-booked-progress-current>1</span>&nbsp;/&nbsp;<span data-booked-progress-total></span>
+    </div>
+    <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
+
+    <section data-booked-step="event">
+        <h2 data-booked-step-heading>{{ labels.selectEvent }}</h2>
+        <template data-booked-template="event-card">
+            <button type="button" data-booked-action="select-event" class="booked-card">
+                <span class="booked-card__name" data-booked-field="title"></span>
+                <span class="booked-card__meta" data-booked-field="date"></span>
+                <span class="booked-card__meta" data-booked-field="time"></span>
+                <span class="booked-card__price" data-booked-field="price"></span>
+            </button>
+        </template>
+        <div class="booked-cards" data-booked-list="events"></div>
+        <p data-booked-events-empty hidden>{{ 'wizard.noEvents'|t('booked') }}</p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="info" hidden>
+        <h2 data-booked-step-heading>{{ labels.enterInfo }}</h2>
+        <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name"></label>
+        <p class="booked-field-error" id="booked-err-name" data-booked-field-error="name" hidden></p>
+        <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email"></label>
+        <p class="booked-field-error" id="booked-err-email" data-booked-field-error="email" hidden></p>
+        <label>{{ labels.phone }}<input type="tel" data-booked-field="phone" autocomplete="tel"></label>
+        <p class="booked-field-error" id="booked-err-phone" data-booked-field-error="phone" hidden></p>
+        <label>{{ labels.notes }}<textarea data-booked-field="notes"></textarea></label>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="review" hidden>
+        <h2 data-booked-step-heading>{{ labels.confirmBooking }}</h2>
+        <dl class="booked-summary">
+            <dt>{{ labels.name }}</dt><dd data-booked-summary="customer-name"></dd>
+            <dt>{{ labels.email }}</dt><dd data-booked-summary="customer-email"></dd>
+            <dt>{{ 'wizard.summaryTotal'|t('booked') }}</dt><dd data-booked-summary="total"></dd>
+        </dl>
+        <p class="booked-payment-notice" data-booked-payment-notice hidden>{{ 'wizard.paymentRequired'|t('booked') }}</p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="submit">{{ labels.book }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="success" hidden>
+        <h2 data-booked-step-heading>{{ labels.success }}</h2>
+        <p>{{ 'wizard.successMessage'|t('booked') }}</p>
+    </section>
+</div>

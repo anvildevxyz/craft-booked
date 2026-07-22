@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0 - Unreleased
+
+> Work in progress: the vanilla wizard ships alongside the Alpine wizard this cycle. `wizard.twig`/`event-wizard.twig` still default to the Alpine implementation; opt into the new one with `booked/frontend/wizard-vanilla` (and `event-wizard-vanilla`). The default switch + `legacyWizard` escape hatch lands before release.
+
+### Added
+- **Framework-free booking wizard** — a zero-runtime-dependency rewrite of the booking flow: a headless state-machine core (`BookedWizard.create()`) plus a vanilla renderer, replacing Alpine.js. Runs under a strict CSP (no `unsafe-eval`, no inline executable script — config is read from a JSON block), ~14.5 KB gzipped (core + renderer). See [VANILLA_WIZARD.md](docs/VANILLA_WIZARD.md).
+- **Accessible calendar** replacing Flatpickr: WAI-ARIA date grid with roving tabindex, full keyboard navigation (arrows / Home-End / PageUp-Down / Enter-Space), month crossing, and a two-click range mode for multi-day services.
+- **Versioned headless API** at `/booked/api/v1/…` — the wizard's REST surface as documented public API, aliased onto the existing controllers so the old paths keep working.
+- **Soft-lock hold timer** — the wizard now shows and manages the reservation countdown, auto-extends once on submit, and cleanly enters an expired state (new `slot/extend-lock` action + `SoftLockService::extendLock()`).
+- **Bring-your-own-frontend** — the core ships as a headless ESM/UMD build (`booked-wizard-core`) drivable with no DOM, for custom/React/Vue frontends.
+
+### Parity (vanilla wizard)
+- Service, extras, location, employee, single-slot / fixed-day / flexible-day date selection, customer info, review, and Commerce redirect; event-date flow; waitlist branch; honeypot anti-spam; CSS-custom-property theming; WCAG keyboard/focus/live-region support.
+
 ## 1.2.1 - 2026-06-17
 
 ### Added

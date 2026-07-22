@@ -1,0 +1,194 @@
+{# ==========================================================================
+   Booked — vanilla booking wizard (zero-dependency, CSP-safe)
+
+   Renders the wizard shell with the `data-booked-*` contract consumed by the
+   booked-wizard bundle. Configuration is emitted as a non-executable JSON block
+   (`<script type="application/json">`) and read by the bundle's auto-init, so
+   the page needs no inline executable script and runs under a strict CSP.
+
+   Include params (all optional): serviceId, labels {}.
+   ========================================================================== #}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWizardAsset") %}
+
+{% set settings = craft.booked.getSettings() %}
+{% set labels = {
+    selectService: 'wizard.selectService'|t('booked'),
+    selectExtras: 'wizard.selectExtras'|t('booked'),
+    selectLocation: 'wizard.selectLocation'|t('booked'),
+    selectEmployee: 'wizard.selectEmployee'|t('booked'),
+    selectDateTime: 'wizard.selectDateTime'|t('booked'),
+    enterInfo: 'wizard.enterInfo'|t('booked'),
+    confirmBooking: 'wizard.confirmBooking'|t('booked'),
+    next: 'wizard.btnNext'|t('booked'),
+    back: 'wizard.btnBack'|t('booked'),
+    book: 'wizard.btnBook'|t('booked'),
+    name: 'labels.name'|t('booked'),
+    email: 'labels.email'|t('booked'),
+    phone: 'labels.phone'|t('booked'),
+    notes: 'labels.notes'|t('booked'),
+    success: 'wizard.successTitle'|t('booked'),
+}|merge(labels ?? {}) %}
+
+{% set bookedConfig = {
+    api: {
+        baseUrl: '/booked/api/v1',
+        site: craft.app.sites.currentSite.handle,
+        csrf: {
+            name: craft.app.config.general.csrfTokenName,
+            value: craft.app.request.csrfToken,
+        },
+    },
+    config: {
+        requirePhone: requirePhone ?? false,
+        showNotes: showNotes ?? true,
+        defaultQuantity: defaultQuantity ?? 1,
+        maximumAdvanceBookingDays: settings.maximumAdvanceBookingDays,
+        siteHandle: craft.app.sites.currentSite.handle,
+    },
+    serviceId: serviceId ?? null,
+    conversionToken: craft.app.request.getParam('conversionToken') ?? craft.app.request.getParam('waitlist'),
+    locale: craft.app.language,
+    messages: {
+        'announce.loadingSlots': 'wizard.loadingTimesAnnounce'|t('booked'),
+        'announce.noSlots': 'wizard.noSlotsAnnounce'|t('booked'),
+    },
+} %}
+
+<div data-booked-wizard data-booked-auto class="booked-wizard">
+    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode|raw }}</script>
+
+    {% set honeypotName = craft.booked.getSettings().honeypotFieldName ?? null %}
+    {% if honeypotName %}
+        {# Honeypot: visually hidden, off the tab order — bots fill it, humans don't. #}
+        <input type="text" data-booked-honeypot name="{{ honeypotName }}" class="booked-sr-only" tabindex="-1" autocomplete="off" aria-hidden="true">
+    {% endif %}
+
+    {# --- Chrome ----------------------------------------------------------- #}
+    <div data-booked-loading hidden>{{ 'wizard.loadingServices'|t('booked') }}</div>
+    <p data-booked-error role="alert" hidden></p>
+    <div class="booked-progress" data-booked-progress role="progressbar" aria-valuemin="1">
+        <span data-booked-progress-current>1</span>&nbsp;/&nbsp;<span data-booked-progress-total></span>
+    </div>
+    <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
+
+    {# --- Steps ------------------------------------------------------------ #}
+    <section data-booked-step="service">
+        <h2 data-booked-step-heading>{{ labels.selectService }}</h2>
+        <template data-booked-template="service-card">
+            <button type="button" data-booked-action="select-service" class="booked-card">
+                <span class="booked-card__name" data-booked-field="name"></span>
+                <span class="booked-card__price" data-booked-field="price"></span>
+            </button>
+        </template>
+        <div class="booked-cards" data-booked-list="services"></div>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="extras" hidden>
+        <h2 data-booked-step-heading>{{ labels.selectExtras }}</h2>
+        <template data-booked-template="extra-card">
+            <div class="booked-extra">
+                <span class="booked-extra__name" data-booked-field="name"></span>
+                <span class="booked-extra__price" data-booked-field="price"></span>
+                <button type="button" data-booked-action="extra-decrement" aria-label="{{ 'wizard.ariaDecreaseQuantity'|t('booked') }}">−</button>
+                <output data-booked-extra-qty>0</output>
+                <button type="button" data-booked-action="extra-increment" aria-label="{{ 'wizard.ariaIncreaseQuantity'|t('booked') }}">+</button>
+            </div>
+        </template>
+        <div data-booked-list="extras"></div>
+        <p>{{ 'wizard.extrasTotal'|t('booked') }}: <span data-booked-extras-total></span></p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="location" hidden>
+        <h2 data-booked-step-heading>{{ labels.selectLocation }}</h2>
+        <template data-booked-template="location-card">
+            <button type="button" data-booked-action="select-location" class="booked-card">
+                <span class="booked-card__name" data-booked-field="name"></span>
+            </button>
+        </template>
+        <div class="booked-cards" data-booked-list="locations"></div>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="employee" hidden>
+        <h2 data-booked-step-heading>{{ labels.selectEmployee }}</h2>
+        <template data-booked-template="employee-card">
+            <button type="button" data-booked-action="select-employee" class="booked-card">
+                <span class="booked-card__name" data-booked-field="name"></span>
+                <span class="booked-card__bio" data-booked-field="bio"></span>
+            </button>
+        </template>
+        <div class="booked-cards" data-booked-list="employees"></div>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="datetime" hidden>
+        <h2 data-booked-step-heading>{{ labels.selectDateTime }}</h2>
+        <div class="booked-calendar" data-booked-calendar></div>
+        <div class="booked-slots" data-booked-slots aria-label="{{ 'wizard.selectTime'|t('booked') }}"></div>
+        <div class="booked-waitlist" data-booked-waitlist hidden>
+            <div data-booked-waitlist-form>
+                <p>{{ 'wizard.waitlistDesc'|t('booked') }}</p>
+                <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name"></label>
+                <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email"></label>
+                <label>{{ labels.phone }}<input type="tel" data-booked-field="phone" autocomplete="tel"></label>
+                <button type="button" data-booked-action="join-waitlist">{{ 'wizard.waitlistBtnJoin'|t('booked') }}</button>
+            </div>
+            <p class="booked-waitlist__success" data-booked-waitlist-success role="status" hidden>{{ 'wizard.waitlistSuccess'|t('booked') }}</p>
+        </div>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="info" hidden>
+        <h2 data-booked-step-heading>{{ labels.enterInfo }}</h2>
+        <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name"></label>
+        <p class="booked-field-error" id="booked-err-name" data-booked-field-error="name" hidden></p>
+        <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email"></label>
+        <p class="booked-field-error" id="booked-err-email" data-booked-field-error="email" hidden></p>
+        <label>{{ labels.phone }}<input type="tel" data-booked-field="phone" autocomplete="tel"></label>
+        <p class="booked-field-error" id="booked-err-phone" data-booked-field-error="phone" hidden></p>
+        <label>{{ labels.notes }}<textarea data-booked-field="notes"></textarea></label>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="review" hidden>
+        <h2 data-booked-step-heading>{{ labels.confirmBooking }}</h2>
+        <dl class="booked-summary">
+            <dt>{{ labels.selectService }}</dt><dd data-booked-summary="service"></dd>
+            <dt>{{ 'labels.date'|t('booked') }}</dt><dd data-booked-summary="date"></dd>
+            <dt>{{ 'labels.time'|t('booked') }}</dt><dd data-booked-summary="time"></dd>
+            <dt>{{ labels.name }}</dt><dd data-booked-summary="customer-name"></dd>
+            <dt>{{ labels.email }}</dt><dd data-booked-summary="customer-email"></dd>
+            <dt>{{ 'wizard.summaryTotal'|t('booked') }}</dt><dd data-booked-summary="total"></dd>
+        </dl>
+        <p class="booked-payment-notice" data-booked-payment-notice hidden>{{ 'wizard.paymentRequired'|t('booked') }}</p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="submit">{{ labels.book }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="success" hidden>
+        <h2 data-booked-step-heading>{{ labels.success }}</h2>
+        <p>{{ 'wizard.successMessage'|t('booked') }}</p>
+    </section>
+</div>
