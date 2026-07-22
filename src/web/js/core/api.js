@@ -258,12 +258,13 @@ export class BookedApi {
     return this.get('me');
   }
 
-  // Management
-  manageLoad(body) {
-    return this.post('manage', { body });
+  // Management (?manage= token flow). The load reads the token from the query;
+  // cancel reuses the manage endpoint with action=cancel (the anonymous path).
+  manageLoad(query) {
+    return this.get('manage', { query });
   }
-  manageCancel(body) {
-    return this.post('manage/cancel', { body });
+  manageCancel({ token, reason } = {}) {
+    return this.post('manage', { query: { token }, body: { action: 'cancel', reason } });
   }
   manageReduce(body) {
     return this.post('manage/reduce', { body });

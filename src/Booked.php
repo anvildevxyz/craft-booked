@@ -714,6 +714,10 @@ class Booked extends Plugin
                     'booked/api/v1/waitlist' => 'booked/waitlist/join-waitlist',
                     // Account
                     'booked/api/v1/me' => 'booked/account/current-user',
+                    // Booking management (?manage= token flow)
+                    'booked/api/v1/manage' => 'booked/booking-management/manage-booking',
+                    'booked/api/v1/manage/reduce' => 'booked/booking-management/reduce-quantity',
+                    'booked/api/v1/manage/increase' => 'booked/booking-management/increase-quantity',
                 ]);
             }
         );

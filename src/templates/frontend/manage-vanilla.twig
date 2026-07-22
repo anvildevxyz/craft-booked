@@ -1,0 +1,57 @@
+{# ==========================================================================
+   Booked — vanilla booking management (?manage=<token>).
+
+   Self-service view of a single reservation with cancel / reduce / increase.
+   Reads the manage token from the `manage` (or `token`) query param and drives
+   the wizard in `mode: 'manage'`. Same bundle, auto-init and CSP posture as the
+   booking wizard.
+   ========================================================================== #}
+
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWizardAsset") %}
+
+{% set manageToken = craft.app.request.getParam('manage') ?? craft.app.request.getParam('token') %}
+
+{% set bookedConfig = {
+    mode: 'manage',
+    manageToken: manageToken,
+    api: {
+        baseUrl: '/booked/api/v1',
+        site: craft.app.sites.currentSite.handle,
+        csrf: {
+            name: craft.app.config.general.csrfTokenName,
+            value: craft.app.request.csrfToken,
+        },
+    },
+    locale: craft.app.language,
+} %}
+
+<div data-booked-wizard data-booked-auto class="booked-wizard">
+    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode|raw }}</script>
+
+    <div data-booked-loading hidden>{{ 'wizard.manageLoading'|t('booked') }}</div>
+    <p data-booked-error role="alert" hidden></p>
+    <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
+
+    <section data-booked-step="manage">
+        <h2 data-booked-step-heading>{{ 'wizard.manageTitle'|t('booked') }}</h2>
+
+        <dl class="booked-summary">
+            <dt>{{ 'labels.service'|t('booked') }}</dt><dd data-booked-manage="service"></dd>
+            <dt>{{ 'labels.dateTime'|t('booked') }}</dt><dd data-booked-manage="datetime"></dd>
+            <dt>{{ 'wizard.manageStatus'|t('booked') }}</dt><dd data-booked-manage="status"></dd>
+            <dt>{{ 'wizard.manageQuantity'|t('booked') }}</dt><dd data-booked-manage="quantity"></dd>
+            <dt>{{ 'labels.customer'|t('booked') }}</dt><dd data-booked-manage="customer"></dd>
+        </dl>
+
+        <div class="booked-manage-actions" data-booked-manage-actions hidden>
+            <div class="booked-quantity">
+                <span id="booked-manage-qty">{{ 'wizard.manageChangeAmount'|t('booked') }}</span>
+                <button type="button" data-booked-action="manage-reduce" aria-describedby="booked-manage-qty" aria-label="{{ 'wizard.manageReduceBtn'|t('booked') }}">−</button>
+                <button type="button" data-booked-action="manage-increase" aria-describedby="booked-manage-qty" aria-label="{{ 'wizard.manageIncreaseBtn'|t('booked') }}">+</button>
+            </div>
+            <button type="button" class="booked-manage-cancel" data-booked-action="manage-cancel">{{ 'wizard.manageCancelBtn'|t('booked') }}</button>
+        </div>
+
+        <p class="booked-manage-cancelled" data-booked-manage-cancelled role="status" hidden>{{ 'wizard.manageCancelled'|t('booked') }}</p>
+    </section>
+</div>

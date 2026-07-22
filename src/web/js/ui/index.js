@@ -19,6 +19,7 @@ import { datetimeStep } from './steps/datetime.js';
 import { eventDateStep } from './steps/event-date.js';
 import { customerInfoStep } from './steps/customer-info.js';
 import { reviewStep } from './steps/review.js';
+import { manageStep } from './steps/manage.js';
 
 export const version = '1.0.0-dev';
 
@@ -35,6 +36,8 @@ function registerDefaultSteps(renderer) {
   // Shared
   renderer.registerStep('info', customerInfoStep);
   renderer.registerStep('review', reviewStep);
+  // Manage flow
+  renderer.registerStep('manage', manageStep);
 }
 
 /** Resolve a mount option (selector string or element) to an element. */

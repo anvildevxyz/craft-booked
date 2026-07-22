@@ -292,6 +292,7 @@ var Context = class {
       ...initial.commerce ?? {}
     };
     this.lock = initial.lock ?? null;
+    this.reservation = initial.reservation ?? null;
   }
   // ---- Computed: extras ================================================
   /** Σ extra.price × quantity over selected add-ons. */
@@ -386,6 +387,7 @@ var Context = class {
       customer: { ...this.customer },
       commerce: { ...this.commerce },
       lock: this.lock ? { ...this.lock } : null,
+      reservation: this.reservation ? { ...this.reservation } : null,
       // computed, included for renderer convenience
       extrasTotal: this.extrasTotal,
       extrasDuration: this.extrasDuration,
@@ -607,12 +609,13 @@ var BookedApi = class {
   me() {
     return this.get("me");
   }
-  // Management
-  manageLoad(body) {
-    return this.post("manage", { body });
+  // Management (?manage= token flow). The load reads the token from the query;
+  // cancel reuses the manage endpoint with action=cancel (the anonymous path).
+  manageLoad(query) {
+    return this.get("manage", { query });
   }
-  manageCancel(body) {
-    return this.post("manage/cancel", { body });
+  manageCancel({ token, reason } = {}) {
+    return this.post("manage", { query: { token }, body: { action: "cancel", reason } });
   }
   manageReduce(body) {
     return this.post("manage/reduce", { body });
@@ -941,8 +944,14 @@ var eventFlow = {
   ]
 };
 
+// src/web/js/core/flows/manage.js
+var manageFlow = {
+  id: "manage",
+  steps: [{ id: "manage", visible: () => true }]
+};
+
 // src/web/js/core/wizard.js
-var FLOWS = { booking: bookingFlow, event: eventFlow };
+var FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 function list(payload, key) {
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload[key])) return payload[key];
@@ -974,7 +983,10 @@ var Wizard = class {
       quantity: options.config?.defaultQuantity ?? 1,
       customer: options.customer ?? {}
     });
-    const flowDef = FLOWS[options.flow ?? "booking"];
+    this._mode = options.mode === "manage" ? "manage" : "book";
+    this._manageToken = options.manageToken ?? (this._mode === "manage" ? options.token : null);
+    const flowName = this._mode === "manage" ? "manage" : options.flow ?? "booking";
+    const flowDef = FLOWS[flowName];
     if (!flowDef) throw new Error(`Wizard: unknown flow "${options.flow}"`);
     this._flow = new Flow(flowDef, this._ctx);
     this._machine = new Machine(({ from, to, meta }) => {
@@ -1025,6 +1037,7 @@ var Wizard = class {
   /** Bootstrap: load commerce settings + services, resolve preselects. */
   async start() {
     if (this._machine.state !== STATES.IDLE) return this.getState();
+    if (this._mode === "manage") return this._startManage();
     this._machine.transition(STATES.LOADING);
     try {
       const [commerce, services] = await Promise.all([
@@ -1404,6 +1417,68 @@ var Wizard = class {
     this._ctx.eventDates = eventDates;
     this._emitter.emit("data:loaded", { kind: "eventDates", items: eventDates });
     return eventDates;
+  }
+  // ---- Management mode (?manage=) =====================================
+  /** Bootstrap the manage flow: load the reservation for the manage token. */
+  async _startManage() {
+    this._machine.transition(STATES.LOADING);
+    try {
+      await this._reloadReservation();
+      this._machine.transition(STATES.BROWSING);
+      this._announceStep("init");
+      return this.getState();
+    } catch (err) {
+      this._toError(err);
+      return this.getState();
+    }
+  }
+  async _reloadReservation() {
+    const data = await this._api.manageLoad({ token: this._manageToken });
+    if (!data || data.success === false) {
+      throw new ApiError(data && (data.message || data.error) || this._i18n.t("error.generic"), { code: "not_found" });
+    }
+    this._ctx.reservation = data;
+    this._emitter.emit("manage:loaded", { reservation: data });
+  }
+  /** Cancel the managed booking. */
+  async manageCancel({ reason } = {}) {
+    if (!this._ctx.reservation) return { ok: false };
+    try {
+      const result = await this._api.manageCancel({ token: this._manageToken, reason });
+      if (result && result.success === false) {
+        throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
+      }
+      await this._reloadReservation().catch(() => {
+      });
+      this._emitter.emit("manage:cancelled", { reservation: this._ctx.reservation });
+      return { ok: true };
+    } catch (err) {
+      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
+      return { ok: false, error: err.message };
+    }
+  }
+  manageReduce(reduceBy = 1) {
+    return this._manageQuantity("manageReduce", { reduceBy });
+  }
+  manageIncrease(increaseBy = 1) {
+    return this._manageQuantity("manageIncrease", { increaseBy });
+  }
+  async _manageQuantity(method, extra) {
+    const res = this._ctx.reservation;
+    if (!res) return { ok: false };
+    try {
+      const result = await this._api[method]({ id: res.id, token: this._manageToken, ...extra });
+      if (result && result.success === false) {
+        throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
+      }
+      await this._reloadReservation().catch(() => {
+      });
+      this._emitter.emit("manage:updated", { reservation: this._ctx.reservation });
+      return { ok: true };
+    } catch (err) {
+      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
+      return { ok: false, error: err.message };
+    }
   }
   // ---- Navigation =====================================================
   goNext() {
@@ -1833,6 +1908,18 @@ var Renderer = class {
     bind("click", '[data-booked-action="extra-decrement"]', (e, el) => {
       e.preventDefault();
       this._adjustExtra(el, -1);
+    });
+    bind("click", '[data-booked-action="manage-cancel"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageCancel({});
+    });
+    bind("click", '[data-booked-action="manage-reduce"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageReduce(1);
+    });
+    bind("click", '[data-booked-action="manage-increase"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageIncrease(1);
     });
   }
   /**
@@ -2800,6 +2887,41 @@ var reviewStep = {
   }
 };
 
+// src/web/js/ui/steps/manage.js
+var cleanups2 = /* @__PURE__ */ new WeakMap();
+var manageStep = {
+  mount(region, wizard) {
+    const rerender = () => this.render(region, wizard);
+    const offs = [
+      wizard.on("manage:loaded", rerender),
+      wizard.on("manage:updated", rerender),
+      wizard.on("manage:cancelled", rerender)
+    ];
+    cleanups2.set(region, () => offs.forEach((off) => off()));
+  },
+  unmount(region) {
+    const off = cleanups2.get(region);
+    if (off) {
+      off();
+      cleanups2.delete(region);
+    }
+  },
+  render(region, wizard) {
+    const r = wizard.getState().context.reservation;
+    if (!r) return;
+    setText(qs('[data-booked-manage="service"]', region), r.serviceName ?? r.eventName ?? "");
+    setText(qs('[data-booked-manage="datetime"]', region), r.formattedDateTime ?? r.bookingDate ?? "");
+    setText(qs('[data-booked-manage="status"]', region), r.statusLabel ?? r.status ?? "");
+    setText(qs('[data-booked-manage="quantity"]', region), r.quantity);
+    setText(qs('[data-booked-manage="customer"]', region), r.customerName ?? "");
+    const cancelled = r.status === "cancelled";
+    setHidden(qs("[data-booked-manage-actions]", region), cancelled || !r.canCancel);
+    setHidden(qs("[data-booked-manage-cancelled]", region), !cancelled);
+    const dec = qs('[data-booked-action="manage-reduce"]', region);
+    if (dec) dec.disabled = !(r.quantity > 1);
+  }
+};
+
 // src/web/js/ui/index.js
 var version = "1.0.0-dev";
 function registerDefaultSteps(renderer) {
@@ -2811,6 +2933,7 @@ function registerDefaultSteps(renderer) {
   renderer.registerStep("event", eventDateStep);
   renderer.registerStep("info", customerInfoStep);
   renderer.registerStep("review", reviewStep);
+  renderer.registerStep("manage", manageStep);
 }
 function resolveMount(mount) {
   if (!mount) return null;

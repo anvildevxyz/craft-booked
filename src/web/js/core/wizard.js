@@ -17,8 +17,9 @@ import { I18n } from './i18n.js';
 import { canLeaveStep } from './validation.js';
 import { bookingFlow } from './flows/booking.js';
 import { eventFlow } from './flows/event.js';
+import { manageFlow } from './flows/manage.js';
 
-const FLOWS = { booking: bookingFlow, event: eventFlow };
+const FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 
 /** Tolerate both `{items: [...]}` envelopes and bare arrays from an endpoint. */
 function list(payload, key) {
@@ -61,7 +62,11 @@ export class Wizard {
       customer: options.customer ?? {},
     });
 
-    const flowDef = FLOWS[options.flow ?? 'booking'];
+    // `?manage=` runs the management flow; otherwise the booking/event flow.
+    this._mode = options.mode === 'manage' ? 'manage' : 'book';
+    this._manageToken = options.manageToken ?? (this._mode === 'manage' ? options.token : null);
+    const flowName = this._mode === 'manage' ? 'manage' : (options.flow ?? 'booking');
+    const flowDef = FLOWS[flowName];
     if (!flowDef) throw new Error(`Wizard: unknown flow "${options.flow}"`);
     this._flow = new Flow(flowDef, this._ctx);
 
@@ -124,6 +129,7 @@ export class Wizard {
   /** Bootstrap: load commerce settings + services, resolve preselects. */
   async start() {
     if (this._machine.state !== STATES.IDLE) return this.getState();
+    if (this._mode === 'manage') return this._startManage();
     this._machine.transition(STATES.LOADING);
     try {
       const [commerce, services] = await Promise.all([
@@ -549,6 +555,73 @@ export class Wizard {
     this._ctx.eventDates = eventDates;
     this._emitter.emit('data:loaded', { kind: 'eventDates', items: eventDates });
     return eventDates;
+  }
+
+  // ---- Management mode (?manage=) =====================================
+
+  /** Bootstrap the manage flow: load the reservation for the manage token. */
+  async _startManage() {
+    this._machine.transition(STATES.LOADING);
+    try {
+      await this._reloadReservation();
+      this._machine.transition(STATES.BROWSING);
+      this._announceStep('init');
+      return this.getState();
+    } catch (err) {
+      this._toError(err);
+      return this.getState();
+    }
+  }
+
+  async _reloadReservation() {
+    const data = await this._api.manageLoad({ token: this._manageToken });
+    if (!data || data.success === false) {
+      throw new ApiError((data && (data.message || data.error)) || this._i18n.t('error.generic'), { code: 'not_found' });
+    }
+    this._ctx.reservation = data;
+    this._emitter.emit('manage:loaded', { reservation: data });
+  }
+
+  /** Cancel the managed booking. */
+  async manageCancel({ reason } = {}) {
+    if (!this._ctx.reservation) return { ok: false };
+    try {
+      const result = await this._api.manageCancel({ token: this._manageToken, reason });
+      if (result && result.success === false) {
+        throw new ApiError(result.message || result.error || this._i18n.t('error.generic'), { code: 'manage' });
+      }
+      await this._reloadReservation().catch(() => {});
+      this._emitter.emit('manage:cancelled', { reservation: this._ctx.reservation });
+      return { ok: true };
+    } catch (err) {
+      this._emitter.emit('error', { message: err.message, code: err.code || 'error', recoverable: true });
+      return { ok: false, error: err.message };
+    }
+  }
+
+  manageReduce(reduceBy = 1) {
+    return this._manageQuantity('manageReduce', { reduceBy });
+  }
+
+  manageIncrease(increaseBy = 1) {
+    return this._manageQuantity('manageIncrease', { increaseBy });
+  }
+
+  async _manageQuantity(method, extra) {
+    const res = this._ctx.reservation;
+    if (!res) return { ok: false };
+    try {
+      const result = await this._api[method]({ id: res.id, token: this._manageToken, ...extra });
+      if (result && result.success === false) {
+        throw new ApiError(result.message || result.error || this._i18n.t('error.generic'), { code: 'manage' });
+      }
+      await this._reloadReservation().catch(() => {});
+      this._emitter.emit('manage:updated', { reservation: this._ctx.reservation });
+      return { ok: true };
+    } catch (err) {
+      this._emitter.emit('error', { message: err.message, code: err.code || 'error', recoverable: true });
+      return { ok: false, error: err.message };
+    }
   }
 
   // ---- Navigation =====================================================

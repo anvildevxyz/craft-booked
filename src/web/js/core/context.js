@@ -62,6 +62,9 @@ export class Context {
 
     // Soft-lock: { token, expiresAt } | null
     this.lock = initial.lock ?? null;
+
+    // Manage mode: the loaded reservation | null
+    this.reservation = initial.reservation ?? null;
   }
 
   // ---- Computed: extras ================================================
@@ -170,6 +173,7 @@ export class Context {
       customer: { ...this.customer },
       commerce: { ...this.commerce },
       lock: this.lock ? { ...this.lock } : null,
+      reservation: this.reservation ? { ...this.reservation } : null,
       // computed, included for renderer convenience
       extrasTotal: this.extrasTotal,
       extrasDuration: this.extrasDuration,

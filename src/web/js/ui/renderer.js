@@ -216,6 +216,20 @@ export class Renderer {
       e.preventDefault();
       this._adjustExtra(el, -1);
     });
+
+    // Management mode (?manage=) actions.
+    bind('click', '[data-booked-action="manage-cancel"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageCancel({});
+    });
+    bind('click', '[data-booked-action="manage-reduce"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageReduce(1);
+    });
+    bind('click', '[data-booked-action="manage-increase"]', (e) => {
+      e.preventDefault();
+      this._wizard.manageIncrease(1);
+    });
   }
 
   /**
