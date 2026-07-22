@@ -65,7 +65,7 @@
 
     <div data-booked-loading hidden>{{ 'wizard.loadingEvents'|t('booked') }}</div>
     <p data-booked-error role="alert" hidden></p>
-    <div class="booked-progress" data-booked-progress role="progressbar" aria-valuemin="1">
+    <div class="booked-progress" data-booked-progress role="progressbar" aria-valuemin="1" aria-label="{{ 'wizard.ariaStepNav'|t('booked') }}">
         <span data-booked-progress-current>1</span>&nbsp;/&nbsp;<span data-booked-progress-total></span>
     </div>
     <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
