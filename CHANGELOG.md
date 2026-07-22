@@ -2,7 +2,7 @@
 
 ## 1.3.0 - Unreleased
 
-> Work in progress: the vanilla wizard ships alongside the Alpine wizard this cycle. `wizard.twig`/`event-wizard.twig` still default to the Alpine implementation; opt into the new one with `booked/frontend/wizard-vanilla` (and `event-wizard-vanilla`). The default switch + `legacyWizard` escape hatch lands before release.
+> `{% include 'booked/frontend/wizard' %}` now renders the framework-free vanilla wizard **by default** — no template changes needed. The deprecated Alpine wizard is available for one release window via the **`legacyWizard`** setting (or `{% include … with { legacyWizard: true } %}`), logged as deprecated, and removed in 2.0.
 
 ### Added
 - **Framework-free booking wizard** — a zero-runtime-dependency rewrite of the booking flow: a headless state-machine core (`BookedWizard.create()`) plus a vanilla renderer, replacing Alpine.js. Runs under a strict CSP (no `unsafe-eval`, no inline executable script — config is read from a JSON block), ~14.5 KB gzipped (core + renderer). See [VANILLA_WIZARD.md](docs/VANILLA_WIZARD.md).

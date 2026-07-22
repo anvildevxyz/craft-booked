@@ -5,16 +5,17 @@ machine + API client, zero runtime dependencies) plus a vanilla renderer. This
 guide covers the three ways to use it — drop-in Twig, template customization,
 and fully headless — plus the public JS API and the `data-booked-*` contract.
 
-> Status: 1.3.0 (in progress). The Alpine wizard is still the default include;
-> opt into the vanilla wizard with `booked/frontend/wizard-vanilla`.
+> Status: 1.3.0. `{% include 'booked/frontend/wizard' %}` renders the vanilla
+> wizard by default; the deprecated Alpine wizard is restored with the
+> `legacyWizard` setting (removed in 2.0).
 
 ---
 
 ## 1. Drop-in (no code)
 
 ```twig
-{% include 'booked/frontend/wizard-vanilla' %}      {# booking flow #}
-{% include 'booked/frontend/event-wizard-vanilla' %} {# event flow #}
+{% include 'booked/frontend/wizard' %}       {# booking flow #}
+{% include 'booked/frontend/event-wizard' %} {# event flow #}
 ```
 
 Optional include params: `serviceId` (preselect), `labels` (override any label).
@@ -134,7 +135,10 @@ bookings, whose server-side seat lock is best-effort, submit directly from
 ## 5. Migrating from the Alpine wizard
 
 - The include path and documented config variables are unchanged — existing
-  drop-in usage keeps working.
+  drop-in usage keeps working, now rendering the vanilla wizard.
+- Need the old wizard while you migrate a heavy customization? Enable the
+  **`legacyWizard`** setting (or `{% include 'booked/frontend/wizard' with
+  { legacyWizard: true } %}`). It's deprecated and removed in 2.0.
 - Forked the old Alpine wizard? The structure maps to **Twig template overrides
   + JS events**: markup you edited in `x-*` attributes becomes `data-booked-*`
   markup; logic you patched becomes an event listener on the core. There is no
