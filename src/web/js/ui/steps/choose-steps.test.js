@@ -144,4 +144,46 @@ describe('extrasStep + shell stepper', () => {
     expect(wizard.getState().context.selectedExtras[5]).toBe(1);
     renderer.destroy();
   });
+
+  it('auto-selects required extras and clamps them at a minimum of 1', async () => {
+    document.body.innerHTML = MARKUP;
+    const root = document.querySelector('[data-booked-wizard]');
+    const region = document.querySelector('[data-booked-step="extras"]');
+    const wizard = await startedWizard({
+      serviceExtras: vi.fn(async () => ({ extras: [{ id: 9, name: 'Insurance', price: 5, isRequired: true }] })),
+    });
+    // Required extra is selected at qty 1 as soon as the service loads.
+    expect(wizard.getState().context.selectedExtras[9]).toBe(1);
+
+    wizard.goNext(); // → extras
+    const renderer = new Renderer(wizard, root);
+    renderer.registerStep('extras', extrasStep);
+    extrasStep.render(region, wizard);
+    // Decrement is disabled and can't drop a required extra below 1.
+    expect(region.querySelector('[data-booked-action="extra-decrement"]').disabled).toBe(true);
+    region.querySelector('[data-booked-action="extra-decrement"]').click();
+    expect(wizard.getState().context.selectedExtras[9]).toBe(1);
+    renderer.destroy();
+  });
+
+  it('caps an extra at its maxQuantity', async () => {
+    document.body.innerHTML = MARKUP;
+    const root = document.querySelector('[data-booked-wizard]');
+    const region = document.querySelector('[data-booked-step="extras"]');
+    const wizard = await startedWizard({
+      serviceExtras: vi.fn(async () => ({ extras: [{ id: 3, name: 'Towel', price: 2, maxQuantity: 2 }] })),
+    });
+    wizard.goNext();
+    const renderer = new Renderer(wizard, root);
+    renderer.registerStep('extras', extrasStep);
+    extrasStep.render(region, wizard);
+
+    const inc = () => region.querySelector('[data-booked-action="extra-increment"]').click();
+    inc();
+    inc();
+    inc(); // third increment should be ignored (max 2)
+    expect(wizard.getState().context.selectedExtras[3]).toBe(2);
+    expect(region.querySelector('[data-booked-action="extra-increment"]').disabled).toBe(true);
+    renderer.destroy();
+  });
 });

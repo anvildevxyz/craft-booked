@@ -1112,6 +1112,9 @@ var Wizard = class {
     this._ctx.employees = list(employees, "employees");
     this._ctx.locations = list(employees, "locations");
     this._ctx.serviceHasSchedule = !!(employees && employees.serviceHasSchedule);
+    for (const extra of this._ctx.extras) {
+      if (extra.isRequired) this._ctx.setExtraQuantity(extra.id, 1);
+    }
     if (this._ctx.locations.length === 1) {
       this._ctx.selectedLocation = this._ctx.locations[0];
       this._ctx.locationId = this._ctx.locations[0].id;

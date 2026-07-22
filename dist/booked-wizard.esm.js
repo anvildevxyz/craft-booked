@@ -1105,6 +1105,9 @@ var Wizard = class {
     this._ctx.employees = list(employees, "employees");
     this._ctx.locations = list(employees, "locations");
     this._ctx.serviceHasSchedule = !!(employees && employees.serviceHasSchedule);
+    for (const extra of this._ctx.extras) {
+      if (extra.isRequired) this._ctx.setExtraQuantity(extra.id, 1);
+    }
     if (this._ctx.locations.length === 1) {
       this._ctx.selectedLocation = this._ctx.locations[0];
       this._ctx.locationId = this._ctx.locations[0].id;
@@ -1835,13 +1838,20 @@ var Renderer = class {
     if (captcha && captcha.value) fields.captchaToken = captcha.value;
     return fields;
   }
-  /** Nudge an add-on's quantity and repaint the active step. */
+  /** Nudge an add-on's quantity within its [min,max] and repaint the active step. */
   _adjustExtra(el, delta) {
     const id = Number(el.getAttribute("data-booked-extra-id"));
     if (!Number.isInteger(id)) return;
-    const current = this._wizard.getState().context.selectedExtras[id] || 0;
-    this._wizard.selectExtra(id, Math.max(0, current + delta));
-    this._updateActiveStep();
+    const ctx = this._wizard.getState().context;
+    const extra = (ctx.extras || []).find((e) => e.id === id);
+    const min = extra && extra.isRequired ? 1 : 0;
+    const max = extra && extra.maxQuantity ? extra.maxQuantity : Infinity;
+    const current = ctx.selectedExtras[id] || 0;
+    const next = Math.min(max, Math.max(min, current + delta));
+    if (next !== current) {
+      this._wizard.selectExtra(id, next);
+      this._updateActiveStep();
+    }
   }
   /** Render the initial step after the wizard has started (without stealing focus). */
   syncInitial() {
@@ -1905,14 +1915,22 @@ var extrasStep = {
       const frag = cloneTemplate(region, "extra-card");
       if (!frag) break;
       const qty = selected[extra.id] || 0;
+      const min = extra.isRequired ? 1 : 0;
+      const max = extra.maxQuantity ? extra.maxQuantity : Infinity;
       setText(frag.querySelector('[data-booked-field="name"]'), extra.name ?? extra.title);
       setText(frag.querySelector('[data-booked-field="price"]'), extra.price);
       setText(frag.querySelector("[data-booked-extra-qty]"), qty);
+      const card = frag.firstElementChild;
+      if (card && extra.isRequired) card.setAttribute("data-booked-required", "true");
       for (const el of frag.querySelectorAll('[data-booked-extra-id], [data-booked-action^="extra-"]')) {
         el.setAttribute("data-booked-extra-id", String(extra.id));
       }
       const qtyEl = frag.querySelector("[data-booked-extra-qty]");
       if (qtyEl) qtyEl.setAttribute("data-booked-extra-id", String(extra.id));
+      const dec = frag.querySelector('[data-booked-action="extra-decrement"]');
+      const inc = frag.querySelector('[data-booked-action="extra-increment"]');
+      if (dec) dec.disabled = qty <= min;
+      if (inc) inc.disabled = qty >= max;
       container.appendChild(frag);
     }
     setText(qs("[data-booked-extras-total]", region), context.extrasTotal);
@@ -2355,7 +2373,20 @@ function computeFixedEnd(startDate, durationDays) {
 var datetimeStep = {
   mount(region, wizard) {
     const slotList = qs("[data-booked-slots]", region);
-    const s = { calMap: {}, availSet: /* @__PURE__ */ new Set(), validEndSet: /* @__PURE__ */ new Set(), pickingEnd: false, selectedDate: null, cal: null, calSig: null };
+    const s = {
+      calMap: {},
+      availSet: /* @__PURE__ */ new Set(),
+      validEndSet: /* @__PURE__ */ new Set(),
+      pickingEnd: false,
+      selectedDate: null,
+      cal: null,
+      calSig: null,
+      qtyMax: 1,
+      // capacity of the current selection
+      qtyValue: 1,
+      reacquire: null
+      // (quantity) => Promise — re-locks the current selection
+    };
     state.set(region, s);
     this._buildCalendar(region, wizard, s);
     if (slotList) {
@@ -2363,14 +2394,20 @@ var datetimeStep = {
       delegate(slotList, "click", "[data-booked-time]", async (event, el) => {
         if (el.getAttribute("aria-disabled") === "true") return;
         const time = el.getAttribute("data-booked-time");
-        const res = await wizard.selectSlot({ date: s.selectedDate, time });
+        const res = await wizard.selectSlot({ date: s.selectedDate, time, quantity: 1 });
         if (res && res.acquired) {
           for (const opt of slotList.querySelectorAll('[role="option"]')) {
             opt.setAttribute("aria-selected", opt.getAttribute("data-booked-time") === time ? "true" : "false");
           }
+          s.qtyMax = Number(el.getAttribute("data-booked-capacity")) || 1;
+          s.qtyValue = 1;
+          s.reacquire = (quantity) => wizard.selectSlot({ date: s.selectedDate, time, quantity });
+          this._renderQuantity(region, s);
         }
       });
     }
+    delegate(region, "click", '[data-booked-action="qty-increment"]', () => this._adjustQuantity(region, s, 1));
+    delegate(region, "click", '[data-booked-action="qty-decrement"]', () => this._adjustQuantity(region, s, -1));
     const waitlist = qs("[data-booked-waitlist]", region);
     if (waitlist) {
       delegate(region, "click", '[data-booked-action="join-waitlist"]', async (event) => {
@@ -2470,9 +2507,12 @@ var datetimeStep = {
           const end = computeFixedEnd(start, duration);
           cal.setRange(start, end);
           await wizard.selectRange({ startDate: start, endDate: end });
+          await this._offerRangeQuantity(region, s, wizard, start, end);
           return;
         }
         s.pickingEnd = true;
+        s.reacquire = null;
+        this._renderQuantity(region, s);
         const ends = await wizard.loadEndDates({ startDate: start });
         s.validEndSet = new Set(ends || []);
         cal.setAvailability((d) => s.validEndSet.has(d));
@@ -2480,6 +2520,7 @@ var datetimeStep = {
       onRangeComplete: async ({ start, end }) => {
         await wizard.selectRange({ startDate: start, endDate: end });
         applyStartAvailability();
+        await this._offerRangeQuantity(region, s, wizard, start, end);
       }
     });
     s.cal = cal;
@@ -2502,10 +2543,42 @@ var datetimeStep = {
       s.selectedDate = context.date;
     }
   },
+  /** After a range is booked, show the quantity picker when the range capacity > 1. */
+  async _offerRangeQuantity(region, s, wizard, startDate, endDate) {
+    const cap = await wizard.loadRangeCapacity({ startDate, endDate });
+    s.qtyMax = cap && cap.remainingCapacity ? cap.remainingCapacity : 1;
+    s.qtyValue = 1;
+    s.reacquire = (quantity) => wizard.selectRange({ startDate, endDate, quantity });
+    this._renderQuantity(region, s);
+  },
+  /** Reflect the quantity picker (shown only when the selection's capacity > 1). */
+  _renderQuantity(region, s) {
+    const box = qs("[data-booked-slot-quantity]", region);
+    if (!box) return;
+    const active = !!s.reacquire && s.qtyMax > 1;
+    setHidden(box, !active);
+    if (!active) return;
+    setText(qs("[data-booked-slot-qty-value]", region), s.qtyValue);
+    const dec = qs('[data-booked-action="qty-decrement"]', region);
+    const inc = qs('[data-booked-action="qty-increment"]', region);
+    if (dec) dec.disabled = s.qtyValue <= 1;
+    if (inc) inc.disabled = s.qtyValue >= s.qtyMax;
+  },
+  /** Change the selection quantity within [1, capacity] and re-lock at the new count. */
+  async _adjustQuantity(region, s, delta) {
+    if (!s.reacquire) return;
+    const next = Math.min(s.qtyMax, Math.max(1, s.qtyValue + delta));
+    if (next === s.qtyValue) return;
+    s.qtyValue = next;
+    this._renderQuantity(region, s);
+    await s.reacquire(next);
+  },
   _renderSlots(region, slots, s, wizard) {
     const list2 = qs("[data-booked-slots]", region);
     if (!list2) return;
     list2.replaceChildren();
+    s.reacquire = null;
+    this._renderQuantity(region, s);
     const selectedTime = wizard.getState().context.time;
     for (const slot of slots) {
       const opt = document.createElement("button");
@@ -2514,6 +2587,7 @@ var datetimeStep = {
       opt.setAttribute("data-booked-time", slot.time);
       const cap = slot.availableCapacity;
       const unavailable = cap != null && cap < 1;
+      if (cap != null) opt.setAttribute("data-booked-capacity", String(cap));
       opt.setAttribute("aria-selected", slot.time === selectedTime ? "true" : "false");
       if (unavailable) opt.setAttribute("aria-disabled", "true");
       opt.textContent = slot.time;

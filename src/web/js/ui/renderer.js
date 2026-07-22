@@ -219,13 +219,20 @@ export class Renderer {
     return fields;
   }
 
-  /** Nudge an add-on's quantity and repaint the active step. */
+  /** Nudge an add-on's quantity within its [min,max] and repaint the active step. */
   _adjustExtra(el, delta) {
     const id = Number(el.getAttribute('data-booked-extra-id'));
     if (!Number.isInteger(id)) return;
-    const current = this._wizard.getState().context.selectedExtras[id] || 0;
-    this._wizard.selectExtra(id, Math.max(0, current + delta));
-    this._updateActiveStep();
+    const ctx = this._wizard.getState().context;
+    const extra = (ctx.extras || []).find((e) => e.id === id);
+    const min = extra && extra.isRequired ? 1 : 0; // required add-ons can't go to 0
+    const max = extra && extra.maxQuantity ? extra.maxQuantity : Infinity;
+    const current = ctx.selectedExtras[id] || 0;
+    const next = Math.min(max, Math.max(min, current + delta));
+    if (next !== current) {
+      this._wizard.selectExtra(id, next);
+      this._updateActiveStep();
+    }
   }
 
   /** Render the initial step after the wizard has started (without stealing focus). */

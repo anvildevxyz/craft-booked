@@ -26,6 +26,11 @@ const REGION = `
   <section>
     <div data-booked-calendar data-booked-initial-month="2026-08"></div>
     <div data-booked-slots></div>
+    <div data-booked-slot-quantity hidden>
+      <button data-booked-action="qty-decrement">−</button>
+      <output data-booked-slot-qty-value>1</output>
+      <button data-booked-action="qty-increment">+</button>
+    </div>
     <div data-booked-waitlist hidden>
       <div data-booked-waitlist-form>
         <input data-booked-field="name">
@@ -111,6 +116,38 @@ describe('datetimeStep — slots', () => {
   });
 });
 
+describe('datetimeStep — slot quantity picker', () => {
+  const qtyBox = (region) => region.querySelector('[data-booked-slot-quantity]');
+
+  it('reveals the quantity picker for a slot with capacity > 1 and re-locks on change', async () => {
+    const { region, wizard } = await setup();
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull()); // capacity 2
+    slot(region, '10:00').click();
+    await vi.waitFor(() => expect(qtyBox(region).hidden).toBe(false));
+
+    expect(region.querySelector('[data-booked-slot-qty-value]').textContent).toBe('1');
+    region.querySelector('[data-booked-action="qty-increment"]').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-slot-qty-value]').textContent).toBe('2'));
+    expect(wizard.getState().context.slotQuantity).toBe(2);
+    // Capped at capacity 2 → increment disabled.
+    expect(region.querySelector('[data-booked-action="qty-increment"]').disabled).toBe(true);
+  });
+
+  it('hides the quantity picker for a capacity-1 slot', async () => {
+    const { region, wizard } = await setup({
+      slots: vi.fn(async () => ({ slots: [{ time: '09:00', availableCapacity: 1 }] })),
+    });
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '09:00')).not.toBeNull());
+    slot(region, '09:00').click();
+    await vi.waitFor(() => expect(wizard.state).toBe('holdingLock'));
+    expect(qtyBox(region).hidden).toBe(true);
+  });
+});
+
 function dayApi(service, overrides = {}) {
   return {
     commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
@@ -119,6 +156,7 @@ function dayApi(service, overrides = {}) {
     employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1 }], serviceHasSchedule: true })),
     dates: vi.fn(async () => ({ availableDates: ['2026-08-03', '2026-08-04', '2026-08-05', '2026-08-10'] })),
     endDates: vi.fn(async () => ({ validEndDates: ['2026-08-04', '2026-08-05', '2026-08-06'] })),
+    rangeCapacity: vi.fn(async () => ({ remainingCapacity: 1, startDate: '2026-08-03', endDate: '2026-08-05' })),
     createRangeLock: vi.fn(async () => ({ success: true, token: 'range-lock', expiresIn: 300 })),
     extendLock: vi.fn(async () => ({ success: true, expiresIn: 300 })),
     releaseLock: vi.fn(async () => ({ success: true })),

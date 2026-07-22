@@ -307,6 +307,34 @@
   font-weight: 500;
 }
 
+/* --- Quantity picker ---------------------------------------------------- */
+
+.booked-quantity {
+  display: flex;
+  align-items: center;
+  gap: var(--booked-gap);
+  margin-bottom: var(--booked-space);
+}
+
+.booked-quantity button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--booked-border);
+  border-radius: var(--booked-radius);
+  background: var(--booked-bg);
+  cursor: pointer;
+}
+
+.booked-quantity button:disabled {
+  color: var(--booked-disabled);
+  cursor: default;
+}
+
+.booked-quantity [data-booked-slot-qty-value] {
+  min-width: 1.5rem;
+  text-align: center;
+}
+
 /* --- Info form ---------------------------------------------------------- */
 
 [data-booked-step='info'] label {

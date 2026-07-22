@@ -139,6 +139,12 @@
         <h2 data-booked-step-heading>{{ labels.selectDateTime }}</h2>
         <div class="booked-calendar" data-booked-calendar></div>
         <div class="booked-slots" data-booked-slots aria-label="{{ 'wizard.selectTime'|t('booked') }}"></div>
+        <div class="booked-quantity" data-booked-slot-quantity hidden>
+            <span id="booked-qty-label">{{ 'wizard.quantityLabel'|t('booked') }}</span>
+            <button type="button" data-booked-action="qty-decrement" aria-describedby="booked-qty-label" aria-label="{{ 'wizard.ariaDecreaseQuantity'|t('booked') }}">−</button>
+            <output data-booked-slot-qty-value aria-live="polite">1</output>
+            <button type="button" data-booked-action="qty-increment" aria-describedby="booked-qty-label" aria-label="{{ 'wizard.ariaIncreaseQuantity'|t('booked') }}">+</button>
+        </div>
         <div class="booked-waitlist" data-booked-waitlist hidden>
             <div data-booked-waitlist-form>
                 <p>{{ 'wizard.waitlistDesc'|t('booked') }}</p>

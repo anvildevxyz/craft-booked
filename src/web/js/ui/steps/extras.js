@@ -22,10 +22,15 @@ export const extrasStep = {
       const frag = cloneTemplate(region, 'extra-card');
       if (!frag) break;
       const qty = selected[extra.id] || 0;
+      const min = extra.isRequired ? 1 : 0;
+      const max = extra.maxQuantity ? extra.maxQuantity : Infinity;
 
       setText(frag.querySelector('[data-booked-field="name"]'), extra.name ?? extra.title);
       setText(frag.querySelector('[data-booked-field="price"]'), extra.price);
       setText(frag.querySelector('[data-booked-extra-qty]'), qty);
+
+      const card = frag.firstElementChild;
+      if (card && extra.isRequired) card.setAttribute('data-booked-required', 'true');
 
       // Stamp the extra id onto the card and its stepper controls.
       for (const el of frag.querySelectorAll('[data-booked-extra-id], [data-booked-action^="extra-"]')) {
@@ -33,6 +38,12 @@ export const extrasStep = {
       }
       const qtyEl = frag.querySelector('[data-booked-extra-qty]');
       if (qtyEl) qtyEl.setAttribute('data-booked-extra-id', String(extra.id));
+
+      // Disable steppers at the bounds so the UI matches the enforced limits.
+      const dec = frag.querySelector('[data-booked-action="extra-decrement"]');
+      const inc = frag.querySelector('[data-booked-action="extra-increment"]');
+      if (dec) dec.disabled = qty <= min;
+      if (inc) inc.disabled = qty >= max;
 
       container.appendChild(frag);
     }
