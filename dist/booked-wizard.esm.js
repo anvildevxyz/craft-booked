@@ -1687,6 +1687,11 @@ var Renderer = class {
     this._steps.set(stepId, stepRenderer);
     return this;
   }
+  /** Attach a captcha controller whose token refreshes before each submit. */
+  setCaptcha(captcha) {
+    this._captcha = captcha;
+    return this;
+  }
   // ---- Core → DOM ======================================================
   _bindCoreEvents() {
     const on = (event, handler) => this._unbinders.push(this._wizard.on(event, handler));
@@ -1781,9 +1786,15 @@ var Renderer = class {
       e.preventDefault();
       this._wizard.goBack();
     });
-    bind("click", '[data-booked-action="submit"]', (e) => {
+    bind("click", '[data-booked-action="submit"]', async (e) => {
       e.preventDefault();
       const addToCart = e.target.closest("[data-booked-add-to-cart]") !== null;
+      if (this._captcha) {
+        try {
+          await this._captcha.ensureToken();
+        } catch {
+        }
+      }
       this._wizard.submit({ addToCart, fields: this._collectAntiSpamFields() });
     });
     bind("click", '[data-booked-action="select-service"]', (e, el) => {
@@ -1869,6 +1880,80 @@ var Renderer = class {
     this._steps.clear();
   }
 };
+
+// src/web/js/ui/captcha.js
+var VENDORS = {
+  turnstile: { src: "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit", global: "turnstile" },
+  hcaptcha: { src: "https://js.hcaptcha.com/1/api.js?render=explicit", global: "hcaptcha" },
+  recaptcha: { srcFor: (key) => `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(key)}`, global: "grecaptcha" }
+};
+function loadScript(src, nonce) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.bookedLoaded) resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const el = document.createElement("script");
+    el.src = src;
+    el.async = true;
+    el.defer = true;
+    if (nonce) el.nonce = nonce;
+    el.addEventListener("load", () => {
+      el.dataset.bookedLoaded = "1";
+      resolve();
+    }, { once: true });
+    el.addEventListener("error", () => reject(new Error("captcha: vendor script failed to load")), { once: true });
+    document.head.appendChild(el);
+  });
+}
+async function setupCaptcha(config, root, { nonce = null, loader = loadScript, getVendor } = {}) {
+  if (!config || !config.provider || !config.siteKey || !root) return null;
+  const vendor = VENDORS[config.provider];
+  if (!vendor) return null;
+  const resolveVendor = getVendor || ((g2) => typeof window !== "undefined" ? window[g2] : void 0);
+  const tokenInput = root.querySelector("[data-booked-captcha-token]");
+  const setToken = (t) => {
+    if (tokenInput) tokenInput.value = t || "";
+  };
+  if (config.provider === "recaptcha") {
+    await loader(vendor.srcFor(config.siteKey), nonce);
+    return {
+      async ensureToken() {
+        const g2 = resolveVendor("grecaptcha");
+        if (!g2 || typeof g2.execute !== "function") return;
+        if (typeof g2.ready === "function") await new Promise((r) => g2.ready(r));
+        setToken(await g2.execute(config.siteKey, { action: config.action || "booking" }));
+      },
+      reset() {
+        setToken("");
+      }
+    };
+  }
+  await loader(vendor.src, nonce);
+  const g = resolveVendor(vendor.global);
+  const container = root.querySelector("[data-booked-captcha]");
+  let widgetId = null;
+  if (g && typeof g.render === "function" && container) {
+    widgetId = g.render(container, {
+      sitekey: config.siteKey,
+      callback: (token) => setToken(token),
+      "expired-callback": () => setToken(""),
+      "error-callback": () => setToken("")
+    });
+  }
+  return {
+    // The interactive widgets populate the token on solve; nothing to do here.
+    async ensureToken() {
+    },
+    reset() {
+      setToken("");
+      const vg = resolveVendor(vendor.global);
+      if (vg && typeof vg.reset === "function" && widgetId !== null) vg.reset(widgetId);
+    }
+  };
+}
 
 // src/web/js/ui/steps/service-list.js
 function fillCard(fragment, service) {
@@ -2741,6 +2826,10 @@ function create(options = {}) {
   }
   const renderer = new Renderer(wizard, root);
   registerDefaultSteps(renderer);
+  if (options.captcha && options.captcha.provider) {
+    setupCaptcha(options.captcha, root, { nonce: options.nonce }).then((captcha) => captcha && renderer.setCaptcha(captcha)).catch(() => {
+    });
+  }
   const offReady = wizard.on("state:change", ({ to }) => {
     if (to === "browsing") {
       offReady();

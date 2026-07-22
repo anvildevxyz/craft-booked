@@ -12,6 +12,11 @@
 {% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedWizardAsset") %}
 
 {% set settings = craft.booked.getSettings() %}
+{% set captchaProvider = settings.captchaProvider %}
+{% set captchaSiteKey = captchaProvider == 'recaptcha' ? settings.recaptchaSiteKey
+    : (captchaProvider == 'hcaptcha' ? settings.hcaptchaSiteKey
+    : (captchaProvider == 'turnstile' ? settings.turnstileSiteKey : null)) %}
+{% set captchaEnabled = settings.enableCaptcha and captchaSiteKey %}
 {% set labels = {
     selectEvent: 'wizard.selectEvent'|t('booked'),
     enterInfo: 'wizard.enterInfo'|t('booked'),
@@ -42,6 +47,11 @@
         defaultQuantity: defaultQuantity ?? 1,
         siteHandle: craft.app.sites.currentSite.handle,
     },
+    captcha: captchaEnabled ? {
+        provider: captchaProvider,
+        siteKey: captchaSiteKey,
+        action: settings.recaptchaAction ?? 'booking',
+    } : null,
     locale: craft.app.language,
 } %}
 
@@ -100,6 +110,10 @@
             <dt>{{ 'wizard.summaryTotal'|t('booked') }}</dt><dd data-booked-summary="total"></dd>
         </dl>
         <p class="booked-payment-notice" data-booked-payment-notice hidden>{{ 'wizard.paymentRequired'|t('booked') }}</p>
+        {% if captchaEnabled %}
+            <div class="booked-captcha" data-booked-captcha></div>
+            <input type="hidden" data-booked-captcha-token>
+        {% endif %}
         <div class="booked-nav">
             <button type="button" data-booked-action="back">{{ labels.back }}</button>
             <button type="button" data-booked-action="submit">{{ labels.book }}</button>

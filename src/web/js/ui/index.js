@@ -10,6 +10,7 @@
  */
 import { Wizard } from '../core/wizard.js';
 import { Renderer } from './renderer.js';
+import { setupCaptcha } from './captcha.js';
 import { serviceListStep } from './steps/service-list.js';
 import { extrasStep } from './steps/extras.js';
 import { locationStep } from './steps/location.js';
@@ -62,6 +63,13 @@ export function create(options = {}) {
 
   const renderer = new Renderer(wizard, root);
   registerDefaultSteps(renderer);
+
+  // Optional captcha: loads the vendor widget and feeds the token to submit.
+  if (options.captcha && options.captcha.provider) {
+    setupCaptcha(options.captcha, root, { nonce: options.nonce })
+      .then((captcha) => captcha && renderer.setCaptcha(captcha))
+      .catch(() => {});
+  }
   // Show the initial step the first time the core reaches `browsing` (the very
   // first transition is idle→loading, so `once` would miss browsing).
   const offReady = wizard.on('state:change', ({ to }) => {

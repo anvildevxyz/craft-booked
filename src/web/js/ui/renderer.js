@@ -52,6 +52,12 @@ export class Renderer {
     return this;
   }
 
+  /** Attach a captcha controller whose token refreshes before each submit. */
+  setCaptcha(captcha) {
+    this._captcha = captcha;
+    return this;
+  }
+
   // ---- Core → DOM ======================================================
 
   _bindCoreEvents() {
@@ -160,9 +166,17 @@ export class Renderer {
       e.preventDefault();
       this._wizard.goBack();
     });
-    bind('click', '[data-booked-action="submit"]', (e) => {
+    bind('click', '[data-booked-action="submit"]', async (e) => {
       e.preventDefault();
       const addToCart = e.target.closest('[data-booked-add-to-cart]') !== null;
+      // Refresh the captcha token (reCAPTCHA v3 mints one per submit) before sending.
+      if (this._captcha) {
+        try {
+          await this._captcha.ensureToken();
+        } catch {
+          /* fall through; backend rejects a missing/expired token */
+        }
+      }
       this._wizard.submit({ addToCart, fields: this._collectAntiSpamFields() });
     });
     bind('click', '[data-booked-action="select-service"]', (e, el) => {
