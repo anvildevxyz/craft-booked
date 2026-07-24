@@ -1,11 +1,10 @@
 /**
  * Lifecycle state machine — the "what phase is this booking in" dimension.
  *
- * Deliberately separate from the step cursor (see flow.js). Conflating the two
- * is what made the Alpine version fragile: back-navigation while a lock was
- * held, and slot expiry mid-payment, were implicit reactive side effects rather
- * than explicit, guarded transitions. Here every transition is declared and
- * illegal ones are rejected.
+ * Deliberately separate from the step cursor (see flow.js). Every transition is
+ * declared and illegal ones are rejected, so races like back-navigation while a
+ * lock is held, or slot expiry mid-payment, are explicit and guarded rather
+ * than implicit side effects.
  *
  * States and legal targets mirror docs/WIZARD_CORE_DESIGN.md §3.1.
  */

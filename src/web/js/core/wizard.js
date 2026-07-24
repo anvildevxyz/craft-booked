@@ -227,12 +227,12 @@ export class Wizard {
     this._ctx.locations = list(employees, 'locations');
     this._ctx.serviceHasSchedule = !!(employees && employees.serviceHasSchedule);
 
-    // Required add-ons start selected at quantity 1 (mirrors the legacy wizard).
+    // Required add-ons are pre-selected at quantity 1.
     for (const extra of this._ctx.extras) {
       if (extra.isRequired) this._ctx.setExtraQuantity(extra.id, 1);
     }
 
-    // Auto-select the only option, mirroring the current wizard.
+    // A lone location/employee is auto-selected so its step can be skipped.
     if (this._ctx.locations.length === 1) {
       this._ctx.selectedLocation = this._ctx.locations[0];
       this._ctx.locationId = this._ctx.locations[0].id;
@@ -302,7 +302,7 @@ export class Wizard {
     this._ctx.slotQuantity = quantity;
     const body = this._pruned({ eventDateId: id, quantity });
     // Event seat locks are best-effort server-side: the selection stands even
-    // when the lock can't be held, matching the legacy event wizard.
+    // when the lock can't be held.
     return this._acquire('event', body, () => this._emitter.emit('event:selected', { eventDateId: id, quantity }), {
       bestEffort: true,
     });

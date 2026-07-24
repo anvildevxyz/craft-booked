@@ -46,7 +46,7 @@ export class Renderer {
     this._bindDomActions();
   }
 
-  /** Register a per-step content renderer: { render(regionEl, wizard), update? }. */
+  /** Register a per-step content renderer: `{ mount?(region, wizard), render(region, wizard), unmount?(region) }`. */
   registerStep(stepId, stepRenderer) {
     this._steps.set(stepId, stepRenderer);
     return this;

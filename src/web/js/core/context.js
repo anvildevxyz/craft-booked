@@ -2,11 +2,8 @@
  * Wizard context — the selection state plus read-only computed getters.
  *
  * This is the single object the flow predicates and the renderer read. The
- * pricing/duration getters are a faithful port of the current wizard
- * (booking-wizard.js getExtrasTotal/getExtrasDuration/getServicePrice/
- * getTotalPrice/getDurationDays) so the client-side display total does not
- * drift from the server's authoritative calculation. Money math is copied,
- * not reinvented.
+ * pricing/duration getters compute a client-side display total; the server
+ * stays authoritative at booking time.
  *
  * The context holds no DOM and emits nothing; mutations go through small
  * setters so the wizard can react and the flow predicates see live values.

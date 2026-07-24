@@ -1,12 +1,11 @@
 /**
  * Soft-lock lifecycle + hold timer.
  *
- * Net-new client behavior: the current wizard has no countdown and only learns
- * a lock expired at submit time. Here the core owns the timer and announces
- * `lock:expiring` (warning threshold), performs a single silent auto-extend
- * when the user commits (submit/pay), and fires `lock:expired` when the hold
- * is truly gone. Clock authority stays server-side — the timer runs off the
- * server-provided `expiresIn`/`expiresAt`, never a client-guessed duration.
+ * The core owns the hold timer: it announces `lock:expiring` at the warning
+ * threshold, performs a single silent auto-extend when the user commits
+ * (submit/pay), and fires `lock:expired` when the hold is truly gone. Clock
+ * authority stays server-side — the timer runs off the server-provided
+ * `expiresIn`/`expiresAt`, never a client-guessed duration.
  *
  * The controller is transport- and DOM-agnostic: it takes an `api` (the v1
  * client's lock methods) and an `emit` function. Clock and timer functions are

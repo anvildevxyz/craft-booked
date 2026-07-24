@@ -10,8 +10,7 @@
  *
  * Stale-response guard: requests may be tagged with a `channel`. Firing a new
  * request on a channel aborts the in-flight one, so a late response for a
- * superseded selection can never overwrite fresher data. This centralizes the
- * per-fetch snapshot-compare that was scattered across the old wizard.
+ * superseded selection can never overwrite fresher data.
  */
 
 /** Error carrying an HTTP status and a machine-readable code. */

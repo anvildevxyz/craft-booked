@@ -1,10 +1,8 @@
 /**
  * Field validation — pure functions, no DOM, no i18n.
  *
- * The email regex is the exact one from the current wizard
- * (web/js/utils/validation.js) so acceptance does not change during the
- * migration. Validators return an error *key* (i18n resolves the message) or
- * null when valid, so the renderer and the core share one validation source.
+ * Validators return an error *key* (i18n resolves the message) or null when
+ * valid, so the renderer and the core share one validation source.
  */
 
 // Local part + domain with a real TLD (≥2 chars), not just "example".

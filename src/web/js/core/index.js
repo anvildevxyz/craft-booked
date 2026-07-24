@@ -1,12 +1,9 @@
 /**
- * Booked headless wizard core — public entry point.
+ * Booked headless wizard core — public entry point. Exports the `create()`
+ * facade plus its building blocks.
  *
- * The full `BookedWizard.create()` facade (context, api, lock, i18n wired
- * together) lands as M1 progresses. This entry currently exports the building
- * blocks that are implemented and tested, plus the contract version.
- *
- * The core contract version is semver'd independently of the plugin version:
- * additions bump minor, removals/renames bump major (2.0).
+ * `version` is the core contract version, semver'd independently of the plugin:
+ * additions bump minor, removals/renames bump major.
  */
 export const version = '1.0.0-dev';
 

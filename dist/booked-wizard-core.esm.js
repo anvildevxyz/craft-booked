@@ -916,9 +916,7 @@ var bookingFlow = {
     { id: "extras", visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
     { id: "location", visible: (ctx) => Array.isArray(ctx.locations) && ctx.locations.length > 1 },
     {
-      // Parity with the legacy shouldSkipEmployeeStep: show whenever employees
-      // exist (so the customer sees/confirms who they're booking with), even for
-      // a schedule-carrying service. Skipped only when there are no employees.
+      // Shown whenever employees exist; skipped only when there are none.
       id: "employee",
       visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 0
     },

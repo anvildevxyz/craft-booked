@@ -2,11 +2,9 @@
  * Flow-step engine — the step cursor.
  *
  * A flow is an ordered list of steps, each with a `visible(ctx)` predicate.
- * Navigation walks to the next/previous step whose predicate is true, so the
- * forward and backward directions share a *single source of truth*. This
- * replaces the old `nextStep` / `getPreviousStep` / `shouldSkipEmployeeStep`
- * split, where the reverse logic duplicated the skip rules and drifted out of
- * sync (the back-nav bug class).
+ * Navigation walks to the next/previous step whose predicate is true, so
+ * forward and backward directions share a *single source of truth* — the two
+ * can never disagree about which steps to skip.
  *
  * The engine is pure: it holds no state beyond the current index and never
  * touches the DOM. `context` is supplied by the caller on every query so
