@@ -166,7 +166,8 @@ const wizard = BookedWizard.create({
   serviceId: 12,          // optional preselects (booking)
   eventDateId: 34,        // optional preselect (event)
   locationId, employeeId, date, time,  // optional deep-link seeds
-  token: '…',             // waitlist-conversion or manage token
+  conversionToken: '…',   // waitlist-conversion prefill (book mode)
+  manageToken: '…',       // reservation token (manage mode)
   locale: 'de',
   labels: { /* same keys as today's Twig config */ },
   config: { /* toggles: requirePhone, showNotes, defaultQuantity, captcha…, honeypot… */ },

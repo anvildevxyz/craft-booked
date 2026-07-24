@@ -62,7 +62,7 @@ export class Wizard {
 
     // `?manage=` runs the management flow; otherwise the booking/event flow.
     this._mode = options.mode === 'manage' ? 'manage' : 'book';
-    this._manageToken = options.manageToken ?? (this._mode === 'manage' ? options.token : null);
+    this._manageToken = options.manageToken ?? null;
     const flowName = this._mode === 'manage' ? 'manage' : (options.flow ?? 'booking');
     const flowDef = FLOWS[flowName];
     if (!flowDef) throw new Error(`Wizard: unknown flow "${options.flow}"`);
@@ -144,7 +144,7 @@ export class Wizard {
       }
 
       // Waitlist conversion: a "your slot is open" link prefills who/what.
-      const conversionToken = this._options.conversionToken ?? this._options.waitlist;
+      const conversionToken = this._options.conversionToken;
       if (conversionToken) {
         await this._applyConversion(conversionToken);
       }

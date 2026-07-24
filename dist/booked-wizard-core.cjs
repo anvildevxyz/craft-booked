@@ -1021,7 +1021,7 @@ var Wizard = class {
       customer: options.customer ?? {}
     });
     this._mode = options.mode === "manage" ? "manage" : "book";
-    this._manageToken = options.manageToken ?? (this._mode === "manage" ? options.token : null);
+    this._manageToken = options.manageToken ?? null;
     const flowName = this._mode === "manage" ? "manage" : options.flow ?? "booking";
     const flowDef = FLOWS[flowName];
     if (!flowDef) throw new Error(`Wizard: unknown flow "${options.flow}"`);
@@ -1088,7 +1088,7 @@ var Wizard = class {
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
       }
-      const conversionToken = this._options.conversionToken ?? this._options.waitlist;
+      const conversionToken = this._options.conversionToken;
       if (conversionToken) {
         await this._applyConversion(conversionToken);
       }
