@@ -941,6 +941,7 @@ function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
 var Wizard = class {
+  /** @param {import('./types.js').WizardOptions} [options] */
   constructor(options = {}) {
     this._options = options;
     this._emitter = new Emitter();

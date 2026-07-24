@@ -535,7 +535,7 @@ class SlotController extends Controller
         }
 
         $token = Craft::$app->request->getBodyParam('token');
-        if (!$token) {
+        if (!is_string($token) || $token === '') {
             return $this->jsonError(Craft::t('booked', 'slot.noTokenProvided'));
         }
 

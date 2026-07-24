@@ -27,6 +27,7 @@ function list(payload, key) {
 }
 
 export class Wizard {
+  /** @param {import('./types.js').WizardOptions} [options] */
   constructor(options = {}) {
     this._options = options;
     this._emitter = new Emitter();
