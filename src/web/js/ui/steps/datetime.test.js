@@ -67,10 +67,11 @@ describe('datetimeStep — calendar', () => {
 
   it('marks bookable days available and others disabled from the loaded map', async () => {
     const { region } = await setup();
+    // Wait for availability to apply — a bookable day (08-10) becomes enabled.
     await vi.waitFor(() => {
-      expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
+      expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false);
     });
-    expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false);
+    expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
   });
 
   it('reloads availability when the month changes', async () => {

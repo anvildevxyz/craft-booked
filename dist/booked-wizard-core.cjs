@@ -1209,29 +1209,14 @@ var Wizard = class {
     this._ctx.date = date;
     this._ctx.time = time;
     this._ctx.slotQuantity = quantity;
-    const body = this._pruned({
-      date,
-      startTime: time,
-      serviceId: this._ctx.serviceId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      extrasDuration: this._ctx.extrasDuration || null,
-      quantity: quantity > 1 ? quantity : null
-    });
+    const body = this._pruned({ date, startTime: time, ...this._selectionParams({ quantity: true, extrasDuration: true }) });
     return this._acquire("slot", body, () => this._emitter.emit("slot:selected", { date, time, quantity }));
   }
   async selectRange({ startDate, endDate, quantity = 1 } = {}) {
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
-    const body = this._pruned({
-      date: startDate,
-      endDate,
-      serviceId: this._ctx.serviceId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      quantity: quantity > 1 ? quantity : null
-    });
+    const body = this._pruned({ date: startDate, endDate, ...this._selectionParams({ quantity: true }) });
     return this._acquire("range", body, () => this._emitter.emit("range:selected", { startDate, endDate, quantity }));
   }
   async selectEventDate(id, { quantity = 1 } = {}) {
@@ -1307,156 +1292,88 @@ var Wizard = class {
     this._emitter.emit("announce", { message, politeness: "assertive" });
   }
   // ---- Availability data (for the calendar / slot UI) =================
+  /** The service/employee/location that identify a selection, plus optional quantity/extras. */
+  _selectionParams({ quantity = false, extrasDuration = false } = {}) {
+    const params = {
+      serviceId: this._ctx.serviceId,
+      employeeId: this._ctx.employeeId,
+      locationId: this._ctx.locationId
+    };
+    if (quantity) params.quantity = this._ctx.slotQuantity > 1 ? this._ctx.slotQuantity : null;
+    if (extrasDuration) params.extrasDuration = this._ctx.extrasDuration || null;
+    return params;
+  }
   /**
-   * Load the month availability map for the current selection. Returns a
-   * `{ 'YYYY-MM-DD': { isBookable, hasAvailability, isBlackedOut } }` map (or
-   * null if the request was superseded). Emits `data:loaded` (kind 'calendar').
+   * Run an availability request. Returns its data, or null when the request was
+   * superseded (a newer selection aborted it) or failed — a failure surfaces via
+   * `_toError`. Callers post-process the data (pick, emit, side effects).
    */
-  async loadCalendar({ year, month } = {}) {
-    let data;
+  async _load(call) {
     try {
-      data = await this._api.calendar(
-        this._pruned({
-          serviceId: this._ctx.serviceId,
-          employeeId: this._ctx.employeeId,
-          locationId: this._ctx.locationId,
-          year,
-          month,
-          quantity: this._ctx.slotQuantity > 1 ? this._ctx.slotQuantity : null,
-          extrasDuration: this._ctx.extrasDuration || null
-        })
-      );
+      return await call();
     } catch (err) {
       if (err && err.aborted) return null;
       this._toError(err);
       return null;
     }
-    const calendar = data && data.calendar || {};
+  }
+  /**
+   * Month availability map for the current selection —
+   * `{ 'YYYY-MM-DD': { isBookable, hasAvailability, isBlackedOut } }`, or null if
+   * superseded. Emits `data:loaded` (kind 'calendar').
+   */
+  async loadCalendar({ year, month } = {}) {
+    const params = this._pruned({ ...this._selectionParams({ quantity: true, extrasDuration: true }), year, month });
+    const data = await this._load(() => this._api.calendar(params));
+    if (data === null) return null;
+    const calendar = data.calendar || {};
     this._emitter.emit("data:loaded", { kind: "calendar", items: calendar });
     return calendar;
   }
   /**
-   * Load bookable time slots for a date. Returns `{ slots, waitlistAvailable }`
-   * (or null if superseded). Emits `data:loaded` (kind 'slots'). Records the
-   * date on the context so a subsequent `selectSlot` matches.
+   * Bookable time slots for a date — `{ slots, waitlistAvailable }`, or null if
+   * superseded. Records the date on the context; emits `data:loaded` ('slots').
    */
   async loadSlots({ date } = {}) {
-    let data;
-    try {
-      data = await this._api.slots(
-        this._pruned({
-          date,
-          serviceId: this._ctx.serviceId,
-          employeeId: this._ctx.employeeId,
-          locationId: this._ctx.locationId,
-          quantity: this._ctx.slotQuantity > 1 ? this._ctx.slotQuantity : null,
-          extrasDuration: this._ctx.extrasDuration || null
-        })
-      );
-    } catch (err) {
-      if (err && err.aborted) return null;
-      this._toError(err);
-      return null;
-    }
-    const slots = data && data.slots || [];
-    const waitlistAvailable = !!(data && data.waitlistAvailable);
+    const params = this._pruned({ date, ...this._selectionParams({ quantity: true, extrasDuration: true }) });
+    const data = await this._load(() => this._api.slots(params));
+    if (data === null) return null;
+    const slots = data.slots || [];
+    const waitlistAvailable = !!data.waitlistAvailable;
     this._ctx.date = date;
     this._emitter.emit("data:loaded", { kind: "slots", items: slots, waitlistAvailable });
     return { slots, waitlistAvailable };
   }
-  /**
-   * Load selectable start dates for a day-service month (`YYYY-MM`). Returns an
-   * array of date strings (or null if superseded). Emits `data:loaded` (dates).
-   */
+  /** Selectable start dates for a day-service month (`YYYY-MM`), or null if superseded. */
   async loadDates({ month } = {}) {
-    let data;
-    try {
-      data = await this._api.dates(
-        this._pruned({
-          serviceId: this._ctx.serviceId,
-          employeeId: this._ctx.employeeId,
-          locationId: this._ctx.locationId,
-          month,
-          quantity: this._ctx.slotQuantity > 1 ? this._ctx.slotQuantity : null,
-          extrasDuration: this._ctx.extrasDuration || null
-        })
-      );
-    } catch (err) {
-      if (err && err.aborted) return null;
-      this._toError(err);
-      return null;
-    }
-    const availableDates = data && data.availableDates || [];
+    const params = this._pruned({ ...this._selectionParams({ quantity: true, extrasDuration: true }), month });
+    const data = await this._load(() => this._api.dates(params));
+    if (data === null) return null;
+    const availableDates = data.availableDates || [];
     this._emitter.emit("data:loaded", { kind: "dates", items: availableDates });
     return availableDates;
   }
-  /**
-   * Load valid end dates for a flexible-day service given a start date. Returns
-   * an array of date strings (or null if superseded). Emits `data:loaded`.
-   */
+  /** Valid end dates for a flexible-day service given a start date, or null if superseded. */
   async loadEndDates({ startDate } = {}) {
-    let data;
-    try {
-      data = await this._api.endDates(
-        this._pruned({
-          serviceId: this._ctx.serviceId,
-          employeeId: this._ctx.employeeId,
-          locationId: this._ctx.locationId,
-          startDate,
-          quantity: this._ctx.slotQuantity > 1 ? this._ctx.slotQuantity : null
-        })
-      );
-    } catch (err) {
-      if (err && err.aborted) return null;
-      this._toError(err);
-      return null;
-    }
-    const validEndDates = data && data.validEndDates || [];
+    const params = this._pruned({ ...this._selectionParams({ quantity: true }), startDate });
+    const data = await this._load(() => this._api.endDates(params));
+    if (data === null) return null;
+    const validEndDates = data.validEndDates || [];
     this._emitter.emit("data:loaded", { kind: "endDates", items: validEndDates });
     return validEndDates;
   }
-  /**
-   * Remaining capacity for a multi-day range (tightest day wins). Returns
-   * `{ remainingCapacity, startDate, endDate }` or null if superseded.
-   */
+  /** Remaining capacity for a multi-day range (tightest day wins), or null if superseded. */
   async loadRangeCapacity({ startDate, endDate } = {}) {
-    let data;
-    try {
-      data = await this._api.rangeCapacity(
-        this._pruned({
-          serviceId: this._ctx.serviceId,
-          employeeId: this._ctx.employeeId,
-          locationId: this._ctx.locationId,
-          startDate,
-          endDate
-        })
-      );
-    } catch (err) {
-      if (err && err.aborted) return null;
-      this._toError(err);
-      return null;
-    }
-    if (!data) return null;
-    return {
-      remainingCapacity: data.remainingCapacity,
-      startDate: data.startDate,
-      endDate: data.endDate
-    };
+    const params = this._pruned({ ...this._selectionParams(), startDate, endDate });
+    const data = await this._load(() => this._api.rangeCapacity(params));
+    if (data === null) return null;
+    return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
-  /**
-   * Load event dates for the event flow. Returns the list (or null if
-   * superseded) and stores it on the context. Emits `data:loaded` (eventDates).
-   */
+  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
   async loadEventDates(query = {}) {
-    let data;
-    try {
-      data = await this._api.eventDates(this._pruned(query));
-    } catch (err) {
-      if (err && err.aborted) return null;
-      this._toError(err);
-      return null;
-    }
-    const eventDates = data && data.eventDates || [];
+    const data = await this._load(() => this._api.eventDates(this._pruned(query)));
+    if (data === null) return null;
+    const eventDates = data.eventDates || [];
     this._ctx.eventDates = eventDates;
     this._emitter.emit("data:loaded", { kind: "eventDates", items: eventDates });
     return eventDates;
@@ -1484,40 +1401,29 @@ var Wizard = class {
     this._emitter.emit("manage:loaded", { reservation: data });
   }
   /** Cancel the managed booking. */
-  async manageCancel({ reason } = {}) {
-    if (!this._ctx.reservation) return { ok: false };
-    try {
-      const result = await this._api.manageCancel({ token: this._manageToken, reason });
-      if (result && result.success === false) {
-        throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
-      }
-      await this._reloadReservation().catch((err) => console.warn("Booked: reservation reload failed after update", err));
-      this._emitter.emit("manage:cancelled", { reservation: this._ctx.reservation });
-      return { ok: true };
-    } catch (err) {
-      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
-      return { ok: false, error: err.message };
-    }
+  manageCancel({ reason } = {}) {
+    return this._manageAction(() => this._api.manageCancel({ token: this._manageToken, reason }), "manage:cancelled");
   }
   manageReduce(reduceBy = 1) {
-    return this._manageQuantity("manageReduce", { reduceBy });
+    return this._manageAction((res) => this._api.manageReduce({ id: res.id, token: this._manageToken, reduceBy }), "manage:updated");
   }
   manageIncrease(increaseBy = 1) {
-    return this._manageQuantity("manageIncrease", { increaseBy });
+    return this._manageAction((res) => this._api.manageIncrease({ id: res.id, token: this._manageToken, increaseBy }), "manage:updated");
   }
-  async _manageQuantity(method, extra) {
+  /** Run a management mutation on the loaded reservation, then reload and emit `event`. */
+  async _manageAction(call, event) {
     const res = this._ctx.reservation;
     if (!res) return { ok: false };
     try {
-      const result = await this._api[method]({ id: res.id, token: this._manageToken, ...extra });
+      const result = await call(res);
       if (result && result.success === false) {
         throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
       }
       await this._reloadReservation().catch((err) => console.warn("Booked: reservation reload failed after update", err));
-      this._emitter.emit("manage:updated", { reservation: this._ctx.reservation });
+      this._emitter.emit(event, { reservation: this._ctx.reservation });
       return { ok: true };
     } catch (err) {
-      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
+      this._emitRecoverableError(err);
       return { ok: false, error: err.message };
     }
   }
@@ -1547,6 +1453,10 @@ var Wizard = class {
     this._emitter.emit("step:change", { from: stepId, to, direction: "back" });
     this._announceStep();
     return { ok: true, stepId: to };
+  }
+  /** Emit a recoverable `error` from a caught exception. */
+  _emitRecoverableError(err) {
+    this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
   }
   /** Emit a validation error with resolved per-field messages + a summary message. */
   _emitValidationError(errors) {
@@ -1615,7 +1525,7 @@ var Wizard = class {
         return { ok: false, expired: true };
       }
       this._machine.transition(STATES.ERROR);
-      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
+      this._emitRecoverableError(err);
       return { ok: false, error: err.message };
     }
   }
@@ -1654,7 +1564,7 @@ var Wizard = class {
       this._emitter.emit("waitlist:joined", { result });
       return { ok: true, result };
     } catch (err) {
-      this._emitter.emit("error", { message: err.message, code: err.code || "error", recoverable: true });
+      this._emitRecoverableError(err);
       return { ok: false, error: err.message };
     }
   }
