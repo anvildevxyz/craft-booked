@@ -539,9 +539,11 @@ class SlotController extends Controller
             return $this->jsonError(Craft::t('booked', 'slot.noTokenProvided'));
         }
 
-        $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
+        $settings = Booked::getInstance()->getSettings();
+        $durationMinutes = $settings->softLockDurationMinutes ?? 5;
+        $maxLifetimeMinutes = $settings->softLockMaxLifetimeMinutes ?? 30;
         $softLockService = Booked::getInstance()->getSoftLock();
-        $newExpiry = $softLockService->extendLock($token, $durationMinutes, $softLockService->getSessionHash());
+        $newExpiry = $softLockService->extendLock($token, $durationMinutes, $softLockService->getSessionHash(), $maxLifetimeMinutes);
 
         // A gone/expired lock returns 410 so the client can drop into its expired flow.
         if ($newExpiry === false) {

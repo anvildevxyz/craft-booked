@@ -19,6 +19,7 @@ use craft\db\ActiveRecord;
  * @property string|null $endDate
  * @property int $quantity
  * @property string $expiresAt
+ * @property string $dateCreated
  */
 class SoftLockRecord extends ActiveRecord
 {

@@ -26,7 +26,9 @@
 } %}
 
 <div data-booked-wizard data-booked-auto class="booked-wizard">
-    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode|raw }}</script>
+    {# Encode with JSON_HEX_* so the reflected manage token can never break out of
+       this inline script block, independent of json_encode's slash-escaping. #}
+    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_QUOT'))|raw }}</script>
 
     <div data-booked-loading hidden>{{ 'wizard.manageLoading'|t('booked') }}</div>
     <p data-booked-error role="alert" hidden></p>

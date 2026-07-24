@@ -59,14 +59,12 @@
         action: settings.recaptchaAction ?? 'booking',
     } : null,
     locale: craft.app.language,
-    messages: {
-        'announce.loadingSlots': 'wizard.loadingTimesAnnounce'|t('booked'),
-        'announce.noSlots': 'wizard.noSlotsAnnounce'|t('booked'),
-    },
 } %}
 
 <div data-booked-wizard data-booked-auto class="booked-wizard">
-    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode|raw }}</script>
+    {# Encode with JSON_HEX_* so `<`, `>`, `&`, quotes can never break out of this
+       inline script block, independent of json_encode's default slash-escaping. #}
+    <script type="application/json" data-booked-config>{{ bookedConfig|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_QUOT'))|raw }}</script>
 
     {% set honeypotName = craft.booked.getSettings().honeypotFieldName ?? null %}
     {% if honeypotName %}

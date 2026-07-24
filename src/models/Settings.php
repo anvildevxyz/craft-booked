@@ -20,6 +20,14 @@ class Settings extends Model
     // General
     public ?string $defaultCurrency = null;
     public int $softLockDurationMinutes = 5;
+    /**
+     * Hard ceiling, in minutes, on a soft lock's total lifetime. A lock may be
+     * renewed via {@see \anvildev\booked\services\SoftLockService::extendLock()}
+     * as the customer completes checkout, but never held past its creation time
+     * plus this value — so a client cannot sit on a slot indefinitely and starve
+     * real bookings.
+     */
+    public int $softLockMaxLifetimeMinutes = 30;
     public int $minimumAdvanceBookingHours = 0;
     public int $maximumAdvanceBookingDays = 90;
     public int $cancellationPolicyHours = 24;
@@ -220,9 +228,10 @@ class Settings extends Model
         return [
             [['defaultCurrency'], 'string', 'max' => 4],
             [['defaultCurrency'], 'match', 'pattern' => '/^(auto|[A-Z]{3})$/', 'message' => Craft::t('booked', 'settings.attributeLabels.currencyValidation'), 'skipOnEmpty' => true],
-            [['softLockDurationMinutes', 'rateLimitPerEmail', 'rateLimitPerIp'], 'integer', 'min' => 1],
+            [['softLockDurationMinutes', 'softLockMaxLifetimeMinutes', 'rateLimitPerEmail', 'rateLimitPerIp'], 'integer', 'min' => 1],
             [['minimumAdvanceBookingHours', 'maximumAdvanceBookingDays', 'cancellationPolicyHours'], 'integer', 'min' => 0],
             [['softLockDurationMinutes'], 'default', 'value' => 5],
+            [['softLockMaxLifetimeMinutes'], 'default', 'value' => 30],
             [['minimumAdvanceBookingHours'], 'default', 'value' => 0],
             [['maximumAdvanceBookingDays'], 'default', 'value' => 90],
             [['rateLimitPerEmail'], 'default', 'value' => 5],
