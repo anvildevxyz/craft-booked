@@ -808,23 +808,12 @@ var LockController = class {
 
 // src/web/js/core/i18n.js
 var DEFAULTS = Object.freeze({
-  // Announcements (aria-live)
-  "announce.loading": "Loading\u2026",
-  "announce.loadingSlots": "Loading available times\u2026",
-  "announce.slotsLoaded": "{count} available times found.",
-  "announce.noSlots": "No available times for this date.",
   "announce.stepChanged": "Step {position} of {total}: {title}",
-  // Lock countdown
   "lock.expiring": "Your reservation is held for {minutes} more minute(s).",
-  "lock.expiringSeconds": "Your reservation is held for {seconds} more second(s).",
   "lock.expired": "Your reserved time has expired. Please choose a time again.",
-  // Errors
   "error.generic": "Something went wrong. Please try again.",
-  "error.network": "Could not reach the server. Please check your connection.",
   "error.booking": "Your booking could not be completed.",
-  "error.rateLimited": "Too many requests. Please wait a moment and try again.",
   "error.slotReserved": "That time was just taken. Please choose another.",
-  // Validation
   "validation.serviceRequired": "Please choose a service.",
   "validation.slotRequired": "Please choose a date and time.",
   "validation.eventRequired": "Please choose an event date.",
@@ -834,10 +823,7 @@ var DEFAULTS = Object.freeze({
   "validation.phoneRequired": "Please enter your phone number.",
   "validation.quantityInvalid": "Please enter a valid quantity.",
   "validation.quantityTooLow": "Quantity is too low.",
-  "validation.quantityTooHigh": "Not enough capacity for that quantity.",
-  // Waitlist
-  "waitlist.joined": "You have been added to the waitlist.",
-  "waitlist.error": "Could not join the waitlist. Please try again."
+  "validation.quantityTooHigh": "Not enough capacity for that quantity."
 });
 function interpolate(template, params) {
   if (!params) return template;
@@ -960,9 +946,7 @@ var manageFlow = {
 // src/web/js/core/wizard.js
 var FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 function list(payload, key) {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload[key])) return payload[key];
-  return [];
+  return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
 var Wizard = class {
   constructor(options = {}) {
@@ -1105,7 +1089,7 @@ var Wizard = class {
   }
   _applyCommerce(payload) {
     this._ctx.commerce = {
-      enabled: !!(payload.commerceEnabled ?? payload.enabled),
+      enabled: !!payload.commerceEnabled,
       currency: payload.currency ?? null,
       currencySymbol: payload.currencySymbol ?? null,
       cartUrl: payload.cartUrl ?? null,
@@ -1216,7 +1200,7 @@ var Wizard = class {
         onSuccess();
         return { acquired: false, bestEffort: true };
       }
-      if (err && (err.status === 409 || err.status === 400)) {
+      if (err && err.status === 400) {
         this._emitter.emit("error", {
           message: err.message || this._i18n.t("error.slotReserved"),
           code: "slot_reserved",
@@ -1571,7 +1555,7 @@ var Wizard = class {
       this._ctx.lock = null;
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
-      const reservation = result?.reservation ?? result;
+      const reservation = result.reservation;
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {

@@ -9,8 +9,8 @@ function fakeApi(overrides = {}) {
     commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
     services: vi.fn(async () => ({
       services: [
-        { id: 12, name: 'Haircut', price: 40, duration: 30, durationType: 'minutes' },
-        { id: 13, name: 'Color', price: 90, duration: 90, durationType: 'minutes' },
+        { id: 12, title: 'Haircut', price: 40, duration: 30, durationType: 'minutes' },
+        { id: 13, title: 'Color', price: 90, duration: 90, durationType: 'minutes' },
       ],
     })),
     serviceExtras: vi.fn(async () => ({ extras: [] })),

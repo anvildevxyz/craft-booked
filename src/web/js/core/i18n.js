@@ -12,26 +12,15 @@
  */
 
 export const DEFAULTS = Object.freeze({
-  // Announcements (aria-live)
-  'announce.loading': 'Loading…',
-  'announce.loadingSlots': 'Loading available times…',
-  'announce.slotsLoaded': '{count} available times found.',
-  'announce.noSlots': 'No available times for this date.',
   'announce.stepChanged': 'Step {position} of {total}: {title}',
 
-  // Lock countdown
   'lock.expiring': 'Your reservation is held for {minutes} more minute(s).',
-  'lock.expiringSeconds': 'Your reservation is held for {seconds} more second(s).',
   'lock.expired': 'Your reserved time has expired. Please choose a time again.',
 
-  // Errors
   'error.generic': 'Something went wrong. Please try again.',
-  'error.network': 'Could not reach the server. Please check your connection.',
   'error.booking': 'Your booking could not be completed.',
-  'error.rateLimited': 'Too many requests. Please wait a moment and try again.',
   'error.slotReserved': 'That time was just taken. Please choose another.',
 
-  // Validation
   'validation.serviceRequired': 'Please choose a service.',
   'validation.slotRequired': 'Please choose a date and time.',
   'validation.eventRequired': 'Please choose an event date.',
@@ -42,10 +31,6 @@ export const DEFAULTS = Object.freeze({
   'validation.quantityInvalid': 'Please enter a valid quantity.',
   'validation.quantityTooLow': 'Quantity is too low.',
   'validation.quantityTooHigh': 'Not enough capacity for that quantity.',
-
-  // Waitlist
-  'waitlist.joined': 'You have been added to the waitlist.',
-  'waitlist.error': 'Could not join the waitlist. Please try again.',
 });
 
 function interpolate(template, params) {

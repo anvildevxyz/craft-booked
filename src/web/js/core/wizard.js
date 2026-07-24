@@ -21,11 +21,9 @@ import { manageFlow } from './flows/manage.js';
 
 const FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 
-/** Tolerate both `{items: [...]}` envelopes and bare arrays from an endpoint. */
+/** Extract a list from a `{[key]: [...]}` JSON envelope. */
 function list(payload, key) {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload[key])) return payload[key];
-  return [];
+  return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
 
 export class Wizard {
@@ -197,7 +195,7 @@ export class Wizard {
 
   _applyCommerce(payload) {
     this._ctx.commerce = {
-      enabled: !!(payload.commerceEnabled ?? payload.enabled),
+      enabled: !!payload.commerceEnabled,
       currency: payload.currency ?? null,
       currencySymbol: payload.currencySymbol ?? null,
       cartUrl: payload.cartUrl ?? null,
@@ -329,10 +327,9 @@ export class Wizard {
         onSuccess();
         return { acquired: false, bestEffort: true };
       }
-      // A conflict/bad-request while locking means the slot is unavailable, not
-      // a fatal error — surface it as recoverable and stay on the step. The
-      // backend returns 400 for a taken slot (jsonError default).
-      if (err && (err.status === 409 || err.status === 400)) {
+      // The backend returns 400 (jsonError default) for a taken slot — surface it
+      // as recoverable and stay on the step, not a fatal error.
+      if (err && err.status === 400) {
         this._emitter.emit('error', {
           message: err.message || this._i18n.t('error.slotReserved'),
           code: 'slot_reserved',
@@ -715,7 +712,7 @@ export class Wizard {
       this._ctx.lock = null;
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
-      const reservation = result?.reservation ?? result;
+      const reservation = result.reservation;
       this._emitter.emit('booking:confirmed', { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {

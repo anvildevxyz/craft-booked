@@ -808,23 +808,12 @@ var LockController = class {
 
 // src/web/js/core/i18n.js
 var DEFAULTS = Object.freeze({
-  // Announcements (aria-live)
-  "announce.loading": "Loading\u2026",
-  "announce.loadingSlots": "Loading available times\u2026",
-  "announce.slotsLoaded": "{count} available times found.",
-  "announce.noSlots": "No available times for this date.",
   "announce.stepChanged": "Step {position} of {total}: {title}",
-  // Lock countdown
   "lock.expiring": "Your reservation is held for {minutes} more minute(s).",
-  "lock.expiringSeconds": "Your reservation is held for {seconds} more second(s).",
   "lock.expired": "Your reserved time has expired. Please choose a time again.",
-  // Errors
   "error.generic": "Something went wrong. Please try again.",
-  "error.network": "Could not reach the server. Please check your connection.",
   "error.booking": "Your booking could not be completed.",
-  "error.rateLimited": "Too many requests. Please wait a moment and try again.",
   "error.slotReserved": "That time was just taken. Please choose another.",
-  // Validation
   "validation.serviceRequired": "Please choose a service.",
   "validation.slotRequired": "Please choose a date and time.",
   "validation.eventRequired": "Please choose an event date.",
@@ -834,10 +823,7 @@ var DEFAULTS = Object.freeze({
   "validation.phoneRequired": "Please enter your phone number.",
   "validation.quantityInvalid": "Please enter a valid quantity.",
   "validation.quantityTooLow": "Quantity is too low.",
-  "validation.quantityTooHigh": "Not enough capacity for that quantity.",
-  // Waitlist
-  "waitlist.joined": "You have been added to the waitlist.",
-  "waitlist.error": "Could not join the waitlist. Please try again."
+  "validation.quantityTooHigh": "Not enough capacity for that quantity."
 });
 function interpolate(template, params) {
   if (!params) return template;
@@ -953,9 +939,7 @@ var manageFlow = {
 // src/web/js/core/wizard.js
 var FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 function list(payload, key) {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload[key])) return payload[key];
-  return [];
+  return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
 var Wizard = class {
   constructor(options = {}) {
@@ -1098,7 +1082,7 @@ var Wizard = class {
   }
   _applyCommerce(payload) {
     this._ctx.commerce = {
-      enabled: !!(payload.commerceEnabled ?? payload.enabled),
+      enabled: !!payload.commerceEnabled,
       currency: payload.currency ?? null,
       currencySymbol: payload.currencySymbol ?? null,
       cartUrl: payload.cartUrl ?? null,
@@ -1209,7 +1193,7 @@ var Wizard = class {
         onSuccess();
         return { acquired: false, bestEffort: true };
       }
-      if (err && (err.status === 409 || err.status === 400)) {
+      if (err && err.status === 400) {
         this._emitter.emit("error", {
           message: err.message || this._i18n.t("error.slotReserved"),
           code: "slot_reserved",
@@ -1564,7 +1548,7 @@ var Wizard = class {
       this._ctx.lock = null;
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
-      const reservation = result?.reservation ?? result;
+      const reservation = result.reservation;
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {
@@ -2049,7 +2033,7 @@ function fillCard(fragment, service) {
     card.setAttribute("data-booked-id", String(service.id));
     card.setAttribute("aria-pressed", "false");
   }
-  setText(fragment.querySelector('[data-booked-field="name"]'), service.name ?? service.title);
+  setText(fragment.querySelector('[data-booked-field="name"]'), service.title);
   setText(fragment.querySelector('[data-booked-field="price"]'), service.price);
   setText(fragment.querySelector('[data-booked-field="duration"]'), service.duration);
   return fragment;
@@ -2123,7 +2107,7 @@ function renderCardList(region, { template, list: list2, action, items, selected
       card.setAttribute("aria-pressed", "false");
     }
     for (const field of fields) {
-      setText(frag.querySelector(`[data-booked-field="${field}"]`), item[field] ?? item[field === "name" ? "title" : field]);
+      setText(frag.querySelector(`[data-booked-field="${field}"]`), item[field]);
     }
     container.appendChild(frag);
   }
@@ -2249,13 +2233,6 @@ var Calendar = class {
   // ---- public API ------------------------------------------------------
   setAvailability(fn) {
     this._isAvailable = typeof fn === "function" ? fn : () => true;
-    this.render();
-  }
-  setMonth(ym) {
-    const { y, m } = parse(`${ym}-01`);
-    this._year = y;
-    this._month = m;
-    this._focused = this._clampToMonth(this._focused);
     this.render();
   }
   setSelected(date) {
@@ -2876,7 +2853,7 @@ var reviewStep = {
   render(region, wizard) {
     const { context } = wizard.getState();
     const svc = context.selectedService || {};
-    setText(qs('[data-booked-summary="service"]', region), svc.name ?? svc.title ?? "");
+    setText(qs('[data-booked-summary="service"]', region), svc.title ?? "");
     setText(qs('[data-booked-summary="date"]', region), context.date ?? "");
     setText(qs('[data-booked-summary="time"]', region), context.time ?? "");
     setText(qs('[data-booked-summary="customer-name"]', region), context.customer?.name ?? "");
@@ -2909,11 +2886,11 @@ var manageStep = {
   render(region, wizard) {
     const r = wizard.getState().context.reservation;
     if (!r) return;
-    setText(qs('[data-booked-manage="service"]', region), r.serviceName ?? r.eventName ?? "");
-    setText(qs('[data-booked-manage="datetime"]', region), r.formattedDateTime ?? r.bookingDate ?? "");
-    setText(qs('[data-booked-manage="status"]', region), r.statusLabel ?? r.status ?? "");
+    setText(qs('[data-booked-manage="service"]', region), r.serviceName);
+    setText(qs('[data-booked-manage="datetime"]', region), r.formattedDateTime);
+    setText(qs('[data-booked-manage="status"]', region), r.statusLabel);
     setText(qs('[data-booked-manage="quantity"]', region), r.quantity);
-    setText(qs('[data-booked-manage="customer"]', region), r.customerName ?? "");
+    setText(qs('[data-booked-manage="customer"]', region), r.customerName);
     const cancelled = r.status === "cancelled";
     setHidden(qs("[data-booked-manage-actions]", region), cancelled || !r.canCancel);
     setHidden(qs("[data-booked-manage-cancelled]", region), !cancelled);

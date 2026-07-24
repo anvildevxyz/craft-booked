@@ -101,14 +101,6 @@ export class Calendar {
     this.render();
   }
 
-  setMonth(ym) {
-    const { y, m } = parse(`${ym}-01`);
-    this._year = y;
-    this._month = m;
-    this._focused = this._clampToMonth(this._focused);
-    this.render();
-  }
-
   setSelected(date) {
     this._selected = date;
     if (date) {

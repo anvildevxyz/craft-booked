@@ -4,12 +4,12 @@ import { I18n, DEFAULTS } from './i18n.js';
 describe('I18n', () => {
   it('resolves a default English string', () => {
     const i = new I18n();
-    expect(i.t('announce.loading')).toBe('Loading…');
+    expect(i.t('error.slotReserved')).toBe('That time was just taken. Please choose another.');
   });
 
   it('interpolates {token} placeholders', () => {
     const i = new I18n();
-    expect(i.t('announce.slotsLoaded', { count: 3 })).toBe('3 available times found.');
+    expect(i.t('lock.expiring', { minutes: 3 })).toBe('Your reservation is held for 3 more minute(s).');
     expect(i.t('announce.stepChanged', { position: 2, total: 4, title: 'Info' })).toBe('Step 2 of 4: Info');
   });
 
@@ -38,7 +38,7 @@ describe('I18n', () => {
   it('has() reports known keys', () => {
     const i = new I18n({ 'custom.key': 'v' });
     expect(i.has('custom.key')).toBe(true);
-    expect(i.has('announce.loading')).toBe(true);
+    expect(i.has('lock.expired')).toBe(true);
     expect(i.has('nope')).toBe(false);
   });
 

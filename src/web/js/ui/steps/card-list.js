@@ -30,7 +30,7 @@ export function renderCardList(region, { template, list, action, items, selected
       card.setAttribute('aria-pressed', 'false');
     }
     for (const field of fields) {
-      setText(frag.querySelector(`[data-booked-field="${field}"]`), item[field] ?? item[field === 'name' ? 'title' : field]);
+      setText(frag.querySelector(`[data-booked-field="${field}"]`), item[field]);
     }
     container.appendChild(frag);
   }

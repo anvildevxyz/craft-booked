@@ -13,7 +13,7 @@ export const reviewStep = {
     const { context } = wizard.getState();
     const svc = context.selectedService || {};
 
-    setText(qs('[data-booked-summary="service"]', region), svc.name ?? svc.title ?? '');
+    setText(qs('[data-booked-summary="service"]', region), svc.title ?? '');
     setText(qs('[data-booked-summary="date"]', region), context.date ?? '');
     setText(qs('[data-booked-summary="time"]', region), context.time ?? '');
     setText(qs('[data-booked-summary="customer-name"]', region), context.customer?.name ?? '');

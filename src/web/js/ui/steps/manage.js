@@ -33,11 +33,12 @@ export const manageStep = {
     const r = wizard.getState().context.reservation;
     if (!r) return;
 
-    setText(qs('[data-booked-manage="service"]', region), r.serviceName ?? r.eventName ?? '');
-    setText(qs('[data-booked-manage="datetime"]', region), r.formattedDateTime ?? r.bookingDate ?? '');
-    setText(qs('[data-booked-manage="status"]', region), r.statusLabel ?? r.status ?? '');
+    // serviceName is null for event bookings (the manage endpoint has no event title field).
+    setText(qs('[data-booked-manage="service"]', region), r.serviceName);
+    setText(qs('[data-booked-manage="datetime"]', region), r.formattedDateTime);
+    setText(qs('[data-booked-manage="status"]', region), r.statusLabel);
     setText(qs('[data-booked-manage="quantity"]', region), r.quantity);
-    setText(qs('[data-booked-manage="customer"]', region), r.customerName ?? '');
+    setText(qs('[data-booked-manage="customer"]', region), r.customerName);
 
     const cancelled = r.status === 'cancelled';
     // Actions available only for a live, cancellable booking.

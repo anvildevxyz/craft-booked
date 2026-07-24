@@ -16,7 +16,7 @@ function fillCard(fragment, service) {
     card.setAttribute('data-booked-id', String(service.id));
     card.setAttribute('aria-pressed', 'false');
   }
-  setText(fragment.querySelector('[data-booked-field="name"]'), service.name ?? service.title);
+  setText(fragment.querySelector('[data-booked-field="name"]'), service.title);
   setText(fragment.querySelector('[data-booked-field="price"]'), service.price);
   setText(fragment.querySelector('[data-booked-field="duration"]'), service.duration);
   return fragment;
