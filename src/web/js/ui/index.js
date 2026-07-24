@@ -71,7 +71,7 @@ export function create(options = {}) {
   if (options.captcha && options.captcha.provider) {
     setupCaptcha(options.captcha, root, { nonce: options.nonce })
       .then((captcha) => captcha && renderer.setCaptcha(captcha))
-      .catch(() => {});
+      .catch((err) => console.warn('Booked: captcha setup failed', err));
   }
   // Show the initial step the first time the core reaches `browsing` (the very
   // first transition is idle→loading, so `once` would miss browsing).
@@ -120,8 +120,9 @@ export function autoInit(root = typeof document !== 'undefined' ? document : nul
     if (cfgEl) {
       try {
         config = JSON.parse(cfgEl.textContent || '{}');
-      } catch {
-        config = {};
+      } catch (err) {
+        // Author-rendered JSON — a parse error is a template bug worth surfacing.
+        console.error('Booked: invalid wizard config JSON', err);
       }
     }
     const controller = create({ ...config, mount: el });

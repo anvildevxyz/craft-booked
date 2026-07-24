@@ -210,10 +210,17 @@ export class Wizard {
     const service = this._ctx.services.find((s) => s.id === id) ?? { id };
     this._ctx.setService(service);
 
-    const [extras, employees] = await Promise.all([
-      this._api.serviceExtras(id).catch(() => null),
-      this._api.employees(id).catch(() => null),
-    ]);
+    // Don't swallow: extras/employees/locations are core to the flow, and a
+    // failed employees load would otherwise silently drop the employee step.
+    let extras;
+    let employees;
+    try {
+      [extras, employees] = await Promise.all([this._api.serviceExtras(id), this._api.employees(id)]);
+    } catch (err) {
+      if (err && err.aborted) return;
+      this._toError(err);
+      return;
+    }
 
     this._ctx.extras = list(extras, 'extras');
     this._ctx.employees = list(employees, 'employees');
@@ -587,7 +594,7 @@ export class Wizard {
       if (result && result.success === false) {
         throw new ApiError(result.message || result.error || this._i18n.t('error.generic'), { code: 'manage' });
       }
-      await this._reloadReservation().catch(() => {});
+      await this._reloadReservation().catch((err) => console.warn('Booked: reservation reload failed after update', err));
       this._emitter.emit('manage:cancelled', { reservation: this._ctx.reservation });
       return { ok: true };
     } catch (err) {
@@ -612,7 +619,7 @@ export class Wizard {
       if (result && result.success === false) {
         throw new ApiError(result.message || result.error || this._i18n.t('error.generic'), { code: 'manage' });
       }
-      await this._reloadReservation().catch(() => {});
+      await this._reloadReservation().catch((err) => console.warn('Booked: reservation reload failed after update', err));
       this._emitter.emit('manage:updated', { reservation: this._ctx.reservation });
       return { ok: true };
     } catch (err) {

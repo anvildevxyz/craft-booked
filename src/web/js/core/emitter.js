@@ -62,6 +62,9 @@ export class Emitter {
       try {
         handler(payload);
       } catch (err) {
+        // A subscriber's throw must not break the others. Log with its stack (a
+        // handler bug is a programmer error), then surface a recoverable signal.
+        console.error('Booked wizard: event handler threw for', event, err);
         if (event !== 'error') {
           this.emit('error', {
             message: err && err.message ? err.message : String(err),

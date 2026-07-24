@@ -50,6 +50,7 @@ var Emitter = class {
       try {
         handler(payload);
       } catch (err) {
+        console.error("Booked wizard: event handler threw for", event, err);
         if (event !== "error") {
           this.emit("error", {
             message: err && err.message ? err.message : String(err),
@@ -1094,10 +1095,15 @@ var Wizard = class {
   async _loadServiceData(id) {
     const service = this._ctx.services.find((s) => s.id === id) ?? { id };
     this._ctx.setService(service);
-    const [extras, employees] = await Promise.all([
-      this._api.serviceExtras(id).catch(() => null),
-      this._api.employees(id).catch(() => null)
-    ]);
+    let extras;
+    let employees;
+    try {
+      [extras, employees] = await Promise.all([this._api.serviceExtras(id), this._api.employees(id)]);
+    } catch (err) {
+      if (err && err.aborted) return;
+      this._toError(err);
+      return;
+    }
     this._ctx.extras = list(extras, "extras");
     this._ctx.employees = list(employees, "employees");
     this._ctx.locations = list(employees, "locations");
@@ -1432,8 +1438,7 @@ var Wizard = class {
       if (result && result.success === false) {
         throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
       }
-      await this._reloadReservation().catch(() => {
-      });
+      await this._reloadReservation().catch((err) => console.warn("Booked: reservation reload failed after update", err));
       this._emitter.emit("manage:cancelled", { reservation: this._ctx.reservation });
       return { ok: true };
     } catch (err) {
@@ -1455,8 +1460,7 @@ var Wizard = class {
       if (result && result.success === false) {
         throw new ApiError(result.message || result.error || this._i18n.t("error.generic"), { code: "manage" });
       }
-      await this._reloadReservation().catch(() => {
-      });
+      await this._reloadReservation().catch((err) => console.warn("Booked: reservation reload failed after update", err));
       this._emitter.emit("manage:updated", { reservation: this._ctx.reservation });
       return { ok: true };
     } catch (err) {
@@ -2927,8 +2931,7 @@ function create(options = {}) {
   const renderer = new Renderer(wizard, root);
   registerDefaultSteps(renderer);
   if (options.captcha && options.captcha.provider) {
-    setupCaptcha(options.captcha, root, { nonce: options.nonce }).then((captcha) => captcha && renderer.setCaptcha(captcha)).catch(() => {
-    });
+    setupCaptcha(options.captcha, root, { nonce: options.nonce }).then((captcha) => captcha && renderer.setCaptcha(captcha)).catch((err) => console.warn("Booked: captcha setup failed", err));
   }
   const offReady = wizard.on("state:change", ({ to }) => {
     if (to === "browsing") {
@@ -2960,8 +2963,8 @@ function autoInit(root = typeof document !== "undefined" ? document : null) {
     if (cfgEl) {
       try {
         config = JSON.parse(cfgEl.textContent || "{}");
-      } catch {
-        config = {};
+      } catch (err) {
+        console.error("Booked: invalid wizard config JSON", err);
       }
     }
     const controller = create({ ...config, mount: el });
