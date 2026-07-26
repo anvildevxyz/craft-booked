@@ -6,6 +6,7 @@ use anvildev\booked\Booked;
 use anvildev\booked\contracts\PaymentGatewayInterface;
 use anvildev\booked\contracts\ReservationInterface;
 use anvildev\booked\helpers\PaymentTokenHelper;
+use anvildev\booked\models\Settings;
 use anvildev\booked\payments\PaymentContext;
 use anvildev\booked\records\PaymentRecord;
 use Craft;
@@ -109,6 +110,59 @@ class PaymentService extends Component
         } catch (\Throwable $e) {
             Craft::error("Failed to queue notifications for direct-paid reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
         }
+    }
+
+    // Reservation-level computed payment statuses (superset of PaymentRecord's).
+    public const STATUS_UNPAID = 'unpaid';
+    public const STATUS_FREE = 'free';
+
+    /**
+     * The reservation's payment status, resolved from whichever mode is active —
+     * a Commerce order or the {@see PaymentRecord} table — so CP columns,
+     * conditions, GraphQL and exports read one method with no per-mode branching.
+     * See PRD §7.5.
+     */
+    public function getStatusForReservation(ReservationInterface $reservation): string
+    {
+        $mode = Booked::getInstance()->getSettings()->getPaymentMode();
+        $total = $reservation->getTotalPrice();
+        $recordStatus = null;
+        $commerceOrderPaid = null;
+
+        if ($mode === Settings::PAYMENT_MODE_DIRECT) {
+            $record = PaymentRecord::find()
+                ->where(['reservationId' => $reservation->getId()])
+                ->orderBy(['dateCreated' => SORT_DESC])
+                ->one();
+            $recordStatus = $record?->status;
+        } elseif ($mode === Settings::PAYMENT_MODE_COMMERCE) {
+            $order = Booked::getInstance()->commerce->getOrderByReservationId((int) $reservation->getId());
+            $commerceOrderPaid = $order ? $order->getIsPaid() : null;
+        }
+
+        return self::resolveStatus($mode, $total, $recordStatus, $commerceOrderPaid);
+    }
+
+    /**
+     * Pure status resolution (no I/O), given the gathered inputs. A zero total is
+     * always `free`; direct mode reflects the latest payment record (or `unpaid`);
+     * commerce mode reflects the order's paid state.
+     */
+    public static function resolveStatus(string $mode, float $total, ?string $recordStatus, ?bool $commerceOrderPaid): string
+    {
+        if ($total <= 0.0) {
+            return self::STATUS_FREE;
+        }
+        if ($mode === Settings::PAYMENT_MODE_DIRECT) {
+            return $recordStatus ?? self::STATUS_UNPAID;
+        }
+        if ($mode === Settings::PAYMENT_MODE_COMMERCE) {
+            if ($commerceOrderPaid === null) {
+                return self::STATUS_UNPAID;
+            }
+            return $commerceOrderPaid ? PaymentRecord::STATUS_PAID : PaymentRecord::STATUS_PENDING;
+        }
+        return self::STATUS_FREE; // mode 'none'
     }
 
     /** Convert a decimal major-unit amount to integer minor units (assumes 2-decimal currency). */

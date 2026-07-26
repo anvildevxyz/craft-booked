@@ -117,6 +117,7 @@ interface ReservationInterface
     public function getExtrasPrice(): float;
     public function getExtrasSummary(): string;
     public function getTotalPrice(): float;
+    public function getPaymentStatus(): string;
     public function recalculateTotals(): void;
     public function getTotalDuration(): int;
     public function hasExtras(): bool;

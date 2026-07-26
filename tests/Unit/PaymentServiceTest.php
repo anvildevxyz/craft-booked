@@ -39,6 +39,32 @@ class PaymentServiceTest extends TestCase
         ];
     }
 
+    /**
+     * @dataProvider resolveStatusProvider
+     */
+    public function testResolveStatus(string $mode, float $total, ?string $rec, ?bool $orderPaid, string $expected): void
+    {
+        $this->assertSame($expected, PaymentService::resolveStatus($mode, $total, $rec, $orderPaid));
+    }
+
+    /**
+     * @return array<string, array{string, float, string|null, bool|null, string}>
+     */
+    public static function resolveStatusProvider(): array
+    {
+        return [
+            'zero total is free (direct)' => ['direct', 0.0, null, null, PaymentService::STATUS_FREE],
+            'zero total is free (commerce)' => ['commerce', 0.0, null, true, PaymentService::STATUS_FREE],
+            'none mode with price is free' => ['none', 40.0, null, null, PaymentService::STATUS_FREE],
+            'direct paid record' => ['direct', 40.0, PaymentRecord::STATUS_PAID, null, PaymentRecord::STATUS_PAID],
+            'direct pending record' => ['direct', 40.0, PaymentRecord::STATUS_PENDING, null, PaymentRecord::STATUS_PENDING],
+            'direct no record is unpaid' => ['direct', 40.0, null, null, PaymentService::STATUS_UNPAID],
+            'commerce paid order' => ['commerce', 40.0, null, true, PaymentRecord::STATUS_PAID],
+            'commerce unpaid order' => ['commerce', 40.0, null, false, PaymentRecord::STATUS_PENDING],
+            'commerce no order is unpaid' => ['commerce', 40.0, null, null, PaymentService::STATUS_UNPAID],
+        ];
+    }
+
     public function testWebhookIsCsrfExemptAndAnonymous(): void
     {
         $src = file_get_contents(
