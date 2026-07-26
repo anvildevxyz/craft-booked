@@ -9,6 +9,7 @@ use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\PaymentTokenHelper;
 use anvildev\booked\records\PaymentRecord;
+use anvildev\booked\services\PaymentService;
 use Craft;
 use craft\helpers\App;
 use craft\web\Controller;
@@ -147,10 +148,22 @@ class PaymentController extends Controller
             return $this->jsonError(Craft::t('booked', 'payment.gatewayUnavailable'), statusCode: 503);
         }
 
-        $result = $gateway->confirmPayment((string) $payment->externalId);
-        // Reflect the gateway's status on the record for UX; reservation
-        // confirmation is webhook-driven (source of truth), NOT done here.
-        if ($payment->status !== $result->status) {
+        try {
+            $result = $gateway->confirmPayment((string) $payment->externalId);
+        } catch (\Throwable $e) {
+            Craft::error('Payment confirm failed: ' . $e->getMessage(), __METHOD__);
+            return $this->jsonError(Craft::t('booked', 'payment.createFailed'));
+        }
+
+        $payments = Booked::getInstance()->getPayments();
+        if ($result->paid) {
+            // Server-side retrieval is a trusted confirmation source (queried
+            // from the gateway, not client say-so). Route it through the SAME
+            // idempotent path as the webhook so the reservation is confirmed by
+            // whichever wins the race — never suppressed.
+            $payments->handleVerifiedPayment($payment);
+        } elseif (!PaymentService::isFinalized((string) $payment->status) && $payment->status !== $result->status) {
+            // Reflect a non-terminal status for UX without finalizing the record.
             $payment->status = $result->status;
             $payment->save(false);
         }

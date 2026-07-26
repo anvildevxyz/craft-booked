@@ -92,6 +92,17 @@ class PaymentServiceTest extends TestCase
         return implode('', array_slice($lines, $rm->getStartLine() - 1, $rm->getEndLine() - $rm->getStartLine() + 1));
     }
 
+    public function testConfirmPollConfirmsViaIdempotentPathAndCatchesErrors(): void
+    {
+        $src = self::methodSource('anvildev\booked\controllers\PaymentController', 'actionConfirm');
+        // #3: a gateway-confirmed poll routes through the shared idempotent path
+        // (which confirms the reservation), not a bare status write that suppresses the webhook.
+        $this->assertStringContainsString('handleVerifiedPayment', $src);
+        // #10: the gateway call is wrapped so a transient error is a JSON error, not a 500.
+        $this->assertStringContainsString('try {', $src);
+        $this->assertStringContainsString('} catch', $src);
+    }
+
     public function testWebhookIsCsrfExemptAndAnonymous(): void
     {
         $src = file_get_contents(
