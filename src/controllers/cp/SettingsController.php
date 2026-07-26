@@ -4,6 +4,7 @@ namespace anvildev\booked\controllers\cp;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
+use anvildev\booked\Editions;
 use anvildev\booked\models\Settings;
 use Craft;
 use craft\web\Controller;
@@ -20,6 +21,14 @@ class SettingsController extends Controller
             return false;
         }
         $this->requirePermission('booked-manageSettings');
+        // Pro-only settings tabs (and their test actions) are denied under Lite.
+        $proActions = [
+            'waitlist', 'sms', 'calendar', 'meetings', 'commerce', 'webhooks',
+            'test-twilio', 'test-calendar-connection', 'test-teams', 'test-zoom',
+        ];
+        if (in_array($action->id, $proActions, true)) {
+            Editions::requirePro();
+        }
         return true;
     }
 

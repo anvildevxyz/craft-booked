@@ -142,10 +142,11 @@ class Booked extends Plugin
         $this->registerElementTypes();
         $this->registerPermissions();
         $this->registerTemplateVariable();
-        $this->registerGraphQl();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
+        // GraphQL + MCP are Pro-only (PRD §6) — not registered under Lite.
         if (Editions::isPro()) {
+            $this->registerGraphQl();
             $this->registerMcpTools();
         }
     }
