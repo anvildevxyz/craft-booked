@@ -131,12 +131,15 @@ class Booked extends Plugin
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
         $this->registerPaymentGateways();
+        // Fires in both editions: it queues the customer quantity-changed email
+        // (a core booking notification); the Pro-only bits inside (webhook +
+        // calendar update) self-gate. See Editions / PRD §6.
+        $this->registerQuantityChangeListeners();
         // Pro-only integrations/automation — not wired under Lite. Services stay
         // registered (so references resolve); only their event listeners and the
         // MCP tools are skipped. See Editions / PRD §6.
         if (Editions::isPro()) {
             $this->registerCommerceListeners();
-            $this->registerQuantityChangeListeners();
             $this->registerCalendarSyncListeners();
             $this->registerVirtualMeetingListeners();
             $this->registerWebhookListeners();
@@ -495,6 +498,22 @@ class Booked extends Plugin
             function(\anvildev\booked\events\AfterQuantityChangeEvent $event) {
                 $reservationId = $event->reservation->getId();
 
+                // Customer quantity-changed email — a core notification, both editions.
+                try {
+                    $this->bookingNotification->queueQuantityChangedEmail(
+                        $reservationId,
+                        $event->previousQuantity,
+                        $event->newQuantity,
+                    );
+                } catch (\Throwable $e) {
+                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
+                }
+
+                // Webhook dispatch + calendar update are Pro-only.
+                if (!Editions::isPro()) {
+                    return;
+                }
+
                 try {
                     $webhookEventType = $event->increaseBy > 0
                         ? \anvildev\booked\services\WebhookService::EVENT_BOOKING_QUANTITY_INCREASED
@@ -511,16 +530,6 @@ class Booked extends Plugin
                     ]);
                 } catch (\Throwable $e) {
                     Craft::error("Failed to dispatch quantity change webhook for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
-                }
-
-                try {
-                    $this->bookingNotification->queueQuantityChangedEmail(
-                        $reservationId,
-                        $event->previousQuantity,
-                        $event->newQuantity,
-                    );
-                } catch (\Throwable $e) {
-                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
                 }
 
                 try {

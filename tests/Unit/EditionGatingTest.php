@@ -52,6 +52,25 @@ class EditionGatingTest extends TestCase
         ];
     }
 
+    public function testQuantityChangedEmailFiresInBothEditions(): void
+    {
+        // The listener registers unconditionally (before the Pro-only block)...
+        $init = self::methodSource(Booked::class, 'init');
+        $callPos = strpos($init, 'registerQuantityChangeListeners();');
+        $proBlockPos = strpos($init, 'if (Editions::isPro())');
+        $this->assertNotFalse($callPos);
+        $this->assertNotFalse($proBlockPos);
+        $this->assertLessThan($proBlockPos, $callPos, 'qty-change listener must register outside the Pro-only block');
+
+        // ...and queues the customer email before self-gating the Pro-only bits.
+        $listener = self::methodSource(Booked::class, 'registerQuantityChangeListeners');
+        $emailPos = strpos($listener, 'queueQuantityChangedEmail');
+        $gatePos = strpos($listener, 'if (!Editions::isPro())');
+        $this->assertNotFalse($emailPos);
+        $this->assertNotFalse($gatePos);
+        $this->assertLessThan($gatePos, $emailPos, 'qty-changed email must be queued before the Pro gate');
+    }
+
     public function testMultiDaySlotEndpointsGatedToPro(): void
     {
         $src = self::methodSource('anvildev\booked\controllers\SlotController', 'beforeAction');
