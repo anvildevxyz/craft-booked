@@ -274,6 +274,7 @@ var Context = class {
     this.employees = initial.employees ?? [];
     this.eventDates = initial.eventDates ?? [];
     this.eventDateId = initial.eventDateId ?? null;
+    this.locale = initial.locale ?? null;
     this.selectedExtras = initial.selectedExtras ?? {};
     this.date = initial.date ?? null;
     this.time = initial.time ?? null;
@@ -392,6 +393,7 @@ var Context = class {
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
       selectedEvent: this.selectedEvent,
+      locale: this.locale,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,
@@ -830,6 +832,8 @@ var DEFAULTS = Object.freeze({
   "announce.stepChanged": "Step {position} of {total}: {title}",
   "lock.expiring": "Your reservation is held for {minutes} more minute(s).",
   "lock.expired": "Your reserved time has expired. Please choose a time again.",
+  "calendar.prevMonth": "Previous month",
+  "calendar.nextMonth": "Next month",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -991,7 +995,8 @@ var Wizard = class {
     this._ctx = new Context({
       serviceId: options.serviceId ?? null,
       quantity: options.config?.defaultQuantity ?? 1,
-      customer: options.customer ?? {}
+      customer: options.customer ?? {},
+      locale: options.locale ?? null
     });
     this._mode = options.mode === "manage" ? "manage" : "book";
     this._manageToken = options.manageToken ?? null;
@@ -1026,6 +1031,10 @@ var Wizard = class {
   }
   off(event, handler) {
     this._emitter.off(event, handler);
+  }
+  /** Resolve an i18n key (with `{token}` interpolation) — the localized string. */
+  t(key, params) {
+    return this._i18n.t(key, params);
   }
   // ---- Introspection ==================================================
   get state() {
@@ -1555,7 +1564,7 @@ var Wizard = class {
   reset() {
     this._lock.release("reset").catch(() => {
     });
-    this._ctx = new Context({ quantity: this._config.defaultQuantity });
+    this._ctx = new Context({ quantity: this._config.defaultQuantity, locale: this._options.locale ?? null });
     this._flow.setContext(this._ctx);
     this._flow.reset();
     this._machine.hardReset();

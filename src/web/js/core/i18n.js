@@ -17,6 +17,9 @@ export const DEFAULTS = Object.freeze({
   'lock.expiring': 'Your reservation is held for {minutes} more minute(s).',
   'lock.expired': 'Your reserved time has expired. Please choose a time again.',
 
+  'calendar.prevMonth': 'Previous month',
+  'calendar.nextMonth': 'Next month',
+
   'error.generic': 'Something went wrong. Please try again.',
   'error.booking': 'Your booking could not be completed.',
   'error.slotReserved': 'That time was just taken. Please choose another.',

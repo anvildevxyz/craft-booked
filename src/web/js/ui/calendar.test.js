@@ -30,6 +30,25 @@ describe('Calendar — rendering', () => {
     expect(cell(el, '2026-08-31')).not.toBeNull();
   });
 
+  it('gives each day a full, localized accessible name (not a bare number)', () => {
+    const { el } = mountCal({ month: '2026-08' });
+    expect(cell(el, '2026-08-15').getAttribute('aria-label')).toBe('15 August 2026');
+  });
+
+  it('localizes month + weekday + day names when a locale is given (Intl)', () => {
+    const { el } = mountCal({ month: '2026-08', locale: 'fr' });
+    expect(el.querySelector('[data-booked-cal="label"]').textContent).toBe('août 2026');
+    // First column header is Monday in French (firstDay: 1).
+    expect(el.querySelector('[role="columnheader"]').getAttribute('aria-label')).toBe('lundi');
+    expect(cell(el, '2026-08-15').getAttribute('aria-label')).toBe('15 août 2026');
+  });
+
+  it('uses caller-supplied labels (e.g. translated prev/next) over derived ones', () => {
+    const { el } = mountCal({ locale: 'fr', labels: { prevMonth: 'Mois précédent', nextMonth: 'Mois suivant' } });
+    expect(el.querySelector('[data-booked-cal="prev"]').getAttribute('aria-label')).toBe('Mois précédent');
+    expect(el.querySelector('[data-booked-cal="next"]').getAttribute('aria-label')).toBe('Mois suivant');
+  });
+
   it('shows the month/year label', () => {
     const { el } = mountCal({ month: '2026-08' });
     expect(el.querySelector('[data-booked-cal="label"]').textContent).toBe('August 2026');

@@ -1871,6 +1871,8 @@ return [
     'announce.stepChanged' => 'Passo {position} di {total}: {title}',
     'lock.expiring' => 'La prenotazione è riservata per altri {minutes} minuto/i.',
     'lock.expired' => 'L\'orario riservato è scaduto. Scelga di nuovo un orario.',
+    'calendar.prevMonth' => 'Mese precedente',
+    'calendar.nextMonth' => 'Mese successivo',
     'error.generic' => 'Si è verificato un errore. Riprovi.',
     'error.booking' => 'Non è stato possibile completare la prenotazione.',
     'error.slotReserved' => 'Quell\'orario è appena stato preso. Scelga un altro orario.',

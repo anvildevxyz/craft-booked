@@ -1871,6 +1871,8 @@ return [
     'announce.stepChanged' => 'Schritt {position} von {total}: {title}',
     'lock.expiring' => 'Ihre Reservierung wird noch {minutes} Minute(n) gehalten.',
     'lock.expired' => 'Ihre reservierte Zeit ist abgelaufen. Bitte wählen Sie erneut eine Zeit.',
+    'calendar.prevMonth' => 'Vorheriger Monat',
+    'calendar.nextMonth' => 'Nächster Monat',
     'error.generic' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
     'error.booking' => 'Ihre Buchung konnte nicht abgeschlossen werden.',
     'error.slotReserved' => 'Diese Zeit wurde gerade vergeben. Bitte wählen Sie eine andere.',

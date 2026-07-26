@@ -1871,6 +1871,8 @@ return [
     'announce.stepChanged' => 'Stap {position} van {total}: {title}',
     'lock.expiring' => 'Uw reservering wordt nog {minutes} minuut/minuten vastgehouden.',
     'lock.expired' => 'Uw gereserveerde tijd is verlopen. Kies opnieuw een tijdstip.',
+    'calendar.prevMonth' => 'Vorige maand',
+    'calendar.nextMonth' => 'Volgende maand',
     'error.generic' => 'Er is iets misgegaan. Probeer het opnieuw.',
     'error.booking' => 'Uw boeking kon niet worden voltooid.',
     'error.slotReserved' => 'Dat tijdstip is zojuist ingenomen. Kies een ander tijdstip.',

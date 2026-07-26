@@ -274,6 +274,7 @@ var Context = class {
     this.employees = initial.employees ?? [];
     this.eventDates = initial.eventDates ?? [];
     this.eventDateId = initial.eventDateId ?? null;
+    this.locale = initial.locale ?? null;
     this.selectedExtras = initial.selectedExtras ?? {};
     this.date = initial.date ?? null;
     this.time = initial.time ?? null;
@@ -392,6 +393,7 @@ var Context = class {
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
       selectedEvent: this.selectedEvent,
+      locale: this.locale,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,
@@ -830,6 +832,8 @@ var DEFAULTS = Object.freeze({
   "announce.stepChanged": "Step {position} of {total}: {title}",
   "lock.expiring": "Your reservation is held for {minutes} more minute(s).",
   "lock.expired": "Your reserved time has expired. Please choose a time again.",
+  "calendar.prevMonth": "Previous month",
+  "calendar.nextMonth": "Next month",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -984,7 +988,8 @@ var Wizard = class {
     this._ctx = new Context({
       serviceId: options.serviceId ?? null,
       quantity: options.config?.defaultQuantity ?? 1,
-      customer: options.customer ?? {}
+      customer: options.customer ?? {},
+      locale: options.locale ?? null
     });
     this._mode = options.mode === "manage" ? "manage" : "book";
     this._manageToken = options.manageToken ?? null;
@@ -1019,6 +1024,10 @@ var Wizard = class {
   }
   off(event, handler) {
     this._emitter.off(event, handler);
+  }
+  /** Resolve an i18n key (with `{token}` interpolation) — the localized string. */
+  t(key, params) {
+    return this._i18n.t(key, params);
   }
   // ---- Introspection ==================================================
   get state() {
@@ -1548,7 +1557,7 @@ var Wizard = class {
   reset() {
     this._lock.release("reset").catch(() => {
     });
-    this._ctx = new Context({ quantity: this._config.defaultQuantity });
+    this._ctx = new Context({ quantity: this._config.defaultQuantity, locale: this._options.locale ?? null });
     this._flow.setContext(this._ctx);
     this._flow.reset();
     this._machine.hardReset();
@@ -2114,6 +2123,27 @@ var DEFAULT_LABELS = {
     "December"
   ]
 };
+function localeLabels(locale, firstDay) {
+  if (!locale) return {};
+  try {
+    const longMonth = new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" });
+    const longDay = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" });
+    const shortDay = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
+    const months = [];
+    for (let m = 0; m < 12; m++) months.push(longMonth.format(new Date(Date.UTC(2021, m, 1))));
+    const weekdays = [];
+    const weekdaysLong = [];
+    for (let i = 0; i < 7; i++) {
+      const dow = (firstDay + i) % 7;
+      const d = new Date(Date.UTC(2021, 7, 1 + dow));
+      weekdays.push(shortDay.format(d));
+      weekdaysLong.push(longDay.format(d));
+    }
+    return { months, weekdays, weekdaysLong };
+  } catch {
+    return {};
+  }
+}
 function pad(n) {
   return String(n).padStart(2, "0");
 }
@@ -2160,7 +2190,7 @@ var Calendar = class {
     });
     this._onMonthChange = opts.onMonthChange ?? (() => {
     });
-    this._labels = { ...DEFAULT_LABELS, ...opts.labels ?? {} };
+    this._labels = { ...DEFAULT_LABELS, ...localeLabels(opts.locale, opts.firstDay ?? 1), ...opts.labels ?? {} };
     this._mode = opts.mode === "range" ? "range" : "single";
     this._onRangeStart = opts.onRangeStart ?? (() => {
     });
@@ -2302,6 +2332,7 @@ var Calendar = class {
     td.setAttribute("role", "gridcell");
     td.setAttribute("data-booked-date", date);
     td.textContent = String(dayNum);
+    td.setAttribute("aria-label", `${dayNum} ${this._labels.months[this._month - 1]} ${this._year}`);
     const selectable = this._selectable(date);
     const isFocused = this._focused === date;
     let isSelected;
@@ -2460,6 +2491,12 @@ var state = /* @__PURE__ */ new WeakMap();
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
+function calendarLabels(wizard) {
+  return {
+    prevMonth: wizard.t("calendar.prevMonth"),
+    nextMonth: wizard.t("calendar.nextMonth")
+  };
+}
 function computeFixedEnd(startDate, durationDays) {
   const [y, m, d] = startDate.split("-").map(Number);
   const end = new Date(Date.UTC(y, m - 1, d));
@@ -2553,6 +2590,7 @@ var datetimeStep = {
       month: initialMonth,
       mode: "single",
       locale: wizard.getState()?.context?.locale,
+      labels: calendarLabels(wizard),
       isAvailable: (date) => s.calMap[date] && s.calMap[date].isBookable === true,
       onMonthChange: async ({ year, month }) => {
         const map = await wizard.loadCalendar({ year, month });
@@ -2588,6 +2626,7 @@ var datetimeStep = {
       month: initialMonth,
       mode: "range",
       locale: wizard.getState()?.context?.locale,
+      labels: calendarLabels(wizard),
       isAvailable: (date) => s.pickingEnd ? s.validEndSet.has(date) : s.availSet.has(date),
       onMonthChange: async ({ year, month }) => {
         const dates = await wizard.loadDates({ month: `${year}-${pad2(month)}` });
@@ -2836,26 +2875,34 @@ var customerInfoStep = {
 };
 
 // src/web/js/ui/steps/review.js
+function setRow(region, key, value) {
+  const dd = qs(`[data-booked-summary="${key}"]`, region);
+  if (!dd) return;
+  const empty = value === null || value === void 0 || value === "";
+  setText(dd, empty ? "" : value);
+  setHidden(dd, empty);
+  const dt = dd.previousElementSibling;
+  if (dt && dt.tagName === "DT") setHidden(dt, empty);
+}
 var reviewStep = {
   render(region, wizard) {
     const { context } = wizard.getState();
     const svc = context.selectedService || {};
     const evt = context.selectedEvent || null;
     const currencySymbol = context.commerce?.currencySymbol;
-    setText(qs('[data-booked-summary="service"]', region), evt ? evt.title ?? "" : svc.title ?? "");
-    setText(qs('[data-booked-summary="employee"]', region), context.selectedEmployee?.name ?? "");
-    setText(qs('[data-booked-summary="location"]', region), context.selectedLocation?.name ?? "");
-    setText(qs('[data-booked-summary="date"]', region), context.date ?? (evt ? evt.formattedDate ?? evt.date ?? "" : ""));
-    setText(qs('[data-booked-summary="time"]', region), context.time ?? (evt ? evt.formattedTimeRange ?? evt.startTime ?? "" : ""));
-    if (context.isDayService && context.endDate) {
-      setText(qs('[data-booked-summary="date-range"]', region), `${context.date} \u2013 ${context.endDate}`);
-      setText(qs('[data-booked-summary="duration"]', region), context.durationDays);
-    }
-    setText(qs('[data-booked-summary="quantity"]', region), context.quantity);
-    setText(qs('[data-booked-summary="customer-name"]', region), context.customer?.name ?? "");
-    setText(qs('[data-booked-summary="customer-email"]', region), context.customer?.email ?? "");
-    setText(qs('[data-booked-summary="extras-total"]', region), formatPrice(context.extrasTotal, currencySymbol));
-    setText(qs('[data-booked-summary="total"]', region), formatPrice(context.totalPrice, currencySymbol));
+    setRow(region, "service", evt ? evt.title ?? "" : svc.title ?? "");
+    setRow(region, "employee", context.selectedEmployee?.name ?? "");
+    setRow(region, "location", context.selectedLocation?.name ?? "");
+    const isRange = context.isDayService && context.endDate;
+    setRow(region, "date", isRange ? "" : context.date ?? (evt ? evt.formattedDate ?? evt.date ?? "" : ""));
+    setRow(region, "time", isRange ? "" : context.time ?? (evt ? evt.formattedTimeRange ?? evt.startTime ?? "" : ""));
+    setRow(region, "date-range", isRange ? `${context.date} \u2013 ${context.endDate}` : "");
+    setRow(region, "duration", isRange ? context.durationDays : "");
+    setRow(region, "quantity", context.quantity > 1 ? context.quantity : "");
+    setRow(region, "extras-total", context.extrasTotal > 0 ? formatPrice(context.extrasTotal, currencySymbol) : "");
+    setRow(region, "customer-name", context.customer?.name ?? "");
+    setRow(region, "customer-email", context.customer?.email ?? "");
+    setRow(region, "total", formatPrice(context.totalPrice, currencySymbol));
     const paymentNotice = qs("[data-booked-payment-notice]", region);
     if (paymentNotice) setHidden(paymentNotice, !context.requiresPayment);
   }

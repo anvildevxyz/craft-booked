@@ -22,6 +22,14 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+/** Translated aria-labels for the calendar's month-navigation buttons. */
+function calendarLabels(wizard) {
+  return {
+    prevMonth: wizard.t('calendar.prevMonth'),
+    nextMonth: wizard.t('calendar.nextMonth'),
+  };
+}
+
 /** Fixed-day end date = start + (durationDays - 1), in UTC to avoid tz drift. */
 function computeFixedEnd(startDate, durationDays) {
   const [y, m, d] = startDate.split('-').map(Number);
@@ -129,6 +137,7 @@ export const datetimeStep = {
       month: initialMonth,
       mode: 'single',
       locale: wizard.getState()?.context?.locale,
+      labels: calendarLabels(wizard),
       isAvailable: (date) => s.calMap[date] && s.calMap[date].isBookable === true,
       onMonthChange: async ({ year, month }) => {
         const map = await wizard.loadCalendar({ year, month });
@@ -166,6 +175,7 @@ export const datetimeStep = {
       month: initialMonth,
       mode: 'range',
       locale: wizard.getState()?.context?.locale,
+      labels: calendarLabels(wizard),
       isAvailable: (date) => (s.pickingEnd ? s.validEndSet.has(date) : s.availSet.has(date)),
       onMonthChange: async ({ year, month }) => {
         const dates = await wizard.loadDates({ month: `${year}-${pad(month)}` });

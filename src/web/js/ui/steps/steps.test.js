@@ -154,6 +154,36 @@ describe('reviewStep', () => {
     expect(region.querySelector('[data-booked-summary="total"]').textContent).toBe('40.00');
   });
 
+  it('hides empty rows and their labels (no orphaned "Choose an employee")', async () => {
+    document.body.innerHTML = `
+      <section>
+        <dl>
+          <dt data-dt="service">Service</dt><dd data-booked-summary="service"></dd>
+          <dt data-dt="employee">Employee</dt><dd data-booked-summary="employee"></dd>
+          <dt data-dt="location">Location</dt><dd data-booked-summary="location"></dd>
+          <dt data-dt="quantity">Qty</dt><dd data-booked-summary="quantity"></dd>
+          <dt data-dt="total">Total</dt><dd data-booked-summary="total"></dd>
+        </dl>
+      </section>`;
+    const region = document.body.firstElementChild;
+    const wizard = await startedWizard(); // single location auto-selected, no employee, qty 1
+    await wizard.selectService(12);
+    wizard.goNext();
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    reviewStep.render(region, wizard);
+
+    // No employee chosen → both the value and its label are hidden.
+    expect(region.querySelector('[data-booked-summary="employee"]').hidden).toBe(true);
+    expect(region.querySelector('[data-dt="employee"]').hidden).toBe(true);
+    // Quantity is 1 → hidden too.
+    expect(region.querySelector('[data-booked-summary="quantity"]').hidden).toBe(true);
+    expect(region.querySelector('[data-dt="quantity"]').hidden).toBe(true);
+    // Populated rows stay visible.
+    expect(region.querySelector('[data-booked-summary="service"]').hidden).toBe(false);
+    expect(region.querySelector('[data-dt="service"]').hidden).toBe(false);
+    expect(region.querySelector('[data-booked-summary="total"]').hidden).toBe(false);
+  });
+
   it('keeps the payment notice hidden when no payment is required', async () => {
     document.body.innerHTML = REGION;
     const region = document.body.firstElementChild;

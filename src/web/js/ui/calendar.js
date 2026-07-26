@@ -25,6 +25,38 @@ const DEFAULT_LABELS = {
   ],
 };
 
+/**
+ * Derive localized month + weekday names for `locale` via Intl, so the calendar
+ * matches the site language without a translation catalog. Returns `{}` when no
+ * locale is given (keep the English defaults) or if Intl throws (bad locale),
+ * so behavior stays predictable and tests without a locale remain English.
+ *
+ * @param {?string} locale  BCP-47 tag (e.g. 'de', 'fr')
+ * @param {number} firstDay 0=Sunday … 1=Monday (matches the grid layout)
+ */
+function localeLabels(locale, firstDay) {
+  if (!locale) return {};
+  try {
+    const longMonth = new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' });
+    const longDay = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
+    const shortDay = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+    const months = [];
+    for (let m = 0; m < 12; m++) months.push(longMonth.format(new Date(Date.UTC(2021, m, 1))));
+    const weekdays = [];
+    const weekdaysLong = [];
+    // 2021-08-01 is a Sunday; walk 7 days from firstDay to match the grid order.
+    for (let i = 0; i < 7; i++) {
+      const dow = (firstDay + i) % 7; // 0=Sun … 6=Sat
+      const d = new Date(Date.UTC(2021, 7, 1 + dow));
+      weekdays.push(shortDay.format(d));
+      weekdaysLong.push(longDay.format(d));
+    }
+    return { months, weekdays, weekdaysLong };
+  } catch {
+    return {};
+  }
+}
+
 // ---- pure date helpers (integer y/m/d, no timezone drift) ================
 
 function pad(n) {
@@ -74,7 +106,10 @@ export class Calendar {
     this._isAvailable = typeof opts.isAvailable === 'function' ? opts.isAvailable : () => true;
     this._onSelect = opts.onSelect ?? (() => {});
     this._onMonthChange = opts.onMonthChange ?? (() => {});
-    this._labels = { ...DEFAULT_LABELS, ...(opts.labels ?? {}) };
+    // Localized month/weekday names are derived from the locale via Intl when
+    // one is given; otherwise the English DEFAULT_LABELS stand in. Caller-supplied
+    // `opts.labels` (e.g. the translated prev/next aria-labels) win over both.
+    this._labels = { ...DEFAULT_LABELS, ...localeLabels(opts.locale, opts.firstDay ?? 1), ...(opts.labels ?? {}) };
 
     // Range mode (multi-day services): two-click start → end selection.
     this._mode = opts.mode === 'range' ? 'range' : 'single';
@@ -246,6 +281,9 @@ export class Calendar {
     td.setAttribute('role', 'gridcell');
     td.setAttribute('data-booked-date', date);
     td.textContent = String(dayNum);
+    // Full, localized accessible name so a screen reader announces
+    // "15 August 2026", not a bare "15" with no month/year context.
+    td.setAttribute('aria-label', `${dayNum} ${this._labels.months[this._month - 1]} ${this._year}`);
 
     const selectable = this._selectable(date);
     const isFocused = this._focused === date;

@@ -38,6 +38,8 @@
     'announce.stepChanged': 'announce.stepChanged'|t('booked'),
     'lock.expiring': 'lock.expiring'|t('booked'),
     'lock.expired': 'lock.expired'|t('booked'),
+    'calendar.prevMonth': 'calendar.prevMonth'|t('booked'),
+    'calendar.nextMonth': 'calendar.nextMonth'|t('booked'),
     'error.generic': 'error.generic'|t('booked'),
     'error.booking': 'error.booking'|t('booked'),
     'error.slotReserved': 'error.slotReserved'|t('booked'),
@@ -78,7 +80,7 @@
     messages: wizardMessages,
 } %}
 
-<div data-booked-wizard data-booked-auto class="booked-wizard">
+<div data-booked-wizard data-booked-auto class="booked-wizard" role="region" aria-label="{{ 'wizard.ariaBookingWizard'|t('booked') }}">
     {# Encode with JSON_HEX_* so `<`, `>`, `&`, quotes can never break out of this
        inline script block, independent of json_encode's default slash-escaping. #}
     <script type="application/json" data-booked-config>{{ bookedConfig|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_QUOT'))|raw }}</script>
@@ -88,11 +90,13 @@
         <input type="text" data-booked-honeypot name="{{ honeypotName }}" class="booked-sr-only" tabindex="-1" autocomplete="off" aria-hidden="true">
     {% endif %}
 
-    <div data-booked-loading hidden>{{ 'wizard.loadingEvents'|t('booked') }}</div>
-    <p data-booked-error role="alert" hidden></p>
+    {# Progress bar first so it sits flush at the top; loading/error render
+       below it in the content area (never above the bar). #}
     <div class="booked-progress" data-booked-progress role="progressbar" aria-valuemin="1" aria-label="{{ 'wizard.ariaStepNav'|t('booked') }}">
         <span data-booked-progress-current>1</span>&nbsp;/&nbsp;<span data-booked-progress-total></span>
     </div>
+    <div data-booked-loading hidden>{{ 'wizard.loadingEvents'|t('booked') }}</div>
+    <p data-booked-error role="alert" hidden></p>
     <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
 
     <section data-booked-step="event">
@@ -120,9 +124,9 @@
 
     <section data-booked-step="info" hidden>
         <h2 data-booked-step-heading>{{ labels.enterInfo }}</h2>
-        <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name"></label>
+        <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name" aria-required="true"></label>
         <p class="booked-field-error" id="booked-err-name" data-booked-field-error="name" hidden></p>
-        <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email"></label>
+        <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email" aria-required="true"></label>
         <p class="booked-field-error" id="booked-err-email" data-booked-field-error="email" hidden></p>
         <label>{{ labels.phone }}<input type="tel" data-booked-field="phone" autocomplete="tel"></label>
         <p class="booked-field-error" id="booked-err-phone" data-booked-field-error="phone" hidden></p>

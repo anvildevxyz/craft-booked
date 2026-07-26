@@ -62,6 +62,7 @@ export class Wizard {
       serviceId: options.serviceId ?? null,
       quantity: options.config?.defaultQuantity ?? 1,
       customer: options.customer ?? {},
+      locale: options.locale ?? null,
     });
 
     // `?manage=` runs the management flow; otherwise the booking/event flow.
@@ -107,6 +108,11 @@ export class Wizard {
   }
   off(event, handler) {
     this._emitter.off(event, handler);
+  }
+
+  /** Resolve an i18n key (with `{token}` interpolation) — the localized string. */
+  t(key, params) {
+    return this._i18n.t(key, params);
   }
 
   // ---- Introspection ==================================================
@@ -716,7 +722,7 @@ export class Wizard {
   // ---- Teardown / reset ===============================================
   reset() {
     this._lock.release('reset').catch(() => {});
-    this._ctx = new Context({ quantity: this._config.defaultQuantity });
+    this._ctx = new Context({ quantity: this._config.defaultQuantity, locale: this._options.locale ?? null });
     this._flow.setContext(this._ctx);
     this._flow.reset();
     this._machine.hardReset();

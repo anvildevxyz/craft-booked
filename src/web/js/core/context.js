@@ -29,6 +29,9 @@ export class Context {
     // Event flow selection
     this.eventDateId = initial.eventDateId ?? null;
 
+    // Site locale (BCP-47) — drives the calendar's localized month/weekday names.
+    this.locale = initial.locale ?? null;
+
     // Add-on selection: { [extraId]: quantity }
     this.selectedExtras = initial.selectedExtras ?? {};
 
@@ -176,6 +179,7 @@ export class Context {
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
       selectedEvent: this.selectedEvent,
+      locale: this.locale,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,
