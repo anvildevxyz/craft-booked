@@ -338,7 +338,9 @@ class Booked extends Plugin
 
     public function isCommerceEnabled(): bool
     {
-        return Craft::$app->plugins->isPluginEnabled('commerce') && $this->getSettings()->commerceEnabled;
+        // Single source of truth: the settings model resolves payment mode +
+        // edition gating (commerce is Pro-only).
+        return $this->getSettings()->isCommerceEnabled();
     }
 
     private function registerCommerceListeners(): void
