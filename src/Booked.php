@@ -90,6 +90,7 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\RefundPolicyService $refundPolicy
  * @property-read \anvildev\booked\services\MutexFactory $mutex
  * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
+ * @property-read \anvildev\booked\services\PaymentGatewayService $paymentGateways
  */
 class Booked extends Plugin
 {
@@ -243,6 +244,7 @@ class Booked extends Plugin
             'refundPolicy' => \anvildev\booked\services\RefundPolicyService::class,
             'mutex' => \anvildev\booked\services\MutexFactory::class,
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
+            'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
         ]);
     }
 
@@ -334,6 +336,11 @@ class Booked extends Plugin
     public function getMultiDayAvailability(): \anvildev\booked\services\MultiDayAvailabilityService
     {
         return $this->get('multiDayAvailability');
+    }
+
+    public function getPaymentGateways(): \anvildev\booked\services\PaymentGatewayService
+    {
+        return $this->get('paymentGateways');
     }
 
     public function isCommerceEnabled(): bool
