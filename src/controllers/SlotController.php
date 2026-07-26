@@ -565,9 +565,15 @@ class SlotController extends Controller
             return $this->jsonError(Craft::t('booked', 'booking.slotReserved'), statusCode: 410);
         }
 
+        // Report the REAL remaining seconds: extendLock clamps the new expiry to
+        // the lock's max lifetime, so near the ceiling the grant is shorter than
+        // durationMinutes. Sending durationMinutes*60 would show a countdown that
+        // outlives the lock and drop the slot mid-checkout with no warning.
+        $expiresIn = max(0, $newExpiry->getTimestamp() - time());
+
         return $this->jsonSuccess('', [
             'token' => $token,
-            'expiresIn' => $durationMinutes * 60,
+            'expiresIn' => $expiresIn,
         ]);
     }
 
