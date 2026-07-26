@@ -34,7 +34,7 @@ class PaymentService extends Component
         $currency = $settings->defaultCurrency && $settings->defaultCurrency !== 'auto'
             ? $settings->defaultCurrency
             : 'USD';
-        $amount = self::toMinorUnits($reservation->getTotalPrice());
+        $amount = self::toMinorUnits($reservation->getTotalPrice(), $currency);
 
         $context = new PaymentContext(
             $amount,
@@ -165,9 +165,21 @@ class PaymentService extends Component
         return self::STATUS_FREE; // mode 'none'
     }
 
-    /** Convert a decimal major-unit amount to integer minor units (assumes 2-decimal currency). */
-    public static function toMinorUnits(float $amount): int
+    /**
+     * Currencies Stripe treats as zero-decimal — their "minor unit" IS the major
+     * unit, so amounts must NOT be multiplied by 100 (else a 100x overcharge).
+     */
+    private const ZERO_DECIMAL_CURRENCIES = [
+        'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG',
+        'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+    ];
+
+    /** Convert a decimal major-unit amount to integer minor units for the currency. */
+    public static function toMinorUnits(float $amount, string $currency): int
     {
+        if (in_array(strtoupper($currency), self::ZERO_DECIMAL_CURRENCIES, true)) {
+            return (int) round($amount);
+        }
         return (int) round($amount * 100);
     }
 

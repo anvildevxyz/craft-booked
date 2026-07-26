@@ -9,12 +9,20 @@ use ReflectionMethod;
 
 class PaymentServiceTest extends TestCase
 {
-    public function testToMinorUnits(): void
+    public function testToMinorUnitsTwoDecimalCurrency(): void
     {
-        $this->assertSame(4000, PaymentService::toMinorUnits(40.0));
-        $this->assertSame(2550, PaymentService::toMinorUnits(25.5));
-        $this->assertSame(0, PaymentService::toMinorUnits(0.0));
-        $this->assertSame(1999, PaymentService::toMinorUnits(19.99));
+        $this->assertSame(4000, PaymentService::toMinorUnits(40.0, 'USD'));
+        $this->assertSame(2550, PaymentService::toMinorUnits(25.5, 'EUR'));
+        $this->assertSame(0, PaymentService::toMinorUnits(0.0, 'USD'));
+        $this->assertSame(1999, PaymentService::toMinorUnits(19.99, 'GBP'));
+    }
+
+    public function testToMinorUnitsZeroDecimalCurrencyIsNotMultiplied(): void
+    {
+        // The 100x-overcharge regression: JPY/KRW etc. are already minor units.
+        $this->assertSame(1000, PaymentService::toMinorUnits(1000.0, 'JPY'));
+        $this->assertSame(5000, PaymentService::toMinorUnits(5000.0, 'krw'));
+        $this->assertSame(1500, PaymentService::toMinorUnits(1500.0, 'VND'));
     }
 
     /**
