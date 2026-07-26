@@ -211,12 +211,23 @@ class BookingController extends Controller
             }
 
             if ($request->getAcceptsJson()) {
+                $reservationData = [
+                    'id' => $reservation->getId(),
+                    'formattedDateTime' => $reservation->getFormattedDateTime(),
+                    'status' => $reservation->getStatusLabel(),
+                ];
+                // Direct (Commerce-free) payment: the booking is pending and must be
+                // paid in-page. Expose the confirmation token so the wizard can call
+                // `payment/create`, and flag that a payment step is required.
+                if ($useDirectPayment) {
+                    $reservationData['token'] = $reservation->getConfirmationToken();
+                    return $this->jsonSuccess(Craft::t('booked', 'booking.created'), [
+                        'reservation' => $reservationData,
+                        'paymentRequired' => true,
+                    ]);
+                }
                 return $this->jsonSuccess(Craft::t('booked', 'booking.created'), [
-                    'reservation' => [
-                        'id' => $reservation->getId(),
-                        'formattedDateTime' => $reservation->getFormattedDateTime(),
-                        'status' => $reservation->getStatusLabel(),
-                    ],
+                    'reservation' => $reservationData,
                 ]);
             }
             Craft::$app->session->setNotice(Craft::t('booked', 'booking.confirmed'));

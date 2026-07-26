@@ -68,6 +68,8 @@ export class Renderer {
     on('announce', ({ message, politeness }) => this._live?.announce(message, politeness));
     on('error', (payload) => this._showError(payload));
     on('data:loaded', () => this._updateActiveStep());
+    // Direct (Commerce-free) payment: reveal + mount the in-page Stripe step.
+    on('payment:required', () => this._showStep('payment'));
   }
 
   _onState(lifecycle) {

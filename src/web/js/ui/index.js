@@ -21,6 +21,7 @@ import { customerInfoStep } from './steps/customer-info.js';
 import { reviewStep } from './steps/review.js';
 import { successStep } from './steps/success.js';
 import { manageStep } from './steps/manage.js';
+import { createPaymentStep } from './steps/payment.js';
 
 export const version = '1.0.0-dev';
 
@@ -38,6 +39,8 @@ function registerDefaultSteps(renderer) {
   renderer.registerStep('info', customerInfoStep);
   renderer.registerStep('review', reviewStep);
   renderer.registerStep('success', successStep);
+  // Direct (Commerce-free) Stripe payment; shown on `payment:required`.
+  renderer.registerStep('payment', createPaymentStep());
   // Manage flow
   renderer.registerStep('manage', manageStep);
 }

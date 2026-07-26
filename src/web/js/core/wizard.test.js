@@ -19,6 +19,13 @@ function fakeApi(overrides = {}) {
     extendLock: vi.fn(async () => ({ success: true, expiresIn: 300 })),
     releaseLock: vi.fn(async () => ({ success: true })),
     createBooking: vi.fn(async () => ({ success: true, reservation: { id: 999, reference: 'BKD-999' } })),
+    createPayment: vi.fn(async () => ({
+      success: true,
+      paymentToken: 'pt-abc',
+      clientSecret: 'cs_test_123',
+      config: { publishableKey: 'pk_test_123' },
+    })),
+    confirmPayment: vi.fn(async () => ({ success: true, paid: true, status: 'paid' })),
     joinWaitlist: vi.fn(async () => ({ success: true })),
     joinEventWaitlist: vi.fn(async () => ({ success: true })),
     abortAll: vi.fn(),
@@ -188,6 +195,91 @@ describe('Wizard — payment (Commerce redirect)', () => {
     expect(result).toMatchObject({ ok: true, paying: true, redirectUrl: '/shop/cart' });
     expect(wizard.state).toBe(STATES.PAYING);
     expect(onRedirect).toHaveBeenCalledWith({ url: '/shop/cart' });
+  });
+});
+
+describe('Wizard — payment (direct/Stripe)', () => {
+  async function toSubmit(apiOverrides = {}) {
+    const { wizard, api } = newWizard(apiOverrides);
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext();
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    wizard.goNext();
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext();
+    return { wizard, api };
+  }
+
+  it('enters paying and emits payment:required when the booking is created pending', async () => {
+    const onRequired = vi.fn();
+    const reservation = { id: 42, formattedDateTime: 'Aug 1', status: 'Pending', token: 'confirm-tok' };
+    const { wizard } = await toSubmit({
+      createBooking: vi.fn(async () => ({ success: true, paymentRequired: true, reservation })),
+    });
+    wizard.on('payment:required', onRequired);
+    const result = await wizard.submit();
+    expect(result).toMatchObject({ ok: true, paying: true, paymentRequired: true });
+    expect(wizard.state).toBe(STATES.PAYING);
+    expect(onRequired).toHaveBeenCalledWith({ reservation });
+    // Not confirmed yet — payment still pending.
+    expect(wizard.getState().context.reservation).toEqual(reservation);
+  });
+
+  it('createDirectPayment authorizes with the reservation id + token and stores the paymentToken', async () => {
+    const reservation = { id: 42, token: 'confirm-tok' };
+    const { wizard, api } = await toSubmit({
+      createBooking: vi.fn(async () => ({ success: true, paymentRequired: true, reservation })),
+    });
+    await wizard.submit();
+    const res = await wizard.createDirectPayment();
+    expect(api.createPayment).toHaveBeenCalledWith({ reservationId: 42, token: 'confirm-tok' });
+    expect(res).toMatchObject({ clientSecret: 'cs_test_123', config: { publishableKey: 'pk_test_123' } });
+  });
+
+  it('createDirectPayment returns null when there is no pending direct payment', async () => {
+    const { wizard } = newWizard();
+    expect(await wizard.createDirectPayment()).toBeNull();
+  });
+
+  it('confirmDirectPayment finalizes the booking (confirmed + booking:confirmed) when the server reports paid', async () => {
+    const onConfirmed = vi.fn();
+    const reservation = { id: 42, token: 'confirm-tok' };
+    const { wizard, api } = await toSubmit({
+      createBooking: vi.fn(async () => ({ success: true, paymentRequired: true, reservation })),
+    });
+    wizard.on('booking:confirmed', onConfirmed);
+    await wizard.submit();
+    await wizard.createDirectPayment();
+    const res = await wizard.confirmDirectPayment();
+    expect(api.confirmPayment).toHaveBeenCalledWith('pt-abc');
+    expect(res).toMatchObject({ paid: true });
+    expect(wizard.state).toBe(STATES.CONFIRMED);
+    expect(onConfirmed).toHaveBeenCalledWith({ reservation });
+  });
+
+  it('confirmDirectPayment stays paying (no confirm) while the server still reports unpaid', async () => {
+    const reservation = { id: 42, token: 'confirm-tok' };
+    const { wizard } = await toSubmit({
+      createBooking: vi.fn(async () => ({ success: true, paymentRequired: true, reservation })),
+      confirmPayment: vi.fn(async () => ({ success: true, paid: false, status: 'pending' })),
+    });
+    await wizard.submit();
+    await wizard.createDirectPayment();
+    const res = await wizard.confirmDirectPayment();
+    expect(res).toMatchObject({ paid: false });
+    expect(wizard.state).toBe(STATES.PAYING);
+  });
+
+  it('confirmDirectPayment is a no-op before createDirectPayment (no paymentToken yet)', async () => {
+    const reservation = { id: 42, token: 'confirm-tok' };
+    const { wizard, api } = await toSubmit({
+      createBooking: vi.fn(async () => ({ success: true, paymentRequired: true, reservation })),
+    });
+    await wizard.submit();
+    const res = await wizard.confirmDirectPayment();
+    expect(res).toEqual({ paid: false });
+    expect(api.confirmPayment).not.toHaveBeenCalled();
   });
 });
 

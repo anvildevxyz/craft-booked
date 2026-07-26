@@ -1750,6 +1750,8 @@ return [
     // Payment
     'wizard.paymentRequired' => 'Payment Required',
     'wizard.paymentRequiredNote' => 'Your booking will be confirmed after successful payment.',
+    'wizard.paymentHeading' => 'Payment',
+    'wizard.btnPay' => 'Pay now',
 
     // Misc
     'wizard.durationUnit' => 'min',
@@ -1895,4 +1897,10 @@ return [
     'This feature requires Booked Pro.' => 'This feature requires Booked Pro.',
     'payment.gatewayUnavailable' => 'The payment gateway is not available.',
     'payment.createFailed' => 'The payment could not be started. Please try again.',
+    // Direct-payment wizard step (client-side status/errors).
+    'payment.preparing' => 'Preparing secure payment…',
+    'payment.processing' => 'Processing your payment…',
+    'payment.finalizing' => 'Payment received — finalizing your booking…',
+    'payment.unavailable' => 'Payment is currently unavailable. Please try again later.',
+    'payment.failed' => 'The payment could not be completed. Please try again.',
 ];
