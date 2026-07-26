@@ -46,14 +46,24 @@ class PaymentService extends Component
 
         $session = $gateway->createPayment($reservation, $context);
 
-        $record = new PaymentRecord();
+        // Reuse the record for this gateway intent: Stripe's per-reservation
+        // idempotency key returns the same PaymentIntent (same externalId) on
+        // retry/refresh, so a repeated create must not insert a duplicate row
+        // (which would make the paid booking read as unpaid). Never clobber a
+        // status the webhook has already advanced.
+        $record = PaymentRecord::findOne(['externalId' => $session->externalId, 'gateway' => $gateway->getHandle()])
+            ?? new PaymentRecord();
         $record->reservationId = $reservation->getId();
         $record->gateway = $gateway->getHandle();
         $record->externalId = $session->externalId;
-        $record->status = PaymentRecord::STATUS_PENDING;
+        if (empty($record->status)) {
+            $record->status = PaymentRecord::STATUS_PENDING;
+        }
         $record->amount = $amount;
         $record->currency = $currency;
-        $record->refundedAmount = 0;
+        if ($record->refundedAmount === null) {
+            $record->refundedAmount = 0;
+        }
         $record->save(false);
 
         $token = PaymentTokenHelper::sign((string) $reservation->getUid(), (int) $record->id, self::securityKey());

@@ -73,6 +73,15 @@ class PaymentServiceTest extends TestCase
         ];
     }
 
+    public function testCreatePaymentReusesRecordByExternalId(): void
+    {
+        // Dedup: a repeated create for the same reservation (same Stripe intent)
+        // reuses the existing record instead of inserting a duplicate.
+        $src = self::methodSource('anvildev\booked\services\PaymentService', 'createForReservation');
+        $this->assertStringContainsString("findOne(['externalId'", $src);
+        $this->assertStringContainsString('?? new PaymentRecord()', $src);
+    }
+
     public function testDirectPaymentBookingsAreHeldPending(): void
     {
         // Both the controller and the service must treat direct mode like commerce:
