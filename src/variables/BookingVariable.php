@@ -170,7 +170,7 @@ class BookingVariable
     {
         Craft::$app->getDeprecator()->log(
             'booked-legacy-wizard',
-            'The Alpine.js Booked wizard is deprecated and will be removed in Booked 2.0. Unset the "legacyWizard" setting to use the framework-free vanilla wizard.',
+            'The Alpine.js Booked wizard is deprecated as of Booked 1.3 and will be removed in 2.0. Unset the "legacyWizard" setting to use the framework-free vanilla wizard.',
         );
 
         return '';
