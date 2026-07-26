@@ -102,7 +102,10 @@ class PaymentService extends Component
     private function confirmReservation(int $reservationId): void
     {
         $record = \anvildev\booked\records\ReservationRecord::findOne($reservationId);
-        if (!$record || $record->status === \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED) {
+        // Only a still-pending reservation may be confirmed. A late or replayed
+        // webhook must NOT resurrect a reservation that was cancelled or expired
+        // (nor re-fire notifications on an already-confirmed one).
+        if (!$record || $record->status !== \anvildev\booked\records\ReservationRecord::STATUS_PENDING) {
             return;
         }
         $record->status = \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED;

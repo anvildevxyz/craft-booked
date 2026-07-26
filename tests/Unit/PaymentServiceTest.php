@@ -73,6 +73,14 @@ class PaymentServiceTest extends TestCase
         ];
     }
 
+    public function testConfirmReservationOnlyConfirmsPending(): void
+    {
+        // Guards against a late/replayed webhook resurrecting a cancelled or
+        // expired reservation: only a PENDING reservation may be confirmed.
+        $src = self::methodSource('anvildev\booked\services\PaymentService', 'confirmReservation');
+        $this->assertStringContainsString('!== \anvildev\booked\records\ReservationRecord::STATUS_PENDING', $src);
+    }
+
     public function testCreatePaymentReusesRecordByExternalId(): void
     {
         // Dedup: a repeated create for the same reservation (same Stripe intent)
