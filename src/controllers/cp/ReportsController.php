@@ -3,6 +3,7 @@
 namespace anvildev\booked\controllers\cp;
 
 use anvildev\booked\Booked;
+use anvildev\booked\Editions;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Location;
 use anvildev\booked\elements\Service;
@@ -19,6 +20,11 @@ class ReportsController extends Controller
             return false;
         }
         $this->requirePermission('booked-viewReports');
+        // Lite ships only the basic revenue report; the full dashboard + the
+        // other report types are Pro. See Editions.
+        if ($action->id !== 'revenue') {
+            Editions::requirePro();
+        }
         return true;
     }
 

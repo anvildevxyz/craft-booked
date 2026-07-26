@@ -821,10 +821,20 @@ class Booked extends Plugin
             ['settings', 'nav.settings', 'booked/settings', 'booked-manageSettings'],
         ];
 
+        // Pro-only nav entries are hidden under Lite; the reports entry points at
+        // the basic revenue report instead of the full dashboard. See Editions.
+        $isPro = Editions::isPro();
+        $proOnlyNav = ['event-dates', 'waitlist', 'webhooks'];
+
         $subnav = [];
         foreach ($navDefs as $def) {
+            $key = $def[0];
+            if (!$isPro && in_array($key, $proOnlyNav, true)) {
+                continue;
+            }
             if ($can(...array_slice($def, 3))) {
-                $subnav[$def[0]] = ['label' => Craft::t('booked', $def[1]), 'url' => $def[2]];
+                $url = (!$isPro && $key === 'reports') ? 'booked/reports/revenue' : $def[2];
+                $subnav[$key] = ['label' => Craft::t('booked', $def[1]), 'url' => $url];
             }
         }
 
