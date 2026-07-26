@@ -241,6 +241,16 @@ export class BookedApi {
     return this.post('bookings', { body });
   }
 
+  // Direct payments. createPayment authorizes with the reservation's
+  // confirmation token; confirmPayment is a UX poll (the webhook is the source
+  // of truth). See PRD §7.3.
+  createPayment(body) {
+    return this.post('payment/create', { body });
+  }
+  confirmPayment(paymentToken) {
+    return this.post('payment/confirm', { body: { paymentToken } });
+  }
+
   // Waitlist
   joinWaitlist(body) {
     return this.post('waitlist', { body });

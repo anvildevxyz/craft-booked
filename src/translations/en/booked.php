@@ -1893,4 +1893,6 @@ return [
     'validation.quantityTooLow' => 'Quantity is too low.',
     'validation.quantityTooHigh' => 'Not enough capacity for that quantity.',
     'This feature requires Booked Pro.' => 'This feature requires Booked Pro.',
+    'payment.gatewayUnavailable' => 'The payment gateway is not available.',
+    'payment.createFailed' => 'The payment could not be started. Please try again.',
 ];

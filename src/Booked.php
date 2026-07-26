@@ -91,6 +91,7 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\MutexFactory $mutex
  * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
  * @property-read \anvildev\booked\services\PaymentGatewayService $paymentGateways
+ * @property-read \anvildev\booked\services\PaymentService $payments
  */
 class Booked extends Plugin
 {
@@ -246,6 +247,7 @@ class Booked extends Plugin
             'mutex' => \anvildev\booked\services\MutexFactory::class,
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
             'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
+            'payments' => \anvildev\booked\services\PaymentService::class,
         ]);
     }
 
@@ -358,6 +360,11 @@ class Booked extends Plugin
     public function getPaymentGateways(): \anvildev\booked\services\PaymentGatewayService
     {
         return $this->get('paymentGateways');
+    }
+
+    public function getPayments(): \anvildev\booked\services\PaymentService
+    {
+        return $this->get('payments');
     }
 
     public function isCommerceEnabled(): bool
@@ -747,6 +754,9 @@ class Booked extends Plugin
                     'booked/api/v1/locks/release' => 'booked/slot/release-lock',
                     // Booking
                     'booked/api/v1/bookings' => 'booked/booking/create-booking',
+                    // Direct payments
+                    'booked/api/v1/payment/create' => 'booked/payment/create',
+                    'booked/api/v1/payment/confirm' => 'booked/payment/confirm',
                     // Waitlist
                     'booked/api/v1/waitlist/event' => 'booked/waitlist/join-event-waitlist',
                     'booked/api/v1/waitlist/convert' => 'booked/waitlist-conversion/convert',
