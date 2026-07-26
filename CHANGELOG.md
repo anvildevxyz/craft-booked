@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.3.0 - 2026-07-26
+
+> `{% include 'booked/frontend/wizard' %}` now renders the framework-free vanilla wizard **by default** — no template changes needed. The deprecated Alpine wizard is available for one release window via the **`legacyWizard`** setting (or `{% include … with { legacyWizard: true } %}`), logged as deprecated, and removed in 2.0.
+
+### Added
+- **Framework-free booking wizard** — a zero-runtime-dependency rewrite of the booking flow: a headless state-machine core (`BookedWizard.create()`) plus a vanilla renderer, replacing Alpine.js. Runs under a strict CSP (no `unsafe-eval`, no inline executable script — config is read from a JSON block), ~14.5 KB gzipped (core + renderer). See [VANILLA_WIZARD.md](docs/VANILLA_WIZARD.md).
+- **Accessible calendar** replacing Flatpickr: WAI-ARIA date grid with roving tabindex, full keyboard navigation (arrows / Home-End / PageUp-Down / Enter-Space), month crossing, and a two-click range mode for multi-day services. Month, weekday, and full-date names are localized from the site language via `Intl`.
+- **Booking-management mode** (`?manage=<token>`) — a self-service view to cancel, reduce, or increase the quantity of an existing booking, driven by the reservation's confirmation token.
+- **Multi-seat quantity pickers** for slots, multi-day ranges, and events (bounded by remaining capacity), with required-extras enforcement.
+- **Captcha widget support** — Turnstile, hCaptcha, and reCAPTCHA v3, with the token minted/refreshed before submit.
+- **Versioned headless API** at `/booked/api/v1/…` — the wizard's REST surface as documented public API, aliased onto the existing controllers so the old paths keep working.
+- **Soft-lock hold timer** — the wizard now shows and manages the reservation countdown, auto-extends once on submit, and cleanly enters an expired state (new `slot/extend-lock` action + `SoftLockService::extendLock()`, capped by `softLockMaxLifetimeMinutes`).
+- **Bring-your-own-frontend** — the core ships as a headless ESM/UMD build (`booked-wizard-core`) drivable with no DOM, for custom/React/Vue frontends.
+
+### Parity (vanilla wizard)
+- Full feature parity with the Alpine wizard: service, extras, location, employee, single-slot / fixed-day / flexible-day date selection, multi-seat quantity, customer info, review summary, and Commerce redirect; event-date flow (incl. paid events and per-event quantity); booking management; waitlist branch; honeypot anti-spam.
+- **Styling matches the previous wizard** — the same editorial black-and-white design (2px borders, square corners, uppercase controls), driven by `--booked-*` CSS custom properties for theming.
+- The review summary and confirmation screen show only the rows that apply (no empty labels), and prices display with the Commerce currency symbol.
+
+### Accessibility
+- `role="region"` landmark, live-region step announcements, focus moved to each step heading, `role="alert"` errors, `aria-pressed`/`aria-selected` selection state, `aria-required` on required fields, and full-date accessible names on calendar days.
+
+### Internationalization
+- All runtime strings the core emits (announcements, countdown, validation, errors) and the calendar's navigation labels are translatable and shipped in en, de, fr, es, it, ja, nl, and pt.
+
 ## 1.2.1 - 2026-06-17
 
 ### Added

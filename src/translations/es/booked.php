@@ -1863,4 +1863,27 @@ return [
     'sms.confirmation.multiday' => '¡Su reserva está confirmada! {{service}} del {{date}} al {{endDate}} ({{durationDays}} días). {{location}}',
     'sms.reminder.multiday' => 'Recordatorio: {{service}} comienza mañana, {{date}} al {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Su reserva de {{service}} ({{date}} al {{endDate}}) ha sido cancelada.',
+
+    // Asistente Vanilla — cadenas que el núcleo JS genera en tiempo de ejecución
+    // (anuncios, cuenta regresiva, errores, validación). Se pasan mediante
+    // bookedConfig.messages para traducirse según el idioma del sitio. Los
+    // marcadores `{token}` se interpolan en el cliente y deben conservarse en cada traducción.
+    'announce.stepChanged' => 'Paso {position} de {total}: {title}',
+    'lock.expiring' => 'Su reserva se mantiene retenida durante {minutes} minuto(s) más.',
+    'lock.expired' => 'Su horario reservado ha expirado. Por favor, elija un horario de nuevo.',
+    'calendar.prevMonth' => 'Mes anterior',
+    'calendar.nextMonth' => 'Mes siguiente',
+    'error.generic' => 'Se ha producido un error. Por favor, inténtelo de nuevo.',
+    'error.booking' => 'Su reserva no se pudo completar.',
+    'error.slotReserved' => 'Ese horario acaba de ser ocupado. Por favor, elija otro.',
+    'validation.serviceRequired' => 'Por favor, elija un servicio.',
+    'validation.slotRequired' => 'Por favor, elija una fecha y hora.',
+    'validation.eventRequired' => 'Por favor, elija una fecha de evento.',
+    'validation.nameRequired' => 'Por favor, introduzca su nombre.',
+    'validation.emailRequired' => 'Por favor, introduzca su dirección de correo electrónico.',
+    'validation.emailInvalid' => 'Por favor, introduzca una dirección de correo electrónico válida.',
+    'validation.phoneRequired' => 'Por favor, introduzca su número de teléfono.',
+    'validation.quantityInvalid' => 'Por favor, introduzca una cantidad válida.',
+    'validation.quantityTooLow' => 'La cantidad es demasiado baja.',
+    'validation.quantityTooHigh' => 'No hay suficiente capacidad para esa cantidad.',
 ];

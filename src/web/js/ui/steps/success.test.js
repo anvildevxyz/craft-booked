@@ -1,0 +1,57 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Wizard } from '../../core/wizard.js';
+import { successStep } from './success.js';
+
+function fakeApi(overrides = {}) {
+  return {
+    commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
+    services: vi.fn(async () => ({ services: [{ id: 12, name: 'Haircut', price: 40, durationType: 'minutes' }] })),
+    serviceExtras: vi.fn(async () => ({ extras: [] })),
+    employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1, name: 'Main' }], serviceHasSchedule: true })),
+    createSlotLock: vi.fn(async () => ({ success: true, token: 'lock-abc', expiresIn: 300 })),
+    extendLock: vi.fn(async () => ({ success: true, expiresIn: 300 })),
+    releaseLock: vi.fn(async () => ({ success: true })),
+    createBooking: vi.fn(async () => ({
+      success: true,
+      reservation: { id: 999, statusLabel: 'Confirmed', formattedDateTime: 'Aug 1, 2026 10:00' },
+    })),
+    abortAll: vi.fn(),
+    beaconRelease: vi.fn(),
+    ...overrides,
+  };
+}
+
+const REGION = `
+  <section data-booked-step="success">
+    <dd data-booked-summary="status"></dd>
+    <dd data-booked-summary="booking-id"></dd>
+    <dd data-booked-summary="appointment"></dd>
+    <strong data-booked-summary="customer-email"></strong>
+  </section>`;
+
+beforeEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('successStep', () => {
+  it('fills the reservation details after a confirmed booking', async () => {
+    const wizard = new Wizard({ apiClient: fakeApi(), flow: 'booking' });
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext();
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    wizard.goNext();
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext();
+    await wizard.submit();
+
+    document.body.innerHTML = REGION;
+    const region = document.querySelector('[data-booked-step="success"]');
+    successStep.render(region, wizard);
+
+    expect(region.querySelector('[data-booked-summary="status"]').textContent).toBe('Confirmed');
+    expect(region.querySelector('[data-booked-summary="booking-id"]').textContent).toBe('999');
+    expect(region.querySelector('[data-booked-summary="appointment"]').textContent).toBe('Aug 1, 2026 10:00');
+    expect(region.querySelector('[data-booked-summary="customer-email"]').textContent).toBe('ada@example.com');
+  });
+});

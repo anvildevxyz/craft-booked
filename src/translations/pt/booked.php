@@ -1863,4 +1863,27 @@ return [
     'sms.confirmation.multiday' => 'Sua reserva está confirmada! {{service}} de {{date}} a {{endDate}} ({{durationDays}} dias). {{location}}',
     'sms.reminder.multiday' => 'Lembrete: {{service}} começa amanhã, {{date}} a {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Sua reserva para {{service}} ({{date}} a {{endDate}}) foi cancelada.',
+
+    // Assistente Vanilla — strings geradas em tempo de execução pelo núcleo JS
+    // (anúncios, contagem regressiva, erros, validação). Passadas via
+    // bookedConfig.messages para se traduzirem conforme o idioma do site. Os
+    // marcadores `{token}` são interpolados no cliente e devem ser mantidos em cada tradução.
+    'announce.stepChanged' => 'Passo {position} de {total}: {title}',
+    'lock.expiring' => 'A sua reserva está retida por mais {minutes} minuto(s).',
+    'lock.expired' => 'O horário reservado expirou. Por favor, escolha um horário novamente.',
+    'calendar.prevMonth' => 'Mês anterior',
+    'calendar.nextMonth' => 'Mês seguinte',
+    'error.generic' => 'Ocorreu um erro. Tente novamente.',
+    'error.booking' => 'A sua reserva não pôde ser concluída.',
+    'error.slotReserved' => 'Esse horário acabou de ser ocupado. Por favor, escolha outro.',
+    'validation.serviceRequired' => 'Por favor, escolha um serviço.',
+    'validation.slotRequired' => 'Por favor, escolha uma data e hora.',
+    'validation.eventRequired' => 'Por favor, escolha uma data de evento.',
+    'validation.nameRequired' => 'Por favor, insira o seu nome.',
+    'validation.emailRequired' => 'Por favor, insira o seu endereço de e-mail.',
+    'validation.emailInvalid' => 'Por favor, insira um endereço de e-mail válido.',
+    'validation.phoneRequired' => 'Por favor, insira o seu número de telefone.',
+    'validation.quantityInvalid' => 'Por favor, insira uma quantidade válida.',
+    'validation.quantityTooLow' => 'A quantidade é demasiado baixa.',
+    'validation.quantityTooHigh' => 'Não há capacidade suficiente para essa quantidade.',
 ];

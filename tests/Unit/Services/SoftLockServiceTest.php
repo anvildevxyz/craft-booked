@@ -217,12 +217,18 @@ class SoftLockServiceTest extends TestCase
         $service->shouldReceive('createRecord')->andReturn($mockRecord);
         $service->shouldReceive('saveRecord')->andReturn(true);
 
-        $before = new \DateTime('+4 minutes');
+        // The service stores expiresAt as a UTC datetime string (now + 5 min default),
+        // so the bounds must be UTC too — a local-tz DateTime would compare wrong.
+        $before = new \DateTime('+4 minutes', new \DateTimeZone('UTC'));
         $service->createLock($this->makeSlotData()); // default 5 min
-        $after = new \DateTime('+6 minutes');
+        $after = new \DateTime('+6 minutes', new \DateTimeZone('UTC'));
 
-        // expiresAt should be set (not null) — exact value depends on Db::prepareDateForDb
         $this->assertNotNull($mockRecord->expiresAt);
+        // Assert the stored expiry actually lands inside the intended 5-minute window,
+        // so a changed/dropped default duration fails this test instead of passing.
+        $expiresAt = new \DateTime((string)$mockRecord->expiresAt, new \DateTimeZone('UTC'));
+        $this->assertGreaterThanOrEqual($before->getTimestamp(), $expiresAt->getTimestamp());
+        $this->assertLessThanOrEqual($after->getTimestamp(), $expiresAt->getTimestamp());
     }
 
     // =========================================================================
@@ -332,6 +338,104 @@ class SoftLockServiceTest extends TestCase
         $result = $service->releaseLock('abc123', 'any-hash');
 
         $this->assertTrue($result);
+    }
+
+    // =========================================================================
+    // extendLock() - Renewal with a hard lifetime ceiling
+    // =========================================================================
+
+    public function testExtendLockReturnsFalseWhenRecordNotFound(): void
+    {
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('missing')->andReturn(null);
+        $service->shouldNotReceive('saveRecord');
+
+        $this->assertFalse($service->extendLock('missing'));
+    }
+
+    public function testExtendLockDeniedOnSessionHashMismatch(): void
+    {
+        $mockRecord = $this->createMockRecord();
+        $mockRecord->sessionHash = hash('sha256', 'session1|127.0.0.1');
+
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('abc123')->andReturn($mockRecord);
+        $service->shouldNotReceive('saveRecord');
+
+        $wrongHash = hash('sha256', 'different-session|10.0.0.1');
+        $this->assertFalse($service->extendLock('abc123', 5, $wrongHash));
+    }
+
+    public function testExtendLockReturnsFalseWhenAlreadyExpired(): void
+    {
+        $mockRecord = $this->createMockRecord();
+        $mockRecord->sessionHash = null;
+        $mockRecord->dateCreated = $this->utc('-4 minutes');
+        $mockRecord->expiresAt = $this->utc('-1 minute'); // already lapsed
+
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('abc123')->andReturn($mockRecord);
+        $service->shouldNotReceive('saveRecord');
+
+        $this->assertFalse($service->extendLock('abc123', 5, null, 30));
+    }
+
+    public function testExtendLockRefusesToRenewPastLifetimeCeiling(): void
+    {
+        // Still-live lock (expiresAt in the future) but far older than the ceiling:
+        // this is the indefinite-hold attack — renewal must be denied.
+        $mockRecord = $this->createMockRecord();
+        $mockRecord->sessionHash = null;
+        $mockRecord->dateCreated = $this->utc('-40 minutes');
+        $mockRecord->expiresAt = $this->utc('+1 minute');
+
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('abc123')->andReturn($mockRecord);
+        $service->shouldNotReceive('saveRecord');
+
+        $this->assertFalse($service->extendLock('abc123', 5, null, 30));
+    }
+
+    public function testExtendLockSucceedsWithinLifetime(): void
+    {
+        $mockRecord = $this->createMockRecord();
+        $mockRecord->sessionHash = null;
+        $mockRecord->dateCreated = $this->utc('-1 minute');
+        $mockRecord->expiresAt = $this->utc('+2 minutes');
+
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('abc123')->andReturn($mockRecord);
+        $service->shouldReceive('saveRecord')->once()->with($mockRecord)->andReturn(true);
+
+        $result = $service->extendLock('abc123', 5, null, 30);
+
+        $this->assertInstanceOf(\DateTime::class, $result);
+        $this->assertNotNull($mockRecord->expiresAt);
+    }
+
+    public function testExtendLockClampsNewExpiryToLifetimeCeiling(): void
+    {
+        // Created 28 min ago, ceiling 30 min → at most ~2 min of runway left,
+        // so a 5-minute renewal must be clamped down to the ceiling.
+        $mockRecord = $this->createMockRecord();
+        $mockRecord->sessionHash = null;
+        $mockRecord->dateCreated = $this->utc('-28 minutes');
+        $mockRecord->expiresAt = $this->utc('+1 minute');
+
+        $service = $this->makePartialService();
+        $service->shouldReceive('getRecordByToken')->with('abc123')->andReturn($mockRecord);
+        $service->shouldReceive('saveRecord')->once()->with($mockRecord)->andReturn(true);
+
+        $result = $service->extendLock('abc123', 5, null, 30);
+
+        $this->assertInstanceOf(\DateTime::class, $result);
+        // New expiry may not exceed dateCreated + 30 min (allow 5s of test slack).
+        $ceiling = (new \DateTime('now', new \DateTimeZone('UTC')))->modify('+2 minutes');
+        $this->assertLessThanOrEqual(
+            $ceiling->getTimestamp() + 5,
+            $result->getTimestamp(),
+            'Renewal must be clamped to the lifetime ceiling, not extended a full duration'
+        );
     }
 
     // =========================================================================
@@ -479,6 +583,16 @@ class SoftLockServiceTest extends TestCase
     // Helpers
     // =========================================================================
 
+    /**
+     * A UTC datetime string (as stored on the record) offset from now, e.g. '-40 minutes'.
+     */
+    private function utc(string $modify): string
+    {
+        return (new \DateTime('now', new \DateTimeZone('UTC')))
+            ->modify($modify)
+            ->format('Y-m-d H:i:s');
+    }
+
     private function makeSlotData(array $overrides = []): array
     {
         return array_merge([
@@ -496,7 +610,7 @@ class SoftLockServiceTest extends TestCase
      */
     private function createMockRecord(): object
     {
-        return new class {
+        return new class() {
             public ?string $token = null;
             public ?string $sessionHash = null;
             public ?int $serviceId = null;
@@ -508,6 +622,7 @@ class SoftLockServiceTest extends TestCase
             public ?string $endDate = null;
             public int $quantity = 1;
             public ?string $expiresAt = null;
+            public ?string $dateCreated = null;
         };
     }
 }

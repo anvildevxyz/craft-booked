@@ -1,10 +1,12 @@
 /vendor/
 /node_modules/
-/package-lock.json
-/package.json
 /yarn.lock
 /pnpm-lock.yaml
 /pnpm-workspace.yaml
+
+# package.json, package-lock.json and dist/ are tracked on purpose:
+# dist/ ships the compiled wizard bundle to Composer consumers (who don't run a build),
+# and the lockfile keeps CI's budget check deterministic.
 
 # Testing artifacts
 .phpunit.result.cache

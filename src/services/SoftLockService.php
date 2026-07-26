@@ -148,6 +148,59 @@ class SoftLockService extends Component
         return (bool)$this->deleteRecord($record);
     }
 
+    /**
+     * Extend a held lock, re-issuing its TTL from now — up to a hard lifetime ceiling.
+     *
+     * Verifies the session hash (like {@see releaseLock()}) and refuses to
+     * resurrect a lock that is missing or already expired. Crucially, the new
+     * expiry is clamped to the lock's creation time plus $maxLifetimeMinutes, so
+     * a client can renew while it finishes checkout but can never hold a slot
+     * indefinitely and starve real bookings. Returns the new UTC expiry on success.
+     *
+     * @param string $token
+     * @param int $durationMinutes
+     * @param string|null $sessionHash
+     * @param int $maxLifetimeMinutes Hard ceiling on total lifetime, measured from the lock's creation
+     * @return DateTime|false New expiry on success, false if the lock is gone, expired, capped out, or the session mismatches
+     */
+    public function extendLock(string $token, int $durationMinutes = 5, ?string $sessionHash = null, int $maxLifetimeMinutes = 30): DateTime|false
+    {
+        $record = $this->getRecordByToken($token);
+        if (!$record) {
+            return false;
+        }
+
+        if ($record->sessionHash && !hash_equals($record->sessionHash, $sessionHash ?? '')) {
+            Craft::warning("Soft lock extend denied: session mismatch for token (lock_id=" . substr(hash('sha256', $token), 0, 8) . ")", __METHOD__);
+            return false;
+        }
+
+        // Refuse to resurrect an already-expired lock — the slot may be gone.
+        $now = new DateTime('now', new DateTimeZone('UTC'));
+        $currentExpiry = new DateTime((string)$record->expiresAt, new DateTimeZone('UTC'));
+        if ($currentExpiry <= $now) {
+            return false;
+        }
+
+        // Hard ceiling: a lock can be renewed, but never past creation + max lifetime.
+        // Once the ceiling is reached the client must re-acquire, which re-checks
+        // availability — so nobody can sit on a slot forever by extending on a timer.
+        $maxExpiry = (new DateTime((string)$record->dateCreated, new DateTimeZone('UTC')))
+            ->modify("+{$maxLifetimeMinutes} minutes");
+        if ($maxExpiry <= $now) {
+            Craft::info("Soft lock extend denied: lifetime ceiling reached (lock_id=" . substr(hash('sha256', $token), 0, 8) . ")", __METHOD__);
+            return false;
+        }
+
+        $newExpiry = (clone $now)->modify("+{$durationMinutes} minutes");
+        if ($newExpiry > $maxExpiry) {
+            $newExpiry = $maxExpiry;
+        }
+        $record->expiresAt = Db::prepareDateForDb($newExpiry);
+
+        return $this->saveRecord($record) ? $newExpiry : false;
+    }
+
     public function cleanupExpiredLocks(): int
     {
         return $this->deleteExpiredRecords();

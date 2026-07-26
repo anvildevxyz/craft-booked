@@ -1869,4 +1869,27 @@ return [
     'sms.confirmation.multiday' => 'Your booking is confirmed! {{service}} from {{date}} to {{endDate}} ({{durationDays}} days). {{location}}',
     'sms.reminder.multiday' => 'Reminder: {{service}} starts tomorrow, {{date}} to {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Your booking for {{service}} ({{date}} to {{endDate}}) has been cancelled.',
+
+    // Vanilla wizard — strings the JS core emits at runtime (announcements,
+    // countdown, errors, validation). Passed to the core via bookedConfig.messages
+    // so they localize with the site language. `{token}` placeholders are
+    // interpolated client-side and must be preserved in every translation.
+    'announce.stepChanged' => 'Step {position} of {total}: {title}',
+    'lock.expiring' => 'Your reservation is held for {minutes} more minute(s).',
+    'lock.expired' => 'Your reserved time has expired. Please choose a time again.',
+    'calendar.prevMonth' => 'Previous month',
+    'calendar.nextMonth' => 'Next month',
+    'error.generic' => 'Something went wrong. Please try again.',
+    'error.booking' => 'Your booking could not be completed.',
+    'error.slotReserved' => 'That time was just taken. Please choose another.',
+    'validation.serviceRequired' => 'Please choose a service.',
+    'validation.slotRequired' => 'Please choose a date and time.',
+    'validation.eventRequired' => 'Please choose an event date.',
+    'validation.nameRequired' => 'Please enter your name.',
+    'validation.emailRequired' => 'Please enter your email address.',
+    'validation.emailInvalid' => 'Please enter a valid email address.',
+    'validation.phoneRequired' => 'Please enter your phone number.',
+    'validation.quantityInvalid' => 'Please enter a valid quantity.',
+    'validation.quantityTooLow' => 'Quantity is too low.',
+    'validation.quantityTooHigh' => 'Not enough capacity for that quantity.',
 ];
