@@ -441,7 +441,9 @@ class BookingService extends Component
         $reservation->startTime = $startTime;
         $reservation->endTime = $endTime;
         $allowedStatuses = [ReservationRecord::STATUS_CONFIRMED];
-        if (Booked::getInstance()->isCommerceEnabled()) {
+        // Both paid modes hold the reservation pending until payment clears
+        // (direct mode is confirmed by the gateway webhook, not at creation).
+        if (Booked::getInstance()->isCommerceEnabled() || Booked::getInstance()->getSettings()->isDirectPayment()) {
             $allowedStatuses[] = ReservationRecord::STATUS_PENDING;
         }
         $reservation->status = in_array($data['status'] ?? null, $allowedStatuses, true)

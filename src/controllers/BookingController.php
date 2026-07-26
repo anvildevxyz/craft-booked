@@ -158,9 +158,12 @@ class BookingController extends Controller
         }
 
         $useCommerce = $settings->canUseCommerce() && $totalPrice > 0;
+        $useDirectPayment = $settings->isDirectPayment() && $totalPrice > 0;
         $addToCartOnly = $request->getBodyParam('addToCart') === '1';
 
-        if ($useCommerce) {
+        // Paid bookings (either mode) start pending; direct mode is confirmed by
+        // the gateway webhook, so it must NOT be created confirmed-for-free.
+        if ($useCommerce || $useDirectPayment) {
             $data['status'] = ReservationRecord::STATUS_PENDING;
         }
 

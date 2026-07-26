@@ -73,6 +73,25 @@ class PaymentServiceTest extends TestCase
         ];
     }
 
+    public function testDirectPaymentBookingsAreHeldPending(): void
+    {
+        // Both the controller and the service must treat direct mode like commerce:
+        // a paid booking starts pending, not confirmed-for-free.
+        $ctrl = self::methodSource('anvildev\booked\controllers\BookingController', 'actionCreateBooking');
+        $this->assertStringContainsString('isDirectPayment', $ctrl);
+        $this->assertStringContainsString('STATUS_PENDING', $ctrl);
+
+        $svc = self::methodSource('anvildev\booked\services\BookingService', 'populateReservation');
+        $this->assertStringContainsString('isDirectPayment', $svc);
+    }
+
+    private static function methodSource(string $class, string $method): string
+    {
+        $rm = new ReflectionMethod($class, $method);
+        $lines = file($rm->getFileName());
+        return implode('', array_slice($lines, $rm->getStartLine() - 1, $rm->getEndLine() - $rm->getStartLine() + 1));
+    }
+
     public function testWebhookIsCsrfExemptAndAnonymous(): void
     {
         $src = file_get_contents(
