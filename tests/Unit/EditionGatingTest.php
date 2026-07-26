@@ -46,8 +46,9 @@ class EditionGatingTest extends TestCase
     {
         return [
             'event-dates' => ['anvildev\booked\controllers\cp\EventDatesController'],
-            'waitlist' => ['anvildev\booked\controllers\cp\WaitlistController'],
+            'cp-waitlist' => ['anvildev\booked\controllers\cp\WaitlistController'],
             'webhooks' => ['anvildev\booked\controllers\cp\WebhooksController'],
+            'frontend-waitlist' => ['anvildev\booked\controllers\WaitlistController'],
         ];
     }
 
