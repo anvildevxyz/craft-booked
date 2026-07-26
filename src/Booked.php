@@ -757,6 +757,7 @@ class Booked extends Plugin
                     // Direct payments
                     'booked/api/v1/payment/create' => 'booked/payment/create',
                     'booked/api/v1/payment/confirm' => 'booked/payment/confirm',
+                    'booked/api/v1/payment/webhook/<gateway:[\w-]+>' => 'booked/payment/webhook',
                     // Waitlist
                     'booked/api/v1/waitlist/event' => 'booked/waitlist/join-event-waitlist',
                     'booked/api/v1/waitlist/convert' => 'booked/waitlist-conversion/convert',

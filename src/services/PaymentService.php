@@ -60,6 +60,57 @@ class PaymentService extends Component
         return ['record' => $record, 'session' => $session, 'token' => $token];
     }
 
+    /**
+     * Handle a verified inbound webhook. Returns whether the event was applied.
+     * Idempotent: a payment already marked paid is a no-op, so replays never
+     * re-confirm a reservation. The gateway's signature verification (the
+     * caller drops null events) is the trust boundary. See PRD §7.7.
+     */
+    public function handleVerifiedPayment(PaymentRecord $record): bool
+    {
+        if (self::isFinalized((string) $record->status)) {
+            return false; // already handled — idempotent
+        }
+        $record->status = PaymentRecord::STATUS_PAID;
+        $record->save(false);
+        $this->confirmReservation((int) $record->reservationId);
+        return true;
+    }
+
+    /** Whether a payment status is already terminal (paid/refunded). */
+    public static function isFinalized(string $status): bool
+    {
+        return in_array($status, [
+            PaymentRecord::STATUS_PAID,
+            PaymentRecord::STATUS_REFUNDED,
+            PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+        ], true);
+    }
+
+    /** Confirm a pending reservation (direct mode) and fire the usual notifications. */
+    private function confirmReservation(int $reservationId): void
+    {
+        $record = \anvildev\booked\records\ReservationRecord::findOne($reservationId);
+        if (!$record || $record->status === \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED) {
+            return;
+        }
+        $record->status = \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED;
+        $record->save(false);
+
+        try {
+            $ns = Booked::getInstance()->bookingNotification;
+            $ns->queueBookingEmail($reservationId, 'confirmation', null, 512);
+            $ns->queueOwnerNotification($reservationId, 512);
+            $ns->queueCalendarSync($reservationId);
+            $reservation = \anvildev\booked\factories\ReservationFactory::findById($reservationId);
+            if ($reservation) {
+                $ns->queueSmsConfirmation($reservation);
+            }
+        } catch (\Throwable $e) {
+            Craft::error("Failed to queue notifications for direct-paid reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
+        }
+    }
+
     /** Convert a decimal major-unit amount to integer minor units (assumes 2-decimal currency). */
     public static function toMinorUnits(float $amount): int
     {

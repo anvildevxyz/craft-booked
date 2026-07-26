@@ -29,9 +29,51 @@ class PaymentController extends Controller
     use HandlesExceptionsTrait;
     use BookingHelpersTrait;
 
-    protected array|bool|int $allowAnonymous = ['create', 'confirm'];
+    protected array|bool|int $allowAnonymous = ['create', 'confirm', 'webhook'];
 
     public $enableCsrfValidation = true;
+
+    public function beforeAction($action): bool
+    {
+        // The webhook is a server-to-server callback from the gateway; it carries
+        // no CSRF token and is authenticated by its signature instead.
+        if ($action->id === 'webhook') {
+            $this->enableCsrfValidation = false;
+        }
+        return parent::beforeAction($action);
+    }
+
+    /**
+     * Gateway webhook — the source of truth for payment status. Verifies the
+     * signature (via the gateway adapter), then idempotently marks the payment
+     * paid and confirms the reservation. Unverifiable events are dropped + logged.
+     */
+    public function actionWebhook(string $gateway): Response
+    {
+        $this->requirePostRequest();
+
+        $adapter = Booked::getInstance()->getPaymentGateways()->getGateway($gateway);
+        if (!$adapter) {
+            return $this->asJson(['received' => false])->setStatusCode(404);
+        }
+
+        $event = $adapter->verifyWebhook(Craft::$app->request);
+        if ($event === null) {
+            Craft::warning("Dropped unverifiable {$gateway} webhook", __METHOD__);
+            return $this->asJson(['received' => false])->setStatusCode(400);
+        }
+
+        // Only payment-success events advance state; others are acked and ignored.
+        if ($event->status === PaymentRecord::STATUS_PAID && $event->externalId) {
+            $record = PaymentRecord::findOne(['externalId' => $event->externalId, 'gateway' => $gateway]);
+            if ($record) {
+                Booked::getInstance()->getPayments()->handleVerifiedPayment($record);
+            }
+        }
+
+        // Always 200 a verified event so the gateway stops retrying.
+        return $this->asJson(['received' => true]);
+    }
 
     public function actionCreate(): Response
     {
