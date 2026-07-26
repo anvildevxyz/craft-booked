@@ -66,9 +66,9 @@ A single helper — `Booked::getInstance()->is(self::EDITION_PRO)` / a `requireP
 ### 5.3 Upgrade path
 Lite → Pro is a Craft edition change (no data migration); Pro features light up on upgrade. Doctor console check reports current edition + any settings referencing gated features.
 
-## 6. Feature matrix _(PROPOSED — needs sign-off)_
+## 6. Feature matrix _(SIGNED OFF 2026-07-26)_
 
-The boundary that makes Lite "simple paid bookings" and keeps every advanced capability in Pro. **This table is the key decision.**
+The boundary that makes Lite a capable "paid bookings for a small business" tier while keeping integrations, automation, events, analytics, and Commerce in Pro.
 
 | Capability | Lite | Pro |
 |---|:--:|:--:|
@@ -77,23 +77,24 @@ The boundary that makes Lite "simple paid bookings" and keeps every advanced cap
 | Email confirmation + reminder | ✅ | ✅ |
 | Cancellation + refund (single default policy) | ✅ | ✅ |
 | Soft-lock hold + anti-abuse (captcha/honeypot/rate limits) | ✅ | ✅ |
-| Employees & schedules | ✅ (single?) | ✅ |
+| Employees & schedules (multiple staff) | ✅ | ✅ |
+| Multiple locations | ✅ | ✅ |
 | Extras / add-ons | ✅ | ✅ |
-| Multiple locations | ❌ | ✅ |
+| Basic revenue report (single revenue/bookings list) | ✅ | ✅ |
+| Full reports & dashboard (11 report types) | ❌ | ✅ |
+| Event dates (group/ticketed events) | ❌ | ✅ |
 | Waitlist | ❌ | ✅ |
 | Calendar sync (Google / Outlook) | ❌ | ✅ |
 | SMS notifications (Twilio) | ❌ | ✅ |
 | Virtual meetings (Zoom / Meet / Teams) | ❌ | ✅ |
-| Event dates (group/ticketed events) | ❓ | ✅ |
 | Multi-day / recurring bookings | ❌ | ✅ |
 | Tiered refund policies | ❌ | ✅ |
 | Webhooks | ❌ | ✅ |
-| Reports & dashboard | ❌ (basic list only) | ✅ |
 | GraphQL API | ❌ | ✅ |
 | MCP tools | ❌ | ✅ |
 | Craft Commerce payment mode | ❌ | ✅ |
 
-**Open matrix questions:** single vs multiple employees in Lite? Event dates in Lite (they're a strong solo use case) or Pro-only? Basic-list reports vs none in Lite? — see §13.
+**Lite is deliberately capable** — a multi-staff, multi-location business can run paid appointments on Lite. Pro sells on: events, automation (waitlist/calendar/SMS/webhooks), analytics depth, API surface (GraphQL/MCP), and Commerce. The full dashboard (11 report routes, `ReportsService`) is Pro; Lite ships one revenue/bookings summary.
 
 ## 7. Direct payments — technical design
 
@@ -176,7 +177,7 @@ Chosen: **two editions (`lite`, `pro`)**, direct payments in both, Commerce + ad
 5. **Minor units** — normalize the integer/decimal shape difference vs Commerce at the reports layer or at storage?
 
 **Editions (new):**
-6. **Matrix boundary** (§6): single vs multiple employees in Lite? Event dates in Lite or Pro? Basic-list reports in Lite or none?
-7. **Edition naming** — keep `pro` for the full edition (least churn) vs rename to `standard` to match earlier copy? Store display names?
-8. **Default edition** for new/unlicensed/dev installs.
-9. **Trial/upgrade UX** — in-CP prompts to upgrade Lite→Pro when a gated feature is touched?
+6. ~~Matrix boundary~~ — **RESOLVED 2026-07-26** (§6): Lite includes multiple staff, multiple locations, and a basic revenue report; event dates + full analytics are Pro.
+7. ~~Edition naming~~ — **RESOLVED 2026-07-26**: `editions()` = `['lite', 'pro']`, keep `pro` for the full edition (zero migration; existing installs stay `pro`).
+8. **Default edition** for new/unlicensed/dev installs — still open (recommend `pro` for dev parity; new installs = purchased edition).
+9. **Trial/upgrade UX** — in-CP prompts to upgrade Lite→Pro when a gated feature is touched? (M4 polish.)
