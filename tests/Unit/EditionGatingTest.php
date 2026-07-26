@@ -52,6 +52,15 @@ class EditionGatingTest extends TestCase
         ];
     }
 
+    public function testMultiDaySlotEndpointsGatedToPro(): void
+    {
+        $src = self::methodSource('anvildev\booked\controllers\SlotController', 'beforeAction');
+        $this->assertStringContainsString('Editions::requirePro(', $src);
+        foreach (['create-multi-day-lock', 'get-range-capacity', 'get-valid-end-dates'] as $action) {
+            $this->assertStringContainsString("'{$action}'", $src, "Multi-day action '{$action}' must be Pro-gated");
+        }
+    }
+
     public function testReportsControllerKeepsOnlyBasicRevenueUnderLite(): void
     {
         $src = self::methodSource('anvildev\booked\controllers\cp\ReportsController', 'beforeAction');
