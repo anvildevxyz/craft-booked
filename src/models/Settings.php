@@ -60,7 +60,7 @@ class Settings extends Model
     // Frontend wizard
     /**
      * Restore the legacy Alpine.js booking wizard instead of the framework-free
-     * vanilla wizard. Deprecated — this escape hatch is removed in Booked 2.0.
+     * vanilla wizard. Deprecated as of 1.3 — this escape hatch is removed in Booked 2.0.
      */
     public bool $legacyWizard = false;
 

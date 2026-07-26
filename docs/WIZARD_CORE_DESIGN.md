@@ -13,7 +13,7 @@ This design covers **both** the booking flow and the event flow (plus event-mana
 The core is the semver'd, zero-dependency brain that any frontend drives:
 
 1. **Zero runtime dependencies**, no `eval`/`new Function`, no DOM assumptions. Runs headless (Node/tests) or behind any renderer.
-2. **Explicit, testable state machine** — replaces today's implicit Alpine reactive state and the hand-written `nextStep` / `getPreviousStep` / `shouldSkipEmployeeStep` split that is the source of back-nav and lock-expiry edge-case bugs.
+2. **Explicit, testable state machine** — replaces the previous Alpine implementation's implicit reactive state and the hand-written `nextStep` / `getPreviousStep` / `shouldSkipEmployeeStep` split that was the source of back-nav and lock-expiry edge-case bugs.
 3. **One flow engine, two flows** — booking and event flows are *data* (step definitions + endpoint bindings), not forked code.
 4. **Events over overrides** — every meaningful transition emits; the renderer is just the first consumer, which proves the headless contract.
 5. **First-class soft-lock with a hold timer** — the current wizard has *no* client-side countdown and only discovers an expired lock at submit. The core owns the timer and emits `lock:expiring` / `lock:expired`.
@@ -55,7 +55,7 @@ Budget: core + UI gzipped **< 25 KB** (PRD success metric). Core alone is expect
 
 ## 3. The state machine
 
-Two dimensions kept deliberately separate — conflating them is what makes the Alpine version fragile:
+Two dimensions kept deliberately separate — conflating them is what made the previous Alpine version fragile:
 
 - **Lifecycle state** — *what phase the booking is in* (finite, guarded).
 - **Step cursor** — *which visible step the user is on* within the browsing phase (derived from the flow definition, never hand-maintained).

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- The legacy-wizard deprecation notice now reads "deprecated as of Booked 1.3 and will be removed in 2.0" for clarity. Internal design docs reworded to past tense now that the vanilla wizard is the default.
+
 ## 1.3.0 - 2026-07-26
 
 > `{% include 'booked/frontend/wizard' %}` now renders the framework-free vanilla wizard **by default** — no template changes needed. The deprecated Alpine wizard is available for one release window via the **`legacyWizard`** setting (or `{% include … with { legacyWizard: true } %}`), logged as deprecated, and removed in 2.0.
