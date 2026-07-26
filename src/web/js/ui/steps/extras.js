@@ -8,6 +8,7 @@
  * `data-booked-extras-total` when present.
  */
 import { qs, cloneTemplate, setText } from '../dom.js';
+import { formatPrice } from '../format.js';
 
 export const extrasStep = {
   render(region, wizard) {
@@ -16,6 +17,7 @@ export const extrasStep = {
     const { context } = wizard.getState();
     const extras = context.extras || [];
     const selected = context.selectedExtras || {};
+    const currencySymbol = context.commerce?.currencySymbol;
 
     container.replaceChildren();
     for (const extra of extras) {
@@ -26,7 +28,7 @@ export const extrasStep = {
       const max = extra.maxQuantity ? extra.maxQuantity : Infinity;
 
       setText(frag.querySelector('[data-booked-field="name"]'), extra.name ?? extra.title);
-      setText(frag.querySelector('[data-booked-field="price"]'), extra.price);
+      setText(frag.querySelector('[data-booked-field="price"]'), formatPrice(extra.price, currencySymbol));
       setText(frag.querySelector('[data-booked-extra-qty]'), qty);
 
       const card = frag.firstElementChild;
@@ -48,6 +50,6 @@ export const extrasStep = {
       container.appendChild(frag);
     }
 
-    setText(qs('[data-booked-extras-total]', region), context.extrasTotal);
+    setText(qs('[data-booked-extras-total]', region), formatPrice(context.extrasTotal, currencySymbol));
   },
 };

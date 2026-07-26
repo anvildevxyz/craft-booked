@@ -322,17 +322,31 @@ var Context = class {
     const end = new Date(this.endDate);
     return Math.round((end - start) / (1e3 * 60 * 60 * 24)) + 1;
   }
+  /** The chosen event date (event flow), resolved from the loaded list, or null. */
+  get selectedEvent() {
+    if (this.eventDateId == null) return null;
+    return this.eventDates.find((e) => e.id === this.eventDateId) ?? null;
+  }
   /** Per-service price, applying per-unit day pricing when applicable. */
   get servicePrice() {
-    const basePrice = this.selectedService?.price || 0;
+    const basePrice = Number(this.selectedService?.price) || 0;
     if (this.isDayService && this.selectedService?.pricingMode === "per_unit" && this.durationDays > 0) {
       return basePrice * this.durationDays;
     }
     return basePrice;
   }
-  /** Display total: servicePrice × quantity + extras. Server remains authoritative. */
+  /**
+   * Per-unit price of the current selection: the event date's price in the event
+   * flow, otherwise the service price. The event's own price is never zero-rated
+   * away like `selectedService` (null for events) would.
+   */
+  get unitPrice() {
+    if (this.selectedEvent) return Number(this.selectedEvent.price) || 0;
+    return this.servicePrice;
+  }
+  /** Display total: unitPrice × quantity + extras. Server remains authoritative. */
   get totalPrice() {
-    return this.servicePrice * this.quantity + this.extrasTotal;
+    return this.unitPrice * this.quantity + this.extrasTotal;
   }
   /** Whether the payment branch applies (Commerce enabled and a non-zero total). */
   get requiresPayment() {
@@ -377,6 +391,7 @@ var Context = class {
       employees: this.employees,
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
+      selectedEvent: this.selectedEvent,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,
@@ -937,6 +952,7 @@ var manageFlow = {
 
 // src/web/js/core/wizard.js
 var FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
+var SLOT_STEPS = /* @__PURE__ */ new Set(["datetime", "event"]);
 function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
@@ -1155,6 +1171,7 @@ var Wizard = class {
     this._ctx.date = date;
     this._ctx.time = time;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date, startTime: time, ...this._selectionParams({ quantity: true, extrasDuration: true }) });
     return this._acquire("slot", body, () => this._emitter.emit("slot:selected", { date, time, quantity }));
   }
@@ -1162,12 +1179,14 @@ var Wizard = class {
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date: startDate, endDate, ...this._selectionParams({ quantity: true }) });
     return this._acquire("range", body, () => this._emitter.emit("range:selected", { startDate, endDate, quantity }));
   }
   async selectEventDate(id, { quantity = 1 } = {}) {
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ eventDateId: id, quantity });
     return this._acquire("event", body, () => this._emitter.emit("event:selected", { eventDateId: id, quantity }), {
       bestEffort: true
@@ -1391,7 +1410,7 @@ var Wizard = class {
     const stepId = this._flow.currentId;
     const to = this._flow.back();
     if (to === null) return { ok: false, atStart: true };
-    if (this._lock.held) {
+    if (this._lock.held && SLOT_STEPS.has(stepId)) {
       this._lock.release("back-nav");
       this._ctx.lock = null;
       this._machine.transition(STATES.BROWSING);
@@ -1462,6 +1481,7 @@ var Wizard = class {
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
+      this._ctx.reservation = reservation ?? null;
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {
@@ -1482,6 +1502,7 @@ var Wizard = class {
     }
     const body = this._pruned({
       serviceId: this._ctx.serviceId,
+      eventDateId: this._ctx.eventDateId,
       employeeId: this._ctx.employeeId,
       locationId: this._ctx.locationId,
       date: this._ctx.date,
@@ -1719,13 +1740,13 @@ var Renderer = class {
     return qs(`[data-booked-step="${stepId}"]`, this._root);
   }
   _updateProgress() {
-    const state2 = this._wizard.getState();
+    const state3 = this._wizard.getState();
     const progress = qs(SEL.progress, this._root);
     if (!progress) return;
-    setText(qs(SEL.progressCurrent, progress), state2.position);
-    setText(qs(SEL.progressTotal, progress), state2.total);
-    progress.setAttribute("aria-valuenow", String(state2.position));
-    progress.setAttribute("aria-valuemax", String(state2.total));
+    setText(qs(SEL.progressCurrent, progress), state3.position);
+    setText(qs(SEL.progressTotal, progress), state3.total);
+    progress.setAttribute("aria-valuenow", String(state3.position));
+    progress.setAttribute("aria-valuemax", String(state3.total));
   }
   _setLoading(isLoading) {
     const el = qs(SEL.loading, this._root);
@@ -1939,15 +1960,23 @@ async function setupCaptcha(config, root, { nonce = null, loader = loadScript, g
   };
 }
 
+// src/web/js/ui/format.js
+function formatPrice(value, symbol) {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : parseFloat(value);
+  if (Number.isNaN(n)) return "";
+  return symbol ? `${n.toFixed(2)} ${symbol}` : n.toFixed(2);
+}
+
 // src/web/js/ui/steps/service-list.js
-function fillCard(fragment, service) {
+function fillCard(fragment, service, currencySymbol) {
   const card = fragment.querySelector('[data-booked-action="select-service"]') || fragment.firstElementChild;
   if (card) {
     card.setAttribute("data-booked-id", String(service.id));
     card.setAttribute("aria-pressed", "false");
   }
   setText(fragment.querySelector('[data-booked-field="name"]'), service.title);
-  setText(fragment.querySelector('[data-booked-field="price"]'), service.price);
+  setText(fragment.querySelector('[data-booked-field="price"]'), formatPrice(service.price, currencySymbol));
   setText(fragment.querySelector('[data-booked-field="duration"]'), service.duration);
   return fragment;
 }
@@ -1958,11 +1987,12 @@ var serviceListStep = {
     const { context } = wizard.getState();
     const services = context.services || [];
     const selectedId = context.serviceId;
+    const currencySymbol = context.commerce?.currencySymbol;
     list2.replaceChildren();
     for (const service of services) {
       const frag = cloneTemplate(region, "service-card");
       if (!frag) break;
-      list2.appendChild(fillCard(frag, service));
+      list2.appendChild(fillCard(frag, service, currencySymbol));
     }
     for (const card of qsa('[data-booked-action="select-service"]', region)) {
       const isSelected = Number(card.getAttribute("data-booked-id")) === selectedId;
@@ -1979,6 +2009,7 @@ var extrasStep = {
     const { context } = wizard.getState();
     const extras = context.extras || [];
     const selected = context.selectedExtras || {};
+    const currencySymbol = context.commerce?.currencySymbol;
     container.replaceChildren();
     for (const extra of extras) {
       const frag = cloneTemplate(region, "extra-card");
@@ -1987,7 +2018,7 @@ var extrasStep = {
       const min = extra.isRequired ? 1 : 0;
       const max = extra.maxQuantity ? extra.maxQuantity : Infinity;
       setText(frag.querySelector('[data-booked-field="name"]'), extra.name ?? extra.title);
-      setText(frag.querySelector('[data-booked-field="price"]'), extra.price);
+      setText(frag.querySelector('[data-booked-field="price"]'), formatPrice(extra.price, currencySymbol));
       setText(frag.querySelector("[data-booked-extra-qty]"), qty);
       const card = frag.firstElementChild;
       if (card && extra.isRequired) card.setAttribute("data-booked-required", "true");
@@ -2002,7 +2033,7 @@ var extrasStep = {
       if (inc) inc.disabled = qty >= max;
       container.appendChild(frag);
     }
-    setText(qs("[data-booked-extras-total]", region), context.extrasTotal);
+    setText(qs("[data-booked-extras-total]", region), formatPrice(context.extrasTotal, currencySymbol));
   }
 };
 
@@ -2668,8 +2699,26 @@ var datetimeStep = {
 };
 
 // src/web/js/ui/steps/event-date.js
+var state2 = /* @__PURE__ */ new WeakMap();
 var eventDateStep = {
   mount(region, wizard) {
+    const s = { qtyValue: 1, qtyMax: 1 };
+    state2.set(region, s);
+    const adjust = async (delta) => {
+      const selectedId = wizard.getState().context.eventDateId;
+      if (selectedId == null) return;
+      const next = Math.min(s.qtyMax, Math.max(1, s.qtyValue + delta));
+      if (next === s.qtyValue) return;
+      s.qtyValue = next;
+      this._renderQuantity(region, s);
+      await wizard.selectEventDate(selectedId, { quantity: next });
+    };
+    region.addEventListener("click", (event) => {
+      const inc = event.target.closest('[data-booked-action="qty-increment"]');
+      const dec = event.target.closest('[data-booked-action="qty-decrement"]');
+      if (inc && region.contains(inc)) adjust(1);
+      else if (dec && region.contains(dec)) adjust(-1);
+    });
     wizard.loadEventDates().then(() => this.render(region, wizard));
   },
   render(region, wizard) {
@@ -2678,6 +2727,7 @@ var eventDateStep = {
     const { context } = wizard.getState();
     const events = context.eventDates || [];
     const selectedId = context.eventDateId;
+    const currencySymbol = context.commerce?.currencySymbol;
     list2.replaceChildren();
     for (const event of events) {
       const frag = cloneTemplate(region, "event-card");
@@ -2692,13 +2742,34 @@ var eventDateStep = {
       setText(frag.querySelector('[data-booked-field="date"]'), event.formattedDate ?? event.date);
       setText(frag.querySelector('[data-booked-field="time"]'), event.formattedTimeRange ?? event.startTime);
       setText(frag.querySelector('[data-booked-field="capacity"]'), event.remainingCapacity);
-      setText(frag.querySelector('[data-booked-field="price"]'), event.price);
+      setText(frag.querySelector('[data-booked-field="price"]'), formatPrice(event.price, currencySymbol));
       list2.appendChild(frag);
     }
     for (const card of qsa('[data-booked-action="select-event"]', region)) {
       card.setAttribute("aria-pressed", Number(card.getAttribute("data-booked-id")) === selectedId ? "true" : "false");
     }
     setHidden(qs("[data-booked-events-empty]", region), events.length > 0);
+    const s = state2.get(region);
+    if (s) {
+      const selected = context.selectedEvent;
+      s.qtyMax = selected && selected.remainingCapacity > 1 ? selected.remainingCapacity : 1;
+      s.qtyValue = Math.min(s.qtyValue, s.qtyMax);
+      if (selectedId == null) s.qtyValue = 1;
+      this._renderQuantity(region, s);
+    }
+  },
+  /** Reflect the event quantity picker (shown only when capacity > 1). */
+  _renderQuantity(region, s) {
+    const box = qs("[data-booked-event-quantity]", region);
+    if (!box) return;
+    const active = s.qtyMax > 1;
+    setHidden(box, !active);
+    if (!active) return;
+    setText(qs("[data-booked-event-qty-value]", region), s.qtyValue);
+    const dec = qs('[data-booked-event-quantity] [data-booked-action="qty-decrement"]', region);
+    const inc = qs('[data-booked-event-quantity] [data-booked-action="qty-increment"]', region);
+    if (dec) dec.disabled = s.qtyValue <= 1;
+    if (inc) inc.disabled = s.qtyValue >= s.qtyMax;
   }
 };
 
@@ -2766,14 +2837,38 @@ var reviewStep = {
   render(region, wizard) {
     const { context } = wizard.getState();
     const svc = context.selectedService || {};
-    setText(qs('[data-booked-summary="service"]', region), svc.title ?? "");
-    setText(qs('[data-booked-summary="date"]', region), context.date ?? "");
-    setText(qs('[data-booked-summary="time"]', region), context.time ?? "");
+    const evt = context.selectedEvent || null;
+    const currencySymbol = context.commerce?.currencySymbol;
+    setText(qs('[data-booked-summary="service"]', region), evt ? evt.title ?? "" : svc.title ?? "");
+    setText(qs('[data-booked-summary="employee"]', region), context.selectedEmployee?.name ?? "");
+    setText(qs('[data-booked-summary="location"]', region), context.selectedLocation?.name ?? "");
+    setText(qs('[data-booked-summary="date"]', region), context.date ?? (evt ? evt.formattedDate ?? evt.date ?? "" : ""));
+    setText(qs('[data-booked-summary="time"]', region), context.time ?? (evt ? evt.formattedTimeRange ?? evt.startTime ?? "" : ""));
+    if (context.isDayService && context.endDate) {
+      setText(qs('[data-booked-summary="date-range"]', region), `${context.date} \u2013 ${context.endDate}`);
+      setText(qs('[data-booked-summary="duration"]', region), context.durationDays);
+    }
+    setText(qs('[data-booked-summary="quantity"]', region), context.quantity);
     setText(qs('[data-booked-summary="customer-name"]', region), context.customer?.name ?? "");
     setText(qs('[data-booked-summary="customer-email"]', region), context.customer?.email ?? "");
-    setText(qs('[data-booked-summary="total"]', region), context.totalPrice);
+    setText(qs('[data-booked-summary="extras-total"]', region), formatPrice(context.extrasTotal, currencySymbol));
+    setText(qs('[data-booked-summary="total"]', region), formatPrice(context.totalPrice, currencySymbol));
     const paymentNotice = qs("[data-booked-payment-notice]", region);
     if (paymentNotice) setHidden(paymentNotice, !context.requiresPayment);
+  }
+};
+
+// src/web/js/ui/steps/success.js
+var successStep = {
+  render(region, wizard) {
+    const { context } = wizard.getState();
+    const r = context.reservation || {};
+    setText(qs('[data-booked-summary="status"]', region), r.statusLabel ?? r.status ?? "");
+    setText(qs('[data-booked-summary="booking-id"]', region), r.id ?? r.reference ?? "");
+    const evt = context.selectedEvent;
+    const appointment = r.formattedDateTime ?? (context.isDayService && context.endDate ? `${context.date} \u2013 ${context.endDate}` : [context.date ?? evt?.formattedDate ?? evt?.date, context.time ?? evt?.formattedTimeRange ?? evt?.startTime].filter(Boolean).join(" "));
+    setText(qs('[data-booked-summary="appointment"]', region), appointment);
+    setText(qs('[data-booked-summary="customer-email"]', region), context.customer?.email ?? "");
   }
 };
 
@@ -2823,6 +2918,7 @@ function registerDefaultSteps(renderer) {
   renderer.registerStep("event", eventDateStep);
   renderer.registerStep("info", customerInfoStep);
   renderer.registerStep("review", reviewStep);
+  renderer.registerStep("success", successStep);
   renderer.registerStep("manage", manageStep);
 }
 function resolveMount(mount) {

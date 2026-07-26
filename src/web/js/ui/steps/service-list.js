@@ -8,16 +8,17 @@
  * currently selected (aria-pressed) so the UI stays in sync.
  */
 import { qs, qsa, cloneTemplate, setText } from '../dom.js';
+import { formatPrice } from '../format.js';
 
 /** Fill a card fragment's `data-booked-field="…"` slots from a service. */
-function fillCard(fragment, service) {
+function fillCard(fragment, service, currencySymbol) {
   const card = fragment.querySelector('[data-booked-action="select-service"]') || fragment.firstElementChild;
   if (card) {
     card.setAttribute('data-booked-id', String(service.id));
     card.setAttribute('aria-pressed', 'false');
   }
   setText(fragment.querySelector('[data-booked-field="name"]'), service.title);
-  setText(fragment.querySelector('[data-booked-field="price"]'), service.price);
+  setText(fragment.querySelector('[data-booked-field="price"]'), formatPrice(service.price, currencySymbol));
   setText(fragment.querySelector('[data-booked-field="duration"]'), service.duration);
   return fragment;
 }
@@ -29,13 +30,14 @@ export const serviceListStep = {
     const { context } = wizard.getState();
     const services = context.services || [];
     const selectedId = context.serviceId;
+    const currencySymbol = context.commerce?.currencySymbol;
 
     // Rebuild the list from a clean slate (no innerHTML with data).
     list.replaceChildren();
     for (const service of services) {
       const frag = cloneTemplate(region, 'service-card');
       if (!frag) break; // no template → nothing to clone
-      list.appendChild(fillCard(frag, service));
+      list.appendChild(fillCard(frag, service, currencySymbol));
     }
 
     // Reflect the current selection.

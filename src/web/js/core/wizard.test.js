@@ -293,6 +293,80 @@ describe('Wizard — back navigation releases the lock', () => {
   });
 });
 
+describe('Wizard — chosen quantity reaches the booking + total', () => {
+  it('posts the picked slot quantity (not the default) and prices it', async () => {
+    const { wizard, api } = newWizard({
+      commerceSettings: vi.fn(async () => ({ commerceEnabled: true, currency: 'CHF' })),
+      services: vi.fn(async () => ({ services: [{ id: 12, name: 'Haircut', price: 40, durationType: 'minutes' }] })),
+    });
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00', quantity: 3 });
+    expect(wizard.getState().context.quantity).toBe(3);
+    expect(wizard.getState().context.totalPrice).toBe(120); // 40 × 3
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    await wizard.submit();
+    expect(api.createBooking.mock.calls[0][0].quantity).toBe(3);
+  });
+});
+
+describe('Wizard — event flow', () => {
+  function eventApi(overrides = {}) {
+    return fakeApi({
+      eventDates: vi.fn(async () => ({
+        eventDates: [{ id: 77, title: 'Yoga', price: 25, remainingCapacity: 5, isFullyBooked: false }],
+      })),
+      ...overrides,
+    });
+  }
+
+  it('posts eventDateId and the event price × quantity, and flags payment', async () => {
+    const api = eventApi({ commerceSettings: vi.fn(async () => ({ commerceEnabled: true, currency: 'CHF' })) });
+    const wizard = new Wizard({ apiClient: api, flow: 'event' });
+    await wizard.start();
+    await wizard.loadEventDates();
+    await wizard.selectEventDate(77, { quantity: 2 });
+
+    const ctx = wizard.getState().context;
+    expect(ctx.eventDateId).toBe(77);
+    expect(ctx.selectedEvent).toMatchObject({ id: 77, price: 25 });
+    expect(ctx.totalPrice).toBe(50); // 25 × 2
+    expect(ctx.requiresPayment).toBe(true);
+
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    await wizard.submit();
+
+    const body = api.createBooking.mock.calls[0][0];
+    expect(body).toMatchObject({ eventDateId: 77, quantity: 2 });
+    expect(body.serviceId).toBeUndefined(); // event bookings carry no serviceId
+  });
+});
+
+describe('Wizard — back navigation preserves a held lock across info/review', () => {
+  it('keeps the hold when navigating back within the info/review steps', async () => {
+    const { wizard, api } = newWizard();
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    expect(wizard.state).toBe(STATES.HOLDING_LOCK);
+
+    const back = wizard.goBack(); // review → info: must NOT release
+    expect(back.stepId).toBe('info');
+    expect(api.releaseLock).not.toHaveBeenCalled();
+    expect(wizard.state).toBe(STATES.HOLDING_LOCK);
+    expect(wizard.getState().context.lock).not.toBeNull();
+  });
+});
+
 describe('Wizard — slot already taken', () => {
   it('emits a slot_reserved error and does not enter holdingLock', async () => {
     const onError = vi.fn();

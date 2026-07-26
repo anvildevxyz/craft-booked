@@ -1864,4 +1864,24 @@ return [
     'sms.confirmation.multiday' => 'Ihre Buchung ist bestätigt! {{service}} vom {{date}} bis {{endDate}} ({{durationDays}} Tage). {{location}}',
     'sms.reminder.multiday' => 'Erinnerung: {{service}} startet morgen, {{date}} bis {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Ihre Buchung für {{service}} ({{date}} bis {{endDate}}) wurde storniert.',
+
+    // Vanilla-Wizard — Laufzeit-Strings des JS-Kerns (Ankündigungen, Countdown,
+    // Fehler, Validierung). Über bookedConfig.messages an den Kern übergeben.
+    // `{token}`-Platzhalter werden clientseitig ersetzt und müssen erhalten bleiben.
+    'announce.stepChanged' => 'Schritt {position} von {total}: {title}',
+    'lock.expiring' => 'Ihre Reservierung wird noch {minutes} Minute(n) gehalten.',
+    'lock.expired' => 'Ihre reservierte Zeit ist abgelaufen. Bitte wählen Sie erneut eine Zeit.',
+    'error.generic' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+    'error.booking' => 'Ihre Buchung konnte nicht abgeschlossen werden.',
+    'error.slotReserved' => 'Diese Zeit wurde gerade vergeben. Bitte wählen Sie eine andere.',
+    'validation.serviceRequired' => 'Bitte wählen Sie eine Dienstleistung.',
+    'validation.slotRequired' => 'Bitte wählen Sie Datum und Uhrzeit.',
+    'validation.eventRequired' => 'Bitte wählen Sie einen Veranstaltungstermin.',
+    'validation.nameRequired' => 'Bitte geben Sie Ihren Namen ein.',
+    'validation.emailRequired' => 'Bitte geben Sie Ihre E-Mail-Adresse ein.',
+    'validation.emailInvalid' => 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+    'validation.phoneRequired' => 'Bitte geben Sie Ihre Telefonnummer ein.',
+    'validation.quantityInvalid' => 'Bitte geben Sie eine gültige Anzahl ein.',
+    'validation.quantityTooLow' => 'Die Anzahl ist zu niedrig.',
+    'validation.quantityTooHigh' => 'Nicht genügend Kapazität für diese Anzahl.',
 ];

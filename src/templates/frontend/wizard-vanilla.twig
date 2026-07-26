@@ -35,6 +35,28 @@
     success: 'wizard.successTitle'|t('booked'),
 }|merge(labels ?? {}) %}
 
+{# Runtime strings the JS core emits itself (announcements, countdown, errors,
+   validation). Keyed by the core's i18n keys; localized here so they follow the
+   site language instead of the core's hardcoded English defaults. #}
+{% set wizardMessages = {
+    'announce.stepChanged': 'announce.stepChanged'|t('booked'),
+    'lock.expiring': 'lock.expiring'|t('booked'),
+    'lock.expired': 'lock.expired'|t('booked'),
+    'error.generic': 'error.generic'|t('booked'),
+    'error.booking': 'error.booking'|t('booked'),
+    'error.slotReserved': 'error.slotReserved'|t('booked'),
+    'validation.serviceRequired': 'validation.serviceRequired'|t('booked'),
+    'validation.slotRequired': 'validation.slotRequired'|t('booked'),
+    'validation.eventRequired': 'validation.eventRequired'|t('booked'),
+    'validation.nameRequired': 'validation.nameRequired'|t('booked'),
+    'validation.emailRequired': 'validation.emailRequired'|t('booked'),
+    'validation.emailInvalid': 'validation.emailInvalid'|t('booked'),
+    'validation.phoneRequired': 'validation.phoneRequired'|t('booked'),
+    'validation.quantityInvalid': 'validation.quantityInvalid'|t('booked'),
+    'validation.quantityTooLow': 'validation.quantityTooLow'|t('booked'),
+    'validation.quantityTooHigh': 'validation.quantityTooHigh'|t('booked'),
+} %}
+
 {% set bookedConfig = {
     api: {
         baseUrl: '/booked/api/v1',
@@ -59,6 +81,7 @@
         action: settings.recaptchaAction ?? 'booking',
     } : null,
     locale: craft.app.language,
+    messages: wizardMessages,
 } %}
 
 <div data-booked-wizard data-booked-auto class="booked-wizard">
@@ -188,8 +211,14 @@
         <h2 data-booked-step-heading>{{ labels.confirmBooking }}</h2>
         <dl class="booked-summary">
             <dt>{{ labels.selectService }}</dt><dd data-booked-summary="service"></dd>
+            <dt>{{ 'wizard.selectEmployee'|t('booked') }}</dt><dd data-booked-summary="employee"></dd>
+            <dt>{{ 'wizard.selectLocation'|t('booked') }}</dt><dd data-booked-summary="location"></dd>
             <dt>{{ 'labels.date'|t('booked') }}</dt><dd data-booked-summary="date"></dd>
             <dt>{{ 'labels.time'|t('booked') }}</dt><dd data-booked-summary="time"></dd>
+            <dt>{{ 'labels.dateRange'|t('booked') }}</dt><dd data-booked-summary="date-range"></dd>
+            <dt>{{ 'labels.duration'|t('booked') }}</dt><dd data-booked-summary="duration"></dd>
+            <dt>{{ 'wizard.summaryQuantity'|t('booked') }}</dt><dd data-booked-summary="quantity"></dd>
+            <dt>{{ 'wizard.extrasTotal'|t('booked') }}</dt><dd data-booked-summary="extras-total"></dd>
             <dt>{{ labels.name }}</dt><dd data-booked-summary="customer-name"></dd>
             <dt>{{ labels.email }}</dt><dd data-booked-summary="customer-email"></dd>
             <dt>{{ 'wizard.summaryTotal'|t('booked') }}</dt><dd data-booked-summary="total"></dd>
@@ -206,7 +235,18 @@
     </section>
 
     <section data-booked-step="success" hidden>
-        <h2 data-booked-step-heading>{{ labels.success }}</h2>
-        <p>{{ 'wizard.successMessage'|t('booked') }}</p>
+        <div class="booked-success" role="status">
+            <h2 data-booked-step-heading>{{ labels.success }}</h2>
+            <p>{{ 'wizard.successMessage'|t('booked') }}</p>
+            <dl class="booked-summary">
+                <dt>{{ 'wizard.successStatus'|t('booked') }}</dt><dd data-booked-summary="status"></dd>
+                <dt>{{ 'wizard.successBookingId'|t('booked') }}</dt><dd>#<span data-booked-summary="booking-id"></span></dd>
+                <dt>{{ 'wizard.successAppointment'|t('booked') }}</dt><dd data-booked-summary="appointment"></dd>
+            </dl>
+            <p class="booked-success__note">
+                {{ 'wizard.successNextSteps'|t('booked') }}
+                {{ 'wizard.successEmailNotePrefix'|t('booked') }}<strong data-booked-summary="customer-email"></strong>{{ 'wizard.successEmailNoteSuffix'|t('booked') }}
+            </p>
+        </div>
     </section>
 </div>

@@ -117,7 +117,7 @@ describe('extrasStep + shell stepper', () => {
     const wizard = await startedWizard();
     extrasStep.render(region, wizard);
     expect(region.querySelector('[data-booked-field="name"]').textContent).toBe('Wash');
-    expect(region.querySelector('[data-booked-field="price"]').textContent).toBe('10');
+    expect(region.querySelector('[data-booked-field="price"]').textContent).toBe('10.00');
     expect(region.querySelector('[data-booked-extra-qty]').getAttribute('data-booked-extra-id')).toBe('5');
   });
 
@@ -135,7 +135,7 @@ describe('extrasStep + shell stepper', () => {
     region.querySelector('[data-booked-action="extra-increment"]').click();
     expect(wizard.getState().context.selectedExtras[5]).toBe(1);
     expect(region.querySelector('[data-booked-extra-qty]').textContent).toBe('1');
-    expect(region.querySelector('[data-booked-extras-total]').textContent).toBe('10');
+    expect(region.querySelector('[data-booked-extras-total]').textContent).toBe('10.00');
 
     region.querySelector('[data-booked-action="extra-increment"]').click();
     expect(wizard.getState().context.selectedExtras[5]).toBe(2);

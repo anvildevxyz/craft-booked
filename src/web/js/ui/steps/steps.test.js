@@ -56,7 +56,7 @@ describe('serviceListStep', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0].getAttribute('data-booked-id')).toBe('12');
     expect(cards[0].querySelector('[data-booked-field="name"]').textContent).toBe('Haircut');
-    expect(cards[1].querySelector('[data-booked-field="price"]').textContent).toBe('90');
+    expect(cards[1].querySelector('[data-booked-field="price"]').textContent).toBe('90.00');
   });
 
   it('reflects the selected service via aria-pressed', async () => {
@@ -151,7 +151,7 @@ describe('reviewStep', () => {
     expect(region.querySelector('[data-booked-summary="service"]').textContent).toBe('Haircut');
     expect(region.querySelector('[data-booked-summary="date"]').textContent).toBe('2026-08-01');
     expect(region.querySelector('[data-booked-summary="customer-name"]').textContent).toBe('Ada');
-    expect(region.querySelector('[data-booked-summary="total"]').textContent).toBe('40');
+    expect(region.querySelector('[data-booked-summary="total"]').textContent).toBe('40.00');
   });
 
   it('keeps the payment notice hidden when no payment is required', async () => {

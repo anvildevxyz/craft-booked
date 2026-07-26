@@ -322,17 +322,31 @@ var Context = class {
     const end = new Date(this.endDate);
     return Math.round((end - start) / (1e3 * 60 * 60 * 24)) + 1;
   }
+  /** The chosen event date (event flow), resolved from the loaded list, or null. */
+  get selectedEvent() {
+    if (this.eventDateId == null) return null;
+    return this.eventDates.find((e) => e.id === this.eventDateId) ?? null;
+  }
   /** Per-service price, applying per-unit day pricing when applicable. */
   get servicePrice() {
-    const basePrice = this.selectedService?.price || 0;
+    const basePrice = Number(this.selectedService?.price) || 0;
     if (this.isDayService && this.selectedService?.pricingMode === "per_unit" && this.durationDays > 0) {
       return basePrice * this.durationDays;
     }
     return basePrice;
   }
-  /** Display total: servicePrice × quantity + extras. Server remains authoritative. */
+  /**
+   * Per-unit price of the current selection: the event date's price in the event
+   * flow, otherwise the service price. The event's own price is never zero-rated
+   * away like `selectedService` (null for events) would.
+   */
+  get unitPrice() {
+    if (this.selectedEvent) return Number(this.selectedEvent.price) || 0;
+    return this.servicePrice;
+  }
+  /** Display total: unitPrice × quantity + extras. Server remains authoritative. */
   get totalPrice() {
-    return this.servicePrice * this.quantity + this.extrasTotal;
+    return this.unitPrice * this.quantity + this.extrasTotal;
   }
   /** Whether the payment branch applies (Commerce enabled and a non-zero total). */
   get requiresPayment() {
@@ -377,6 +391,7 @@ var Context = class {
       employees: this.employees,
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
+      selectedEvent: this.selectedEvent,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,
@@ -944,6 +959,7 @@ var manageFlow = {
 
 // src/web/js/core/wizard.js
 var FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
+var SLOT_STEPS = /* @__PURE__ */ new Set(["datetime", "event"]);
 function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
@@ -1162,6 +1178,7 @@ var Wizard = class {
     this._ctx.date = date;
     this._ctx.time = time;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date, startTime: time, ...this._selectionParams({ quantity: true, extrasDuration: true }) });
     return this._acquire("slot", body, () => this._emitter.emit("slot:selected", { date, time, quantity }));
   }
@@ -1169,12 +1186,14 @@ var Wizard = class {
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date: startDate, endDate, ...this._selectionParams({ quantity: true }) });
     return this._acquire("range", body, () => this._emitter.emit("range:selected", { startDate, endDate, quantity }));
   }
   async selectEventDate(id, { quantity = 1 } = {}) {
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ eventDateId: id, quantity });
     return this._acquire("event", body, () => this._emitter.emit("event:selected", { eventDateId: id, quantity }), {
       bestEffort: true
@@ -1398,7 +1417,7 @@ var Wizard = class {
     const stepId = this._flow.currentId;
     const to = this._flow.back();
     if (to === null) return { ok: false, atStart: true };
-    if (this._lock.held) {
+    if (this._lock.held && SLOT_STEPS.has(stepId)) {
       this._lock.release("back-nav");
       this._ctx.lock = null;
       this._machine.transition(STATES.BROWSING);
@@ -1469,6 +1488,7 @@ var Wizard = class {
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
+      this._ctx.reservation = reservation ?? null;
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {
@@ -1489,6 +1509,7 @@ var Wizard = class {
     }
     const body = this._pruned({
       serviceId: this._ctx.serviceId,
+      eventDateId: this._ctx.eventDateId,
       employeeId: this._ctx.employeeId,
       locationId: this._ctx.locationId,
       date: this._ctx.date,

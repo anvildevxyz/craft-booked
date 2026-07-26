@@ -92,6 +92,51 @@ describe('eventDateStep', () => {
     expect(wizard.state).toBe('browsing');
   });
 
+  it('reveals a quantity picker for an event with capacity > 1 and re-selects at the new count', async () => {
+    document.body.innerHTML = `
+      <div data-booked-wizard>
+        <section data-booked-step="event">
+          <template data-booked-template="event-card">
+            <button data-booked-action="select-event">
+              <span data-booked-field="title"></span>
+              <span data-booked-field="price"></span>
+            </button>
+          </template>
+          <div data-booked-list="events"></div>
+          <div data-booked-event-quantity hidden>
+            <button data-booked-action="qty-decrement">−</button>
+            <output data-booked-event-qty-value>1</output>
+            <button data-booked-action="qty-increment">+</button>
+          </div>
+        </section>
+      </div>`;
+    const root = document.querySelector('[data-booked-wizard]');
+    const region = document.querySelector('[data-booked-step="event"]');
+    const wizard = new Wizard({
+      apiClient: fakeApi({ commerceSettings: vi.fn(async () => ({ commerceEnabled: true, currencySymbol: 'CHF' })) }),
+      flow: 'event',
+    });
+    await wizard.start();
+    const renderer = new Renderer(wizard, root);
+    renderer.registerStep('event', eventDateStep);
+    eventDateStep.mount(region, wizard);
+    await vi.waitFor(() => expect(card(region, 2208)).not.toBeNull());
+
+    // Price is formatted with the currency symbol.
+    expect(card(region, 2208).querySelector('[data-booked-field="price"]').textContent).toBe('80.00 CHF');
+
+    const box = region.querySelector('[data-booked-event-quantity]');
+    expect(box.hidden).toBe(true); // hidden until an event is picked
+
+    card(region, 2208).click(); // capacity 25 > 1
+    await vi.waitFor(() => expect(box.hidden).toBe(false));
+
+    region.querySelector('[data-booked-action="qty-increment"]').click();
+    await vi.waitFor(() => expect(wizard.getState().context.quantity).toBe(2));
+    expect(region.querySelector('[data-booked-event-qty-value]').textContent).toBe('2');
+    root.remove();
+  });
+
   it('best-effort: a failed event lock still selects the date and lets the flow proceed', async () => {
     const lockFails = vi.fn(async () => {
       const e = new Error('This time slot is temporarily reserved.');

@@ -96,18 +96,34 @@ export class Context {
     return Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
   }
 
+  /** The chosen event date (event flow), resolved from the loaded list, or null. */
+  get selectedEvent() {
+    if (this.eventDateId == null) return null;
+    return this.eventDates.find((e) => e.id === this.eventDateId) ?? null;
+  }
+
   /** Per-service price, applying per-unit day pricing when applicable. */
   get servicePrice() {
-    const basePrice = this.selectedService?.price || 0;
+    const basePrice = Number(this.selectedService?.price) || 0;
     if (this.isDayService && this.selectedService?.pricingMode === 'per_unit' && this.durationDays > 0) {
       return basePrice * this.durationDays;
     }
     return basePrice;
   }
 
-  /** Display total: servicePrice × quantity + extras. Server remains authoritative. */
+  /**
+   * Per-unit price of the current selection: the event date's price in the event
+   * flow, otherwise the service price. The event's own price is never zero-rated
+   * away like `selectedService` (null for events) would.
+   */
+  get unitPrice() {
+    if (this.selectedEvent) return Number(this.selectedEvent.price) || 0;
+    return this.servicePrice;
+  }
+
+  /** Display total: unitPrice × quantity + extras. Server remains authoritative. */
   get totalPrice() {
-    return this.servicePrice * this.quantity + this.extrasTotal;
+    return this.unitPrice * this.quantity + this.extrasTotal;
   }
 
   /** Whether the payment branch applies (Commerce enabled and a non-zero total). */
@@ -159,6 +175,7 @@ export class Context {
       employees: this.employees,
       eventDates: this.eventDates,
       eventDateId: this.eventDateId,
+      selectedEvent: this.selectedEvent,
       selectedExtras: { ...this.selectedExtras },
       date: this.date,
       time: this.time,

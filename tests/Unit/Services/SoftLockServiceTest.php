@@ -217,12 +217,18 @@ class SoftLockServiceTest extends TestCase
         $service->shouldReceive('createRecord')->andReturn($mockRecord);
         $service->shouldReceive('saveRecord')->andReturn(true);
 
-        $before = new \DateTime('+4 minutes');
+        // The service stores expiresAt as a UTC datetime string (now + 5 min default),
+        // so the bounds must be UTC too — a local-tz DateTime would compare wrong.
+        $before = new \DateTime('+4 minutes', new \DateTimeZone('UTC'));
         $service->createLock($this->makeSlotData()); // default 5 min
-        $after = new \DateTime('+6 minutes');
+        $after = new \DateTime('+6 minutes', new \DateTimeZone('UTC'));
 
-        // expiresAt should be set (not null) — exact value depends on Db::prepareDateForDb
         $this->assertNotNull($mockRecord->expiresAt);
+        // Assert the stored expiry actually lands inside the intended 5-minute window,
+        // so a changed/dropped default duration fails this test instead of passing.
+        $expiresAt = new \DateTime((string)$mockRecord->expiresAt, new \DateTimeZone('UTC'));
+        $this->assertGreaterThanOrEqual($before->getTimestamp(), $expiresAt->getTimestamp());
+        $this->assertLessThanOrEqual($after->getTimestamp(), $expiresAt->getTimestamp());
     }
 
     // =========================================================================
@@ -604,7 +610,7 @@ class SoftLockServiceTest extends TestCase
      */
     private function createMockRecord(): object
     {
-        return new class {
+        return new class() {
             public ?string $token = null;
             public ?string $sessionHash = null;
             public ?int $serviceId = null;

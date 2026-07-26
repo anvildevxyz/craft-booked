@@ -1863,4 +1863,25 @@ return [
     'sms.confirmation.multiday' => 'Uw boeking is bevestigd! {{service}} van {{date}} tot {{endDate}} ({{durationDays}} dagen). {{location}}',
     'sms.reminder.multiday' => 'Herinnering: {{service}} begint morgen, {{date}} tot {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Uw boeking voor {{service}} ({{date}} tot {{endDate}}) is geannuleerd.',
+
+    // Vanilla-wizard — runtime-strings van de JS-core (aankondigingen, countdown,
+    // fouten, validatie). Doorgegeven via bookedConfig.messages zodat ze meevertalen
+    // met de sitetaal. `{token}`-placeholders worden clientside ingevuld en moeten
+    // in elke vertaling behouden blijven.
+    'announce.stepChanged' => 'Stap {position} van {total}: {title}',
+    'lock.expiring' => 'Uw reservering wordt nog {minutes} minuut/minuten vastgehouden.',
+    'lock.expired' => 'Uw gereserveerde tijd is verlopen. Kies opnieuw een tijdstip.',
+    'error.generic' => 'Er is iets misgegaan. Probeer het opnieuw.',
+    'error.booking' => 'Uw boeking kon niet worden voltooid.',
+    'error.slotReserved' => 'Dat tijdstip is zojuist ingenomen. Kies een ander tijdstip.',
+    'validation.serviceRequired' => 'Kies een dienst.',
+    'validation.slotRequired' => 'Kies een datum en tijd.',
+    'validation.eventRequired' => 'Kies een evenementdatum.',
+    'validation.nameRequired' => 'Voer uw naam in.',
+    'validation.emailRequired' => 'Voer uw e-mailadres in.',
+    'validation.emailInvalid' => 'Voer een geldig e-mailadres in.',
+    'validation.phoneRequired' => 'Voer uw telefoonnummer in.',
+    'validation.quantityInvalid' => 'Voer een geldig aantal in.',
+    'validation.quantityTooLow' => 'Het aantal is te laag.',
+    'validation.quantityTooHigh' => 'Onvoldoende capaciteit voor dat aantal.',
 ];

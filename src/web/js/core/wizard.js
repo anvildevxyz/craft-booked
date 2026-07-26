@@ -21,6 +21,9 @@ import { manageFlow } from './flows/manage.js';
 
 const FLOWS = { booking: bookingFlow, event: eventFlow, manage: manageFlow };
 
+/** Steps whose selection acquires the soft lock — leaving one backwards drops the hold. */
+const SLOT_STEPS = new Set(['datetime', 'event']);
+
 /** Extract a list from a `{[key]: [...]}` JSON envelope. */
 function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
@@ -285,7 +288,10 @@ export class Wizard {
   async selectSlot({ date, time, quantity = 1 } = {}) {
     this._ctx.date = date;
     this._ctx.time = time;
+    // Both counts track the picked quantity: `slotQuantity` drives lock/availability,
+    // `quantity` is what the booking body posts and the price total multiplies by.
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date, startTime: time, ...this._selectionParams({ quantity: true, extrasDuration: true }) });
     return this._acquire('slot', body, () => this._emitter.emit('slot:selected', { date, time, quantity }));
   }
@@ -294,6 +300,7 @@ export class Wizard {
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ date: startDate, endDate, ...this._selectionParams({ quantity: true }) });
     return this._acquire('range', body, () => this._emitter.emit('range:selected', { startDate, endDate, quantity }));
   }
@@ -301,6 +308,7 @@ export class Wizard {
   async selectEventDate(id, { quantity = 1 } = {}) {
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
+    this._ctx.quantity = quantity;
     const body = this._pruned({ eventDateId: id, quantity });
     // Event seat locks are best-effort server-side: the selection stands even
     // when the lock can't be held.
@@ -557,8 +565,10 @@ export class Wizard {
     const stepId = this._flow.currentId;
     const to = this._flow.back();
     if (to === null) return { ok: false, atStart: true };
-    // Leaving a slot step releases the hold and returns to browsing.
-    if (this._lock.held) {
+    // Only leaving the slot-selection step itself drops the hold (the customer is
+    // going back to re-pick). The lock is legitimately held across info/review, so
+    // navigating back *within* those steps must NOT release it.
+    if (this._lock.held && SLOT_STEPS.has(stepId)) {
       this._lock.release('back-nav');
       this._ctx.lock = null;
       this._machine.transition(STATES.BROWSING);
@@ -634,6 +644,9 @@ export class Wizard {
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
+      // Keep the reservation on the context so the success step can render its
+      // details (id, status, appointment) after `confirmed`.
+      this._ctx.reservation = reservation ?? null;
       this._emitter.emit('booking:confirmed', { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {
@@ -658,6 +671,7 @@ export class Wizard {
     }
     const body = this._pruned({
       serviceId: this._ctx.serviceId,
+      eventDateId: this._ctx.eventDateId,
       employeeId: this._ctx.employeeId,
       locationId: this._ctx.locationId,
       date: this._ctx.date,

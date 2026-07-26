@@ -1863,4 +1863,25 @@ return [
     'sms.confirmation.multiday' => 'Votre réservation est confirmée ! {{service}} du {{date}} au {{endDate}} ({{durationDays}} jours). {{location}}',
     'sms.reminder.multiday' => 'Rappel : {{service}} commence demain, du {{date}} au {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'Votre réservation pour {{service}} ({{date}} au {{endDate}}) a été annulée.',
+
+    // Assistant Vanilla — chaînes générées à l'exécution par le cœur JS (annonces,
+    // compte à rebours, erreurs, validation). Transmises via bookedConfig.messages
+    // pour se traduire selon la langue du site. Les espaces réservés `{token}` sont
+    // interpolés côté client et doivent être conservés dans chaque traduction.
+    'announce.stepChanged' => 'Étape {position} sur {total} : {title}',
+    'lock.expiring' => 'Votre réservation est retenue pendant encore {minutes} minute(s).',
+    'lock.expired' => 'Votre créneau réservé a expiré. Veuillez choisir à nouveau un horaire.',
+    'error.generic' => 'Une erreur est survenue. Veuillez réessayer.',
+    'error.booking' => 'Votre réservation n\'a pas pu être finalisée.',
+    'error.slotReserved' => 'Cet horaire vient d\'être pris. Veuillez en choisir un autre.',
+    'validation.serviceRequired' => 'Veuillez choisir un service.',
+    'validation.slotRequired' => 'Veuillez choisir une date et une heure.',
+    'validation.eventRequired' => 'Veuillez choisir une date d\'événement.',
+    'validation.nameRequired' => 'Veuillez saisir votre nom.',
+    'validation.emailRequired' => 'Veuillez saisir votre adresse e-mail.',
+    'validation.emailInvalid' => 'Veuillez saisir une adresse e-mail valide.',
+    'validation.phoneRequired' => 'Veuillez saisir votre numéro de téléphone.',
+    'validation.quantityInvalid' => 'Veuillez saisir une quantité valide.',
+    'validation.quantityTooLow' => 'La quantité est trop faible.',
+    'validation.quantityTooHigh' => 'Capacité insuffisante pour cette quantité.',
 ];

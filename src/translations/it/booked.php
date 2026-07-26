@@ -1863,4 +1863,25 @@ return [
     'sms.confirmation.multiday' => 'La tua prenotazione è confermata! {{service}} dal {{date}} al {{endDate}} ({{durationDays}} giorni). {{location}}',
     'sms.reminder.multiday' => 'Promemoria: {{service}} inizia domani, dal {{date}} al {{endDate}}. {{location}}',
     'sms.cancellation.multiday' => 'La tua prenotazione per {{service}} ({{date}} al {{endDate}}) è stata cancellata.',
+
+    // Wizard Vanilla — stringhe generate a runtime dal core JS (annunci,
+    // conto alla rovescia, errori, validazione). Passate tramite bookedConfig.messages
+    // per essere tradotte in base alla lingua del sito. I segnaposto `{token}`
+    // vengono interpolati lato client e devono essere mantenuti in ogni traduzione.
+    'announce.stepChanged' => 'Passo {position} di {total}: {title}',
+    'lock.expiring' => 'La prenotazione è riservata per altri {minutes} minuto/i.',
+    'lock.expired' => 'L\'orario riservato è scaduto. Scelga di nuovo un orario.',
+    'error.generic' => 'Si è verificato un errore. Riprovi.',
+    'error.booking' => 'Non è stato possibile completare la prenotazione.',
+    'error.slotReserved' => 'Quell\'orario è appena stato preso. Scelga un altro orario.',
+    'validation.serviceRequired' => 'Selezionare un servizio.',
+    'validation.slotRequired' => 'Selezionare una data e un orario.',
+    'validation.eventRequired' => 'Selezionare una data evento.',
+    'validation.nameRequired' => 'Inserire il proprio nome.',
+    'validation.emailRequired' => 'Inserire il proprio indirizzo e-mail.',
+    'validation.emailInvalid' => 'Inserire un indirizzo e-mail valido.',
+    'validation.phoneRequired' => 'Inserire il proprio numero di telefono.',
+    'validation.quantityInvalid' => 'Inserire una quantità valida.',
+    'validation.quantityTooLow' => 'La quantità è troppo bassa.',
+    'validation.quantityTooHigh' => 'Capacità insufficiente per questa quantità.',
 ];

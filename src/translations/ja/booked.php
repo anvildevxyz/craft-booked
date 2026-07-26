@@ -1863,4 +1863,25 @@ return [
     'sms.confirmation.multiday' => 'ご予約が確定しました！{{service}} {{date}}から{{endDate}}まで（{{durationDays}}日間）。{{location}}',
     'sms.reminder.multiday' => 'リマインダー：{{service}}は明日開始、{{date}}から{{endDate}}。{{location}}',
     'sms.cancellation.multiday' => '{{service}}のご予約（{{date}}から{{endDate}}）がキャンセルされました。',
+
+    // Vanilla ウィザード — JS コアが実行時に出力する文字列（アナウンス、
+    // カウントダウン、エラー、バリデーション）。bookedConfig.messages 経由で渡され、
+    // サイトの言語に合わせて翻訳される。`{token}` プレースホルダーはクライアント側で
+    // 置換されるため、各翻訳でそのまま保持すること。
+    'announce.stepChanged' => 'ステップ {position} / {total}：{title}',
+    'lock.expiring' => 'ご予約はあと{minutes}分間保持されます。',
+    'lock.expired' => '予約していた時間の有効期限が切れました。もう一度時間を選択してください。',
+    'error.generic' => '問題が発生しました。もう一度お試しください。',
+    'error.booking' => 'ご予約を完了できませんでした。',
+    'error.slotReserved' => 'その時間は今しがた埋まりました。別の時間をお選びください。',
+    'validation.serviceRequired' => 'サービスを選択してください。',
+    'validation.slotRequired' => '日時を選択してください。',
+    'validation.eventRequired' => 'イベント日を選択してください。',
+    'validation.nameRequired' => 'お名前を入力してください。',
+    'validation.emailRequired' => 'メールアドレスを入力してください。',
+    'validation.emailInvalid' => '有効なメールアドレスを入力してください。',
+    'validation.phoneRequired' => '電話番号を入力してください。',
+    'validation.quantityInvalid' => '有効な数量を入力してください。',
+    'validation.quantityTooLow' => '数量が少なすぎます。',
+    'validation.quantityTooHigh' => 'その数量に対して十分な空きがありません。',
 ];
