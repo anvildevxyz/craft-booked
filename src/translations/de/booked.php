@@ -1886,4 +1886,5 @@ return [
     'validation.quantityInvalid' => 'Bitte geben Sie eine gültige Anzahl ein.',
     'validation.quantityTooLow' => 'Die Anzahl ist zu niedrig.',
     'validation.quantityTooHigh' => 'Nicht genügend Kapazität für diese Anzahl.',
+    'This feature requires Booked Pro.' => 'Diese Funktion erfordert Booked Pro.',
 ];

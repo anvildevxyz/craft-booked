@@ -94,9 +94,11 @@ use yii\base\Event;
 class Booked extends Plugin
 {
     /**
-     * Edition constant
+     * Edition constants. Lite is the lightweight "paid bookings" tier; Pro is
+     * the full product. See {@see Editions} for the capability gate.
      */
-    public const EDITION_PRO = 'pro';
+    public const EDITION_LITE = Editions::LITE;
+    public const EDITION_PRO = Editions::PRO;
 
     public string $schemaVersion = '1.2.1';
     public bool $hasCpSection = true;
@@ -104,7 +106,10 @@ class Booked extends Plugin
 
     public static function editions(): array
     {
+        // Order matters: lowest tier first. Existing installs are stored as
+        // `pro` and stay full-featured; only an explicit Lite license restricts.
         return [
+            self::EDITION_LITE,
             self::EDITION_PRO,
         ];
     }

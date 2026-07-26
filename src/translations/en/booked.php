@@ -1892,4 +1892,5 @@ return [
     'validation.quantityInvalid' => 'Please enter a valid quantity.',
     'validation.quantityTooLow' => 'Quantity is too low.',
     'validation.quantityTooHigh' => 'Not enough capacity for that quantity.',
+    'This feature requires Booked Pro.' => 'This feature requires Booked Pro.',
 ];
