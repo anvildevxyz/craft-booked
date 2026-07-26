@@ -126,6 +126,11 @@ class Settings extends Model
      */
     public ?string $paymentMode = null;
 
+    // Stripe (direct payment gateway). Store secrets as $ENV_VAR references.
+    public ?string $stripePublishableKey = null;
+    public ?string $stripeSecretKey = null;
+    public ?string $stripeWebhookSecret = null;
+
     // Commerce
     public bool $commerceEnabled = false;
     public ?int $commerceTaxCategoryId = null;
@@ -274,6 +279,7 @@ class Settings extends Model
             [['smsProvider', 'twilioAccountSid', 'twilioAuthToken', 'twilioPhoneNumber'], 'string'],
             [['commerceEnabled'], 'boolean'],
             [['paymentMode'], 'in', 'range' => [self::PAYMENT_MODE_NONE, self::PAYMENT_MODE_DIRECT, self::PAYMENT_MODE_COMMERCE], 'skipOnEmpty' => true],
+            [['stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret'], 'string'],
             [['commerceTaxCategoryId'], 'integer', 'skipOnEmpty' => true],
             [['pendingCartExpirationHours'], 'integer', 'min' => 1, 'max' => 168],
             [['commerceCartUrl', 'commerceCheckoutUrl'], 'string', 'max' => 255],
@@ -408,8 +414,11 @@ class Settings extends Model
                 'reminderEmailSubject', 'emailReminderHoursBefore', 'sendCancellationEmail',
                 'cancellationEmailSubject',
             ],
+            'payments' => [
+                'paymentMode', 'stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret',
+            ],
             'commerce' => [
-                'defaultCurrency', 'paymentMode', 'commerceEnabled', 'commerceTaxCategoryId', 'pendingCartExpirationHours',
+                'defaultCurrency', 'commerceEnabled', 'commerceTaxCategoryId', 'pendingCartExpirationHours',
                 'commerceCartUrl', 'commerceCheckoutUrl', 'enableAutoRefund', 'defaultRefundTiers',
             ],
             'sms' => [

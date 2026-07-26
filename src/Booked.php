@@ -129,6 +129,7 @@ class Booked extends Plugin
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
+        $this->registerPaymentGateways();
         // Pro-only integrations/automation — not wired under Lite. Services stay
         // registered (so references resolve); only their event listeners and the
         // MCP tools are skipped. See Editions / PRD §6.
@@ -246,6 +247,22 @@ class Booked extends Plugin
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
             'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
         ]);
+    }
+
+    /**
+     * Register the built-in payment gateway adapters. Available in both editions
+     * — direct payments are Lite's anchor feature. Third parties add more via the
+     * same EVENT_REGISTER_PAYMENT_GATEWAYS event.
+     */
+    private function registerPaymentGateways(): void
+    {
+        Event::on(
+            \anvildev\booked\services\PaymentGatewayService::class,
+            \anvildev\booked\services\PaymentGatewayService::EVENT_REGISTER_PAYMENT_GATEWAYS,
+            function(\anvildev\booked\events\RegisterPaymentGatewaysEvent $event) {
+                $event->gateways[] = new \anvildev\booked\gateways\StripeGateway();
+            },
+        );
     }
 
     public function getReminder(): \anvildev\booked\services\ReminderService
