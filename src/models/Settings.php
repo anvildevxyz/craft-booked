@@ -542,7 +542,10 @@ class Settings extends Model
 
     public function isSmsConfigured(): bool
     {
-        return $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
+        // SMS is a Pro capability — never configured under Lite, so every send
+        // path (send/reminders/queue) short-circuits in one place.
+        return \anvildev\booked\Editions::isPro()
+            && $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
     }
 
     public function canUseCommerce(): bool

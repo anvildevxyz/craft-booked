@@ -128,11 +128,16 @@ class Booked extends Plugin
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
-        $this->registerCommerceListeners();
-        $this->registerQuantityChangeListeners();
-        $this->registerCalendarSyncListeners();
-        $this->registerVirtualMeetingListeners();
-        $this->registerWebhookListeners();
+        // Pro-only integrations/automation — not wired under Lite. Services stay
+        // registered (so references resolve); only their event listeners and the
+        // MCP tools are skipped. See Editions / PRD §6.
+        if (Editions::isPro()) {
+            $this->registerCommerceListeners();
+            $this->registerQuantityChangeListeners();
+            $this->registerCalendarSyncListeners();
+            $this->registerVirtualMeetingListeners();
+            $this->registerWebhookListeners();
+        }
         $this->registerTemplateRoots();
         $this->registerElementTypes();
         $this->registerPermissions();
@@ -140,7 +145,9 @@ class Booked extends Plugin
         $this->registerGraphQl();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
-        $this->registerMcpTools();
+        if (Editions::isPro()) {
+            $this->registerMcpTools();
+        }
     }
 
     public static function displayName(): string
