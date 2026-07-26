@@ -167,6 +167,27 @@ describe('BookedApi — stale-response guard (channels)', () => {
     expect(b).toBeTruthy();
   });
 
+  it('manageLoad sends the confirmation token as manageToken, never the reserved `token` query param', async () => {
+    const f = fakeFetch({ json: { success: true } });
+    const api = new BookedApi({ site: 'en', fetch: f });
+    await api.manageLoad({ token: 'abc-tok' });
+    const url = f.calls[0].url;
+    // Craft reserves ?token= for tokenized routes (would 400 before the controller).
+    expect(url).toContain('manageToken=abc-tok');
+    expect(url).not.toMatch(/[?&]token=/);
+  });
+
+  it('manageCancel posts to the dedicated cancel route with the token in the body under manageToken', async () => {
+    const f = fakeFetch({ json: { success: true } });
+    const api = new BookedApi({ fetch: f });
+    await api.manageCancel({ token: 'abc-tok', reason: 'x' });
+    const { url, init } = f.calls[0];
+    expect(url).toContain('/booked/api/v1/manage/cancel');
+    expect(url).not.toMatch(/[?&]token=/);
+    const body = init.body.toString();
+    expect(body).toContain('manageToken=abc-tok');
+  });
+
   it('abortAll() clears in-flight channels', async () => {
     let sawAbort = false;
     const api = new BookedApi({

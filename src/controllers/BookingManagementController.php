@@ -89,9 +89,15 @@ class BookingManagementController extends Controller
      */
     public function actionManageBooking(?string $token = null): Response
     {
-        // Accept token from route param or query string
+        // Accept the token from the route param, or from a request param. The
+        // headless wizard cannot use `token` as a query param — Craft reserves it
+        // for tokenized route access (a value there yields a 400 before this
+        // action runs) — so it sends `manageToken` (in the query for the JSON
+        // load, in the body for the cancel action). `getParam` covers both; the
+        // legacy `token` query string stays as a fallback for old links.
         if ($token === null) {
-            $token = Craft::$app->request->getQueryParam('token');
+            $token = Craft::$app->request->getParam('manageToken')
+                ?? Craft::$app->request->getQueryParam('token');
         }
 
         if (!$token) {
@@ -190,8 +196,23 @@ class BookingManagementController extends Controller
      * Direct URL cancellation by token
      * URL: /booking/cancel/{token}
      */
-    public function actionCancelBookingByToken(string $token): Response
+    public function actionCancelBookingByToken(?string $token = null): Response
     {
+        // The token comes from the route (`/booking/cancel/{token}`) or, for the
+        // headless wizard's `booked/api/v1/manage/cancel` POST, from the body.
+        // It must never be read from the `token` query param — Craft reserves that.
+        if ($token === null) {
+            $token = (string) (Craft::$app->request->getBodyParam('manageToken')
+                ?? Craft::$app->request->getBodyParam('token')
+                ?? '');
+        }
+        if ($token === '') {
+            if (Craft::$app->request->getAcceptsJson()) {
+                return $this->jsonError(Craft::t('booked', 'errors.bookingNotFound'));
+            }
+            throw new NotFoundHttpException(Craft::t('booked', 'errors.bookingNotFound'));
+        }
+
         $reservation = ReservationFactory::findByToken($token);
         if (!$reservation) {
             throw new NotFoundHttpException(Craft::t('booked', 'errors.bookingNotFound'));

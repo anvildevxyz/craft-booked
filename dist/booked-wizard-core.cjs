@@ -671,13 +671,16 @@ var BookedApi = class {
   me() {
     return this.get("me");
   }
-  // Management (?manage= token flow). The load reads the token from the query;
-  // cancel reuses the manage endpoint with action=cancel (the anonymous path).
-  manageLoad(query) {
-    return this.get("manage", { query });
+  // Management (?manage= token flow). The confirmation token is sent as
+  // `manageToken`, never `token`: Craft reserves the `token` query param for
+  // tokenized route access, so a value there is rejected with a 400 before the
+  // controller runs. The load passes it in the query; cancel passes it in the
+  // body (with action=cancel) — neither touches the reserved param.
+  manageLoad({ token } = {}) {
+    return this.get("manage", { query: { manageToken: token } });
   }
   manageCancel({ token, reason } = {}) {
-    return this.post("manage", { query: { token }, body: { action: "cancel", reason } });
+    return this.post("manage/cancel", { body: { manageToken: token, reason } });
   }
   manageReduce(body) {
     return this.post("manage/reduce", { body });

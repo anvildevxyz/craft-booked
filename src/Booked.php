@@ -718,6 +718,11 @@ class Booked extends Plugin
                     'booked/api/v1/manage' => 'booked/booking-management/manage-booking',
                     'booked/api/v1/manage/reduce' => 'booked/booking-management/reduce-quantity',
                     'booked/api/v1/manage/increase' => 'booked/booking-management/increase-quantity',
+                    // Cancel needs its own POST route: a POST to the bare
+                    // `manage` rule above does not resolve (Craft site URL rules
+                    // route GET only for that pattern), so the headless wizard
+                    // cancels here, passing the token in the body.
+                    'booked/api/v1/manage/cancel' => 'booked/booking-management/cancel-booking-by-token',
                 ]);
             }
         );
