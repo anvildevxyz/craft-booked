@@ -9,6 +9,8 @@ use anvildev\booked\elements\Location;
 use anvildev\booked\elements\Service;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\ElementQueryHelper;
+use anvildev\booked\models\Settings;
+use anvildev\booked\records\PaymentRecord;
 use Craft;
 use craft\base\Component;
 use yii\caching\TagDependency;
@@ -75,13 +77,18 @@ class ReportsService extends Component
     /**
      * Aggregate revenue for a date range.
      *
-     * Note: Revenue is calculated from catalog/service prices (service.price,
-     * eventDate.price, serviceExtra.price) multiplied by reservation quantities,
-     * NOT from actual payment amounts. If discounts, coupons, or partial payments
-     * are applied at checkout, those adjustments are not reflected here.
+     * In **direct** payment mode, revenue is the money actually captured
+     * (`amount − refundedAmount`) from the payments table — so refunds reduce the
+     * figure — per the §13 decision to reconcile minor units at the reports layer.
+     * In commerce/none mode it stays catalog-priced (service.price, eventDate.price,
+     * serviceExtra.price × quantity), which does not reflect discounts/coupons.
      */
     private function aggregateRevenueSum(string $startDate, string $endDate): float
     {
+        if (Booked::getInstance()->getSettings()->getPaymentMode() === Settings::PAYMENT_MODE_DIRECT) {
+            return $this->aggregateDirectPaymentsSum($startDate, $endDate);
+        }
+
         $query = (new Query())
             ->from('{{%booked_reservations}} r')
             ->leftJoin('{{%booked_services}} s', 'r.serviceId = s.id')
@@ -103,6 +110,35 @@ class ReportsService extends Component
         }
 
         return (float) $query->sum('COALESCE(s.price, 0) * r.quantity + COALESCE(ed.price, 0) * r.quantity + COALESCE(re_sum.extras_total, 0)');
+    }
+
+    /**
+     * Direct-mode revenue: net captured amount (`amount − refundedAmount`) across
+     * paid/refunded payment rows for confirmed reservations in the range, summed in
+     * minor units and converted once to the install-wide currency. Failed/pending
+     * rows are excluded (never captured). Honors the same staff scoping.
+     */
+    private function aggregateDirectPaymentsSum(string $startDate, string $endDate): float
+    {
+        $query = (new Query())
+            ->from('{{%booked_payments}} p')
+            ->innerJoin('{{%booked_reservations}} r', 'p.reservationId = r.id')
+            ->where(['r.status' => 'confirmed'])
+            ->andWhere(['between', 'r.bookingDate', $startDate, $endDate])
+            ->andWhere(['p.status' => [
+                PaymentRecord::STATUS_PAID,
+                PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+                PaymentRecord::STATUS_REFUNDED,
+            ]]);
+
+        $staffIds = Booked::getInstance()->getPermission()->getStaffEmployeeIds();
+        if ($staffIds !== null) {
+            $query->andWhere(['r.employeeId' => $staffIds]);
+        }
+
+        $minorUnits = (int) $query->sum('p.amount - COALESCE(p.refundedAmount, 0)');
+
+        return PaymentService::fromMinorUnits($minorUnits, $this->getCurrency());
     }
 
     public function getByServiceData(?string $startDate = null, ?string $endDate = null): array

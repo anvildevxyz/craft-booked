@@ -90,24 +90,14 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\RefundPolicyService $refundPolicy
  * @property-read \anvildev\booked\services\MutexFactory $mutex
  * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
+ * @property-read \anvildev\booked\services\PaymentGatewayService $paymentGateways
+ * @property-read \anvildev\booked\services\PaymentService $payments
  */
 class Booked extends Plugin
 {
-    /**
-     * Edition constant
-     */
-    public const EDITION_PRO = 'pro';
-
-    public string $schemaVersion = '1.2.1';
+    public string $schemaVersion = '1.4.1';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
-
-    public static function editions(): array
-    {
-        return [
-            self::EDITION_PRO,
-        ];
-    }
 
     public function init(): void
     {
@@ -123,8 +113,9 @@ class Booked extends Plugin
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
-        $this->registerCommerceListeners();
+        $this->registerPaymentGateways();
         $this->registerQuantityChangeListeners();
+        $this->registerCommerceListeners();
         $this->registerCalendarSyncListeners();
         $this->registerVirtualMeetingListeners();
         $this->registerWebhookListeners();
@@ -132,9 +123,9 @@ class Booked extends Plugin
         $this->registerElementTypes();
         $this->registerPermissions();
         $this->registerTemplateVariable();
-        $this->registerGraphQl();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
+        $this->registerGraphQl();
         $this->registerMcpTools();
     }
 
@@ -230,7 +221,25 @@ class Booked extends Plugin
             'refundPolicy' => \anvildev\booked\services\RefundPolicyService::class,
             'mutex' => \anvildev\booked\services\MutexFactory::class,
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
+            'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
+            'payments' => \anvildev\booked\services\PaymentService::class,
         ]);
+    }
+
+    /**
+     * Register the built-in payment gateway adapters. Available in both editions
+     * — direct payments are Lite's anchor feature. Third parties add more via the
+     * same EVENT_REGISTER_PAYMENT_GATEWAYS event.
+     */
+    private function registerPaymentGateways(): void
+    {
+        Event::on(
+            \anvildev\booked\services\PaymentGatewayService::class,
+            \anvildev\booked\services\PaymentGatewayService::EVENT_REGISTER_PAYMENT_GATEWAYS,
+            function(\anvildev\booked\events\RegisterPaymentGatewaysEvent $event) {
+                $event->gateways[] = new \anvildev\booked\gateways\StripeGateway();
+            },
+        );
     }
 
     public function getReminder(): \anvildev\booked\services\ReminderService
@@ -323,9 +332,21 @@ class Booked extends Plugin
         return $this->get('multiDayAvailability');
     }
 
+    public function getPaymentGateways(): \anvildev\booked\services\PaymentGatewayService
+    {
+        return $this->get('paymentGateways');
+    }
+
+    public function getPayments(): \anvildev\booked\services\PaymentService
+    {
+        return $this->get('payments');
+    }
+
     public function isCommerceEnabled(): bool
     {
-        return Craft::$app->plugins->isPluginEnabled('commerce') && $this->getSettings()->commerceEnabled;
+        // Single source of truth: the settings model resolves payment mode +
+        // edition gating (commerce is Pro-only).
+        return $this->getSettings()->isCommerceEnabled();
     }
 
     private function registerCommerceListeners(): void
@@ -449,6 +470,17 @@ class Booked extends Plugin
             function(\anvildev\booked\events\AfterQuantityChangeEvent $event) {
                 $reservationId = $event->reservation->getId();
 
+                // Customer quantity-changed email — a core notification.
+                try {
+                    $this->bookingNotification->queueQuantityChangedEmail(
+                        $reservationId,
+                        $event->previousQuantity,
+                        $event->newQuantity,
+                    );
+                } catch (\Throwable $e) {
+                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
+                }
+
                 try {
                     $webhookEventType = $event->increaseBy > 0
                         ? \anvildev\booked\services\WebhookService::EVENT_BOOKING_QUANTITY_INCREASED
@@ -465,16 +497,6 @@ class Booked extends Plugin
                     ]);
                 } catch (\Throwable $e) {
                     Craft::error("Failed to dispatch quantity change webhook for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
-                }
-
-                try {
-                    $this->bookingNotification->queueQuantityChangedEmail(
-                        $reservationId,
-                        $event->previousQuantity,
-                        $event->newQuantity,
-                    );
-                } catch (\Throwable $e) {
-                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
                 }
 
                 try {
@@ -708,6 +730,10 @@ class Booked extends Plugin
                     'booked/api/v1/locks/release' => 'booked/slot/release-lock',
                     // Booking
                     'booked/api/v1/bookings' => 'booked/booking/create-booking',
+                    // Direct payments
+                    'booked/api/v1/payment/create' => 'booked/payment/create',
+                    'booked/api/v1/payment/confirm' => 'booked/payment/confirm',
+                    'booked/api/v1/payment/webhook/<gateway:[\w-]+>' => 'booked/payment/webhook',
                     // Waitlist
                     'booked/api/v1/waitlist/event' => 'booked/waitlist/join-event-waitlist',
                     'booked/api/v1/waitlist/convert' => 'booked/waitlist-conversion/convert',
@@ -745,6 +771,9 @@ class Booked extends Plugin
                                     'nested' => [
                                         'booked-manageBookings' => [
                                             'label' => Craft::t('booked', 'permissions.manageBookings'),
+                                        ],
+                                        'booked-manageRefunds' => [
+                                            'label' => Craft::t('booked', 'permissions.manageRefunds'),
                                         ],
                                     ],
                                 ],
@@ -818,8 +847,9 @@ class Booked extends Plugin
 
         $subnav = [];
         foreach ($navDefs as $def) {
+            $key = $def[0];
             if ($can(...array_slice($def, 3))) {
-                $subnav[$def[0]] = ['label' => Craft::t('booked', $def[1]), 'url' => $def[2]];
+                $subnav[$key] = ['label' => Craft::t('booked', $def[1]), 'url' => $def[2]];
             }
         }
 

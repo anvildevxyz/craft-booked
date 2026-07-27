@@ -14,9 +14,12 @@ use anvildev\booked\elements\Service;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\CsvHelper;
 use anvildev\booked\helpers\FormFieldHelper;
+use anvildev\booked\records\PaymentRecord;
 use anvildev\booked\records\ReservationRecord;
 use anvildev\booked\services\BookingService;
+use anvildev\booked\services\PaymentService;
 use Craft;
+use craft\helpers\App;
 use craft\web\Controller;
 use craft\web\Response;
 use yii\web\NotFoundHttpException;
@@ -206,9 +209,110 @@ class BookingsController extends Controller
                 'smsEnabled' => $settings->isSmsConfigured() && ($settings->smsConfirmationEnabled ?? false),
                 'currency' => Booked::getInstance()->reports->getCurrency(),
                 'order' => $order,
+                'payment' => $id ? $this->getPaymentPanel($reservation) : null,
             ],
             $this->getFormOptions()
         ));
+    }
+
+    /**
+     * Build the direct-payment panel context for the booking edit screen, or null
+     * when it doesn't apply (not direct mode, or no payment on this reservation).
+     * Exposes the captured/refunded amounts, gateway + external-ID deep link, and
+     * the policy-allowed remaining refund plus whether the current user may issue it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function getPaymentPanel(ReservationInterface $reservation): ?array
+    {
+        if (!Booked::getInstance()->getSettings()->isDirectPayment()) {
+            return null;
+        }
+        /** @var PaymentRecord|null $record */
+        $record = PaymentRecord::find()
+            ->where(['reservationId' => $reservation->getId()])
+            ->orderBy(['dateCreated' => SORT_DESC])
+            ->one();
+        if (!$record) {
+            return null;
+        }
+
+        $currency = $record->currency ?: Booked::getInstance()->reports->getCurrency();
+        $captured = (int) $record->amount;
+        $refunded = (int) ($record->refundedAmount ?? 0);
+
+        // Policy-allowed remaining refund (minor units): a % of the captured amount,
+        // net of prior refunds — mirrors PaymentService::resolveRefundAmount().
+        $maxRefundMinor = 0;
+        if (in_array($record->status, [PaymentRecord::STATUS_PAID, PaymentRecord::STATUS_PARTIALLY_REFUNDED], true)) {
+            $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
+            $maxRefundMinor = max(0, min($captured - $refunded, (int) floor($captured * $pct / 100) - $refunded));
+        }
+
+        $user = Craft::$app->getUser()->getIdentity();
+        $canRefund = $maxRefundMinor > 0 && $user !== null && ($user->admin || $user->can('booked-manageRefunds'));
+
+        return [
+            'status' => $record->status,
+            'gateway' => $record->gateway,
+            'externalId' => $record->externalId,
+            'dashboardUrl' => $this->gatewayDashboardUrl($record),
+            'currency' => $currency,
+            'amount' => PaymentService::fromMinorUnits($captured, $currency),
+            'refunded' => PaymentService::fromMinorUnits($refunded, $currency),
+            'maxRefund' => PaymentService::fromMinorUnits($maxRefundMinor, $currency),
+            'canRefund' => $canRefund,
+        ];
+    }
+
+    /** Deep link to the payment in the gateway's dashboard (Stripe only for now). */
+    private function gatewayDashboardUrl(PaymentRecord $record): ?string
+    {
+        if ($record->gateway !== 'stripe' || !$record->externalId) {
+            return null;
+        }
+        $key = (string) App::parseEnv(Booked::getInstance()->getSettings()->stripeSecretKey);
+        $segment = str_starts_with($key, 'sk_test_') ? 'test/' : '';
+        return "https://dashboard.stripe.com/{$segment}payments/{$record->externalId}";
+    }
+
+    /**
+     * Issue a direct-payment refund from the booking edit screen. Gated by the
+     * dedicated `booked-manageRefunds` permission (beyond the manage-bookings gate
+     * in beforeAction). An optional `amount` (major units) refunds partially; blank
+     * refunds the policy-allowed maximum.
+     */
+    public function actionRefund(): Response
+    {
+        $this->requirePostRequest();
+        $this->requirePermission('booked-manageRefunds');
+
+        $request = Craft::$app->request;
+        $reservation = $this->findScopedReservation((int) $request->getRequiredBodyParam('id'))
+            ?? throw new NotFoundHttpException(Craft::t('booked', 'errors.bookingNotFound'));
+
+        $amountParam = $request->getBodyParam('amount');
+        $amountMinor = null;
+        if ($amountParam !== null && $amountParam !== '') {
+            $currency = Booked::getInstance()->reports->getCurrency();
+            $amountMinor = PaymentService::toMinorUnits((float) $amountParam, $currency);
+        }
+
+        try {
+            $result = Booked::getInstance()->getPayments()->refund($reservation, $amountMinor);
+            if (!$result->success) {
+                Craft::$app->getSession()->setError($result->error ?: Craft::t('booked', 'payment.refundFailed'));
+                return $this->redirectToPostedUrl();
+            }
+            Craft::$app->getSession()->setNotice(Craft::t('booked', 'payment.refundSucceeded'));
+        } catch (\RuntimeException $e) {
+            // Guard violations carry a translation key as their message.
+            Craft::$app->getSession()->setError(Craft::t('booked', $e->getMessage()));
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
+
+        return $this->redirectToPostedUrl();
     }
 
     private function findScopedReservation(int $id): ?ReservationInterface
@@ -559,9 +663,19 @@ class BookingsController extends Controller
 
         $query->orderBy(['bookingDate' => SORT_DESC, 'startTime' => SORT_DESC]);
 
+        // Direct-payment provenance columns are added only when the install is in
+        // direct mode; free/unpaid rows within it just leave those cells blank.
+        $directMode = Booked::getInstance()->getSettings()->isDirectPayment();
+        $currency = $directMode ? Booked::getInstance()->reports->getCurrency() : 'USD';
+
+        $header = ['ID', 'Name', 'Email', 'Phone', 'Service', 'Employee', 'Location', 'Event', 'Date', 'Start Time', 'End Time', 'Quantity', 'Status', 'Notes', 'Created'];
+        if ($directMode) {
+            array_push($header, 'Payment Status', 'Gateway', 'External ID', 'Refunded');
+        }
+
         $handle = fopen('php://temp', 'r+');
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, ['ID', 'Name', 'Email', 'Phone', 'Service', 'Employee', 'Location', 'Event', 'Date', 'Start Time', 'End Time', 'Quantity', 'Status', 'Notes', 'Created']);
+        fputcsv($handle, $header);
 
         foreach ($query->each(100) as $r) {
             $service = $r->serviceId ? Service::find()->id($r->serviceId)->one() : null;
@@ -569,7 +683,7 @@ class BookingsController extends Controller
             $location = $r->locationId ? Location::find()->siteId('*')->id($r->locationId)->one() : null;
             $eventDate = $r->eventDateId ? EventDate::find()->id($r->eventDateId)->one() : null;
 
-            fputcsv($handle, [
+            $row = [
                 (string)$r->id,
                 CsvHelper::sanitizeValue($r->userName ?? ''),
                 CsvHelper::sanitizeValue($r->userEmail ?? ''),
@@ -585,7 +699,25 @@ class BookingsController extends Controller
                 (string)$r->getStatusLabel(),
                 CsvHelper::sanitizeValue($r->notes ?? ''),
                 $r->dateCreated ? $r->dateCreated->format('Y-m-d H:i:s') : '',
-            ]);
+            ];
+
+            if ($directMode) {
+                /** @var PaymentRecord|null $payment */
+                $payment = PaymentRecord::find()
+                    ->where(['reservationId' => $r->id])
+                    ->orderBy(['dateCreated' => SORT_DESC])
+                    ->one();
+                if ($payment) {
+                    $row[] = (string)$payment->status;
+                    $row[] = (string)$payment->gateway;
+                    $row[] = CsvHelper::sanitizeValue((string)$payment->externalId);
+                    $row[] = number_format(PaymentService::fromMinorUnits((int)($payment->refundedAmount ?? 0), $currency), 2, '.', '');
+                } else {
+                    array_push($row, '', '', '', '');
+                }
+            }
+
+            fputcsv($handle, $row);
         }
 
         rewind($handle);

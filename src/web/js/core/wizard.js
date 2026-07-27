@@ -79,6 +79,11 @@ export class Wizard {
 
     this._lock = new LockController({ api: this._api, emit: (e, p) => this._emitter.emit(e, p) });
 
+    // Direct-payment (Commerce-free) state: set after a `payment:required`
+    // submit result and consumed by the payment step's createDirectPayment()/
+    // confirmDirectPayment() calls. Null in every non-direct flow.
+    this._pendingPayment = null;
+
     // React to the hold timer: a timer-driven expiry must clear the selection,
     // move the machine to `expired`, and send the user back to re-pick — none of
     // which happens on its own. `lock:expiring` drives the aria-live countdown.
@@ -646,6 +651,21 @@ export class Wizard {
         this._emitter.emit('payment:redirect', { url: result.redirectUrl });
         return { ok: true, paying: true, redirectUrl: result.redirectUrl };
       }
+      // Direct (Commerce-free) payment: the booking is created *pending* and must
+      // be paid in-page via Stripe Elements before it's confirmed. Hold onto the
+      // reservation id + confirmation token so the payment step can call
+      // `payment/create`, and hand the reservation to the step via an event.
+      if (result && result.paymentRequired && result.reservation) {
+        this._machine.transition(STATES.PAYING);
+        this._ctx.reservation = result.reservation;
+        this._pendingPayment = {
+          reservationId: result.reservation.id,
+          token: result.reservation.token,
+          paymentToken: null,
+        };
+        this._emitter.emit('payment:required', { reservation: result.reservation });
+        return { ok: true, paying: true, paymentRequired: true, reservation: result.reservation };
+      }
       this._ctx.lock = null;
       this._lock.destroy();
       this._machine.transition(STATES.CONFIRMED);
@@ -668,6 +688,53 @@ export class Wizard {
       this._emitRecoverableError(err);
       return { ok: false, error: err.message };
     }
+  }
+
+  // ---- Direct (Commerce-free) payments ================================
+
+  /**
+   * Create the gateway payment for the pending reservation produced by a
+   * direct-payment `submit()`. Returns the gateway bootstrap the payment step
+   * needs to mount Stripe Elements (`clientSecret`, `publishableKey`) plus the
+   * signed `paymentToken` used to poll for confirmation. Returns null when
+   * there is no pending direct payment (e.g. free booking, wrong mode).
+   *
+   * @returns {Promise<null | {clientSecret?: string, publishableKey?: string, paymentToken?: string, [k: string]: any}>}
+   */
+  async createDirectPayment() {
+    if (!this._pendingPayment) return null;
+    const res = await this._api.createPayment({
+      reservationId: this._pendingPayment.reservationId,
+      token: this._pendingPayment.token,
+    });
+    if (res && res.paymentToken) {
+      this._pendingPayment.paymentToken = res.paymentToken;
+    }
+    return res;
+  }
+
+  /**
+   * Poll the gateway for the pending payment's status. The server is the source
+   * of truth — `payment/confirm` finalizes the reservation (webhook-idempotent),
+   * so when it reports `paid` we move the machine to `confirmed` and emit
+   * `booking:confirmed` exactly as a free/Commerce booking would.
+   *
+   * @returns {Promise<{paid: boolean, status?: string, [k: string]: any}>}
+   */
+  async confirmDirectPayment() {
+    if (!this._pendingPayment || !this._pendingPayment.paymentToken) {
+      return { paid: false };
+    }
+    const res = await this._api.confirmPayment(this._pendingPayment.paymentToken);
+    if (res && res.paid) {
+      this._ctx.lock = null;
+      this._lock.destroy();
+      if (this._machine.state !== STATES.CONFIRMED) {
+        this._machine.transition(STATES.CONFIRMED);
+      }
+      this._emitter.emit('booking:confirmed', { reservation: this._ctx.reservation });
+    }
+    return res || { paid: false };
   }
 
   _buildBookingBody(fields, addToCart) {

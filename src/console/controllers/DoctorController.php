@@ -7,6 +7,7 @@ use anvildev\booked\models\Settings;
 use anvildev\booked\records\WebhookLogRecord;
 use Craft;
 use craft\console\Controller;
+use craft\helpers\App;
 use yii\console\ExitCode;
 use yii\helpers\Console;
 
@@ -44,6 +45,7 @@ class DoctorController extends Controller
         $this->checkTwilioSms($settings);
         $this->checkCaptcha($settings);
         $this->checkWebhooks($settings);
+        $this->checkPayments($settings);
         $this->checkQueue();
 
         $this->stdout("═══════════════════════════════════\n");
@@ -339,6 +341,73 @@ class DoctorController extends Controller
                 ? $this->warn("Recent deliveries: {$failures}/{$logCount} failed (" . round(($failures / $logCount) * 100) . "%) in last 7 days")
                 : $this->pass("Recent deliveries: {$logCount} successful in last 7 days");
         }
+    }
+
+    /**
+     * Direct-payment configuration checks: Stripe keys present + well-formed, the
+     * webhook secret set (else payments never confirm), the gateway registered,
+     * the currency resolvable, and test/live keys matched to the environment.
+     * No-op unless payment mode is `direct`.
+     */
+    private function checkPayments(Settings $settings): void
+    {
+        if ($settings->getPaymentMode() !== Settings::PAYMENT_MODE_DIRECT) {
+            return;
+        }
+
+        $this->heading('Direct Payments', true);
+
+        $secret = (string) App::parseEnv($settings->stripeSecretKey);
+        $publishable = (string) App::parseEnv($settings->stripePublishableKey);
+        $webhookSecret = (string) App::parseEnv($settings->stripeWebhookSecret);
+
+        // Secret key
+        if ($secret === '') {
+            $this->fail('Stripe secret key is not set');
+        } elseif (!str_starts_with($secret, 'sk_')) {
+            $this->fail('Stripe secret key is malformed (expected sk_…)');
+        } else {
+            $this->pass('Stripe secret key is set');
+        }
+
+        // Publishable key — guard against a secret key pasted into the public field.
+        if ($publishable === '') {
+            $this->fail('Stripe publishable key is not set');
+        } elseif (str_starts_with($publishable, 'sk_')) {
+            $this->fail('A SECRET key is configured as the publishable key — replace it with pk_…');
+        } elseif (!str_starts_with($publishable, 'pk_')) {
+            $this->warn('Stripe publishable key is malformed (expected pk_…)');
+        } else {
+            $this->pass('Stripe publishable key is set');
+        }
+
+        // Webhook secret — without it verifyWebhook() drops everything and payments never confirm.
+        if ($webhookSecret === '') {
+            $this->fail('Stripe webhook secret is not set — webhooks cannot be verified, so payments will never confirm');
+        } elseif (!str_starts_with($webhookSecret, 'whsec_')) {
+            $this->warn('Stripe webhook secret is malformed (expected whsec_…)');
+        } else {
+            $this->pass('Stripe webhook secret is set');
+        }
+
+        // Test/live keys vs environment.
+        $devMode = Craft::$app->getConfig()->getGeneral()->devMode;
+        if (str_starts_with($secret, 'sk_live_') && $devMode) {
+            $this->warn('LIVE Stripe keys with devMode ON — real charges from a dev environment');
+        }
+        if (str_starts_with($secret, 'sk_test_') && !$devMode) {
+            $this->warn('TEST Stripe keys with devMode OFF — a production site would take no real payments');
+        }
+
+        // Gateway registered + currency resolvable.
+        Booked::getInstance()->getPaymentGateways()->getGateway('stripe')
+            ? $this->pass('Stripe gateway is registered')
+            : $this->fail('Stripe gateway is not registered');
+
+        $currency = Booked::getInstance()->reports->getCurrency();
+        $currency !== ''
+            ? $this->pass("Payment currency resolves to {$currency}")
+            : $this->warn('Payment currency could not be resolved');
     }
 
     private function checkQueue(): void
