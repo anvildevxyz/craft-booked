@@ -5,13 +5,16 @@ namespace anvildev\booked\services;
 use anvildev\booked\Booked;
 use anvildev\booked\contracts\PaymentGatewayInterface;
 use anvildev\booked\contracts\ReservationInterface;
+use anvildev\booked\events\PaymentRefundedEvent;
 use anvildev\booked\helpers\PaymentTokenHelper;
 use anvildev\booked\models\Settings;
 use anvildev\booked\payments\PaymentContext;
+use anvildev\booked\payments\RefundResult;
 use anvildev\booked\records\PaymentRecord;
 use Craft;
 use craft\base\Component;
 use craft\helpers\App;
+use RuntimeException;
 
 /**
  * Orchestrates native (direct) payments: create a gateway payment for a
@@ -21,6 +24,12 @@ use craft\helpers\App;
  */
 class PaymentService extends Component
 {
+    /**
+     * Raised after a direct payment is successfully refunded (full or partial).
+     * @event PaymentRefundedEvent
+     */
+    public const EVENT_PAYMENT_REFUNDED = 'paymentRefunded';
+
     /**
      * Create a payment for a reservation through the given gateway. Persists a
      * pending {@see PaymentRecord} and returns it plus the gateway session and a
@@ -96,6 +105,76 @@ class PaymentService extends Component
             PaymentRecord::STATUS_REFUNDED,
             PaymentRecord::STATUS_PARTIALLY_REFUNDED,
         ], true);
+    }
+
+    /**
+     * Refund a direct (Commerce-free) payment, honoring the reservation's refund
+     * policy. `$amount` is in the currency's minor units; `null` refunds the
+     * maximum the policy currently allows (capped at the remaining refundable).
+     *
+     * The refund policy is a hard ceiling: an explicit amount above it — or above
+     * what's still refundable — is rejected *before* any gateway call, so the
+     * customer is never over-refunded. Idempotent by construction: each call only
+     * ever adds up to the remaining refundable, and a fully-refunded payment
+     * refuses further refunds.
+     *
+     * On a gateway failure the record is left untouched and the failed
+     * {@see RefundResult} is returned (caller surfaces `->error`). On success the
+     * record's `refundedAmount`/`status` advance and {@see EVENT_PAYMENT_REFUNDED}
+     * fires. Commerce-mode refunds go through {@see RefundService} instead.
+     *
+     * @param int|null $amount Minor units; null = policy-allowed maximum.
+     * @throws RuntimeException on a guard violation. Its message is a translation
+     *                          key (e.g. `payment.refundExceedsPolicy`); the caller
+     *                          renders it with `Craft::t('booked', $e->getMessage())`.
+     */
+    public function refund(ReservationInterface $reservation, ?int $amount = null): RefundResult
+    {
+        /** @var PaymentRecord|null $record */
+        $record = PaymentRecord::find()
+            ->where(['reservationId' => $reservation->getId()])
+            ->orderBy(['dateCreated' => SORT_DESC])
+            ->one();
+
+        if (!$record || !in_array($record->status, [
+            PaymentRecord::STATUS_PAID,
+            PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+        ], true)) {
+            throw new RuntimeException('payment.refundNoPayment');
+        }
+
+        $captured = (int) $record->amount;
+        $alreadyRefunded = (int) ($record->refundedAmount ?? 0);
+        $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
+        $requested = self::resolveRefundAmount($captured, $alreadyRefunded, $pct, $amount);
+
+        $gateway = Booked::getInstance()->getPaymentGateways()->getGateway((string) $record->gateway);
+        if (!$gateway) {
+            throw new RuntimeException('payment.gatewayUnavailable');
+        }
+
+        $result = $gateway->refund($record, $requested);
+        if (!$result->success) {
+            return $result; // record untouched; caller surfaces $result->error
+        }
+
+        $totalRefunded = $alreadyRefunded + $result->refundedAmount;
+        $record->refundedAmount = $totalRefunded;
+        $record->status = $totalRefunded >= $captured
+            ? PaymentRecord::STATUS_REFUNDED
+            : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
+        $record->save(false);
+
+        if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
+            $event = new PaymentRefundedEvent();
+            $event->reservationId = (int) $record->reservationId;
+            $event->record = $record;
+            $event->amount = $result->refundedAmount;
+            $event->totalRefunded = $totalRefunded;
+            $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
+        }
+
+        return $result;
     }
 
     /** Confirm a pending reservation (direct mode) and fire the usual notifications. */
@@ -176,6 +255,38 @@ class PaymentService extends Component
             return $commerceOrderPaid ? PaymentRecord::STATUS_PAID : PaymentRecord::STATUS_PENDING;
         }
         return self::STATUS_FREE; // mode 'none'
+    }
+
+    /**
+     * Pure refund-amount resolution (no I/O). Validates a requested refund against
+     * the refund-policy ceiling (a percentage of the captured amount, net of prior
+     * refunds) and the remaining refundable, returning the minor-unit amount to
+     * send to the gateway. `$requested` null = the policy-allowed maximum.
+     *
+     * Mirrors {@see resolveStatus} — the I/O-free core that {@see refund} wraps —
+     * so the money math is unit-testable without a DB or gateway.
+     *
+     * @throws RuntimeException with a translation-key message on any violation.
+     */
+    public static function resolveRefundAmount(int $captured, int $alreadyRefunded, int $policyPercent, ?int $requested): int
+    {
+        $remaining = $captured - $alreadyRefunded;
+        if ($remaining <= 0) {
+            throw new RuntimeException('payment.refundAlreadyFull');
+        }
+        $policyCeiling = max(0, (int) floor($captured * $policyPercent / 100) - $alreadyRefunded);
+
+        $amount = $requested ?? min($remaining, $policyCeiling);
+        if ($amount <= 0) {
+            throw new RuntimeException('payment.refundPolicyZero');
+        }
+        if ($amount > $remaining) {
+            throw new RuntimeException('payment.refundExceedsRemaining');
+        }
+        if ($amount > $policyCeiling) {
+            throw new RuntimeException('payment.refundExceedsPolicy');
+        }
+        return $amount;
     }
 
     /**

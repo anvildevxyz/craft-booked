@@ -6,6 +6,7 @@ use anvildev\booked\records\PaymentRecord;
 use anvildev\booked\services\PaymentService;
 use anvildev\booked\tests\Support\TestCase;
 use ReflectionMethod;
+use RuntimeException;
 
 class PaymentServiceTest extends TestCase
 {
@@ -129,5 +130,85 @@ class PaymentServiceTest extends TestCase
         $this->assertStringContainsString("\$action->id === 'webhook'", $src);
         $this->assertStringContainsString('$this->enableCsrfValidation = false', $src);
         $this->assertStringContainsString("'webhook'", $src);
+    }
+
+    // ---- resolveRefundAmount (pure refund math; #37) --------------------
+
+    public function testResolveRefundFullWithFullPolicy(): void
+    {
+        // 100% policy, nothing refunded yet, null → full captured amount.
+        $this->assertSame(4000, PaymentService::resolveRefundAmount(4000, 0, 100, null));
+    }
+
+    public function testResolveRefundNullCapsAtPolicyCeiling(): void
+    {
+        // 50% policy → null refunds half the captured amount, not the full remaining.
+        $this->assertSame(2000, PaymentService::resolveRefundAmount(4000, 0, 50, null));
+    }
+
+    public function testResolveRefundExplicitPartialWithinPolicy(): void
+    {
+        $this->assertSame(1500, PaymentService::resolveRefundAmount(4000, 0, 100, 1500));
+    }
+
+    public function testResolveRefundPolicyCeilingNetsPriorRefunds(): void
+    {
+        // 80% of 5000 = 4000 ceiling; 1000 already refunded → 3000 still allowed.
+        $this->assertSame(3000, PaymentService::resolveRefundAmount(5000, 1000, 80, null));
+        $this->assertSame(3000, PaymentService::resolveRefundAmount(5000, 1000, 80, 3000));
+    }
+
+    public function testResolveRefundZeroDecimalCurrencyAmounts(): void
+    {
+        // JPY captured 1000 (already minor units), 100% → 1000.
+        $this->assertSame(1000, PaymentService::resolveRefundAmount(1000, 0, 100, null));
+    }
+
+    public function testResolveRefundRejectsWhenAlreadyFullyRefunded(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('payment.refundAlreadyFull');
+        PaymentService::resolveRefundAmount(4000, 4000, 100, null);
+    }
+
+    public function testResolveRefundRejectsWhenPolicyAllowsNothing(): void
+    {
+        // 0% policy, null requested → nothing allowed.
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('payment.refundPolicyZero');
+        PaymentService::resolveRefundAmount(4000, 0, 0, null);
+    }
+
+    public function testResolveRefundRejectsAmountAbovePolicy(): void
+    {
+        // 50% policy = 2000 ceiling; asking 2500 is over policy though under remaining.
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('payment.refundExceedsPolicy');
+        PaymentService::resolveRefundAmount(4000, 0, 50, 2500);
+    }
+
+    public function testResolveRefundRejectsAmountAboveRemaining(): void
+    {
+        // 100% policy but 3500 already refunded → only 500 remains; asking 1000 fails.
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('payment.refundExceedsRemaining');
+        PaymentService::resolveRefundAmount(4000, 3500, 100, 1000);
+    }
+
+    public function testRefundMethodWiresPolicyGatewayAndEvent(): void
+    {
+        // The refund() orchestration is DB/gateway-bound; assert the wiring by
+        // source inspection (matches the source-scan style used above for the
+        // controller). The pure math it delegates to is covered by the cases above.
+        $src = self::methodSource('anvildev\booked\services\PaymentService', 'refund');
+        $this->assertStringContainsString('resolveRefundAmount(', $src);
+        $this->assertStringContainsString('calculateRefundPercentage(', $src);
+        $this->assertStringContainsString('$gateway->refund(', $src);
+        $this->assertStringContainsString('EVENT_PAYMENT_REFUNDED', $src);
+        // Status advances to fully- vs partially-refunded based on the running total.
+        $this->assertStringContainsString('STATUS_REFUNDED', $src);
+        $this->assertStringContainsString('STATUS_PARTIALLY_REFUNDED', $src);
+        // A failed gateway result must leave the record untouched.
+        $this->assertStringContainsString('if (!$result->success)', $src);
     }
 }
