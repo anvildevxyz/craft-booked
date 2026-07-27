@@ -4,6 +4,7 @@ namespace anvildev\booked\controllers;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\BookingHelpersTrait;
+use anvildev\booked\Editions;
 use anvildev\booked\controllers\traits\HandlesExceptionsTrait;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\elements\EventDate;
@@ -48,6 +49,20 @@ class SlotController extends Controller
         parent::init();
         $this->availabilityService = Booked::getInstance()->availability;
         $this->closeSession();
+    }
+
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+        // Multi-day / range booking is Pro-only; single-slot + day endpoints stay
+        // open for Lite. Deny the multi-day availability/lock actions under Lite.
+        $multiDayActions = ['get-range-capacity', 'get-valid-end-dates', 'create-multi-day-lock'];
+        if (in_array($action->id, $multiDayActions, true)) {
+            Editions::requirePro();
+        }
+        return true;
     }
 
     public function actionGetAvailableSlots(): Response
@@ -550,9 +565,15 @@ class SlotController extends Controller
             return $this->jsonError(Craft::t('booked', 'booking.slotReserved'), statusCode: 410);
         }
 
+        // Report the REAL remaining seconds: extendLock clamps the new expiry to
+        // the lock's max lifetime, so near the ceiling the grant is shorter than
+        // durationMinutes. Sending durationMinutes*60 would show a countdown that
+        // outlives the lock and drop the slot mid-checkout with no warning.
+        $expiresIn = max(0, $newExpiry->getTimestamp() - time());
+
         return $this->jsonSuccess('', [
             'token' => $token,
-            'expiresIn' => $durationMinutes * 60,
+            'expiresIn' => $expiresIn,
         ]);
     }
 

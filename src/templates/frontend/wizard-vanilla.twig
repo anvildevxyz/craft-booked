@@ -6,6 +6,11 @@
    (`<script type="application/json">`) and read by the bundle's auto-init, so
    the page needs no inline executable script and runs under a strict CSP.
 
+   CSP note: with direct (Commerce-free) payments, the payment step loads Stripe
+   Elements — https://js.stripe.com plus Stripe-hosted iframes. Direct-payment
+   pages must allow Stripe in their CSP (script-src/frame-src js.stripe.com,
+   connect-src api.stripe.com). Commerce and free bookings stay fully self-contained.
+
    Include params (all optional): serviceId, labels {}.
    ========================================================================== #}
 
@@ -47,6 +52,11 @@
     'error.generic': 'error.generic'|t('booked'),
     'error.booking': 'error.booking'|t('booked'),
     'error.slotReserved': 'error.slotReserved'|t('booked'),
+    'payment.preparing': 'payment.preparing'|t('booked'),
+    'payment.processing': 'payment.processing'|t('booked'),
+    'payment.finalizing': 'payment.finalizing'|t('booked'),
+    'payment.unavailable': 'payment.unavailable'|t('booked'),
+    'payment.failed': 'payment.failed'|t('booked'),
     'validation.serviceRequired': 'validation.serviceRequired'|t('booked'),
     'validation.slotRequired': 'validation.slotRequired'|t('booked'),
     'validation.eventRequired': 'validation.eventRequired'|t('booked'),
@@ -74,6 +84,7 @@
         defaultQuantity: defaultQuantity ?? 1,
         maximumAdvanceBookingDays: settings.maximumAdvanceBookingDays,
         siteHandle: craft.app.sites.currentSite.handle,
+        paymentMode: settings.getPaymentMode(),
     },
     serviceId: serviceId ?? null,
     conversionToken: craft.app.request.getParam('conversionToken') ?? craft.app.request.getParam('waitlist'),
@@ -235,6 +246,18 @@
         <div class="booked-nav">
             <button type="button" data-booked-action="back">{{ labels.back }}</button>
             <button type="button" data-booked-action="submit">{{ labels.book }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="payment" hidden>
+        <h2 data-booked-step-heading>{{ 'wizard.paymentHeading'|t('booked') }}</h2>
+        <p>{{ 'wizard.paymentRequiredNote'|t('booked') }}</p>
+        {# Stripe.js mounts the Payment Element (card fields) inside this target. #}
+        <div class="booked-payment-element" data-booked-payment-element></div>
+        <p class="booked-payment-status" data-booked-payment-status role="status" aria-live="polite"></p>
+        <p class="booked-payment-error" data-booked-payment-error role="alert" hidden></p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="pay" disabled>{{ 'wizard.btnPay'|t('booked') }}</button>
         </div>
     </section>
 

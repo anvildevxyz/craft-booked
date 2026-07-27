@@ -158,9 +158,12 @@ class BookingController extends Controller
         }
 
         $useCommerce = $settings->canUseCommerce() && $totalPrice > 0;
+        $useDirectPayment = $settings->isDirectPayment() && $totalPrice > 0;
         $addToCartOnly = $request->getBodyParam('addToCart') === '1';
 
-        if ($useCommerce) {
+        // Paid bookings (either mode) start pending; direct mode is confirmed by
+        // the gateway webhook, so it must NOT be created confirmed-for-free.
+        if ($useCommerce || $useDirectPayment) {
             $data['status'] = ReservationRecord::STATUS_PENDING;
         }
 
@@ -208,12 +211,23 @@ class BookingController extends Controller
             }
 
             if ($request->getAcceptsJson()) {
+                $reservationData = [
+                    'id' => $reservation->getId(),
+                    'formattedDateTime' => $reservation->getFormattedDateTime(),
+                    'status' => $reservation->getStatusLabel(),
+                ];
+                // Direct (Commerce-free) payment: the booking is pending and must be
+                // paid in-page. Expose the confirmation token so the wizard can call
+                // `payment/create`, and flag that a payment step is required.
+                if ($useDirectPayment) {
+                    $reservationData['token'] = $reservation->getConfirmationToken();
+                    return $this->jsonSuccess(Craft::t('booked', 'booking.created'), [
+                        'reservation' => $reservationData,
+                        'paymentRequired' => true,
+                    ]);
+                }
                 return $this->jsonSuccess(Craft::t('booked', 'booking.created'), [
-                    'reservation' => [
-                        'id' => $reservation->getId(),
-                        'formattedDateTime' => $reservation->getFormattedDateTime(),
-                        'status' => $reservation->getStatusLabel(),
-                    ],
+                    'reservation' => $reservationData,
                 ]);
             }
             Craft::$app->session->setNotice(Craft::t('booked', 'booking.confirmed'));

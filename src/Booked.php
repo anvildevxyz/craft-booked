@@ -90,21 +90,28 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\RefundPolicyService $refundPolicy
  * @property-read \anvildev\booked\services\MutexFactory $mutex
  * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
+ * @property-read \anvildev\booked\services\PaymentGatewayService $paymentGateways
+ * @property-read \anvildev\booked\services\PaymentService $payments
  */
 class Booked extends Plugin
 {
     /**
-     * Edition constant
+     * Edition constants. Lite is the lightweight "paid bookings" tier; Pro is
+     * the full product. See {@see Editions} for the capability gate.
      */
-    public const EDITION_PRO = 'pro';
+    public const EDITION_LITE = Editions::LITE;
+    public const EDITION_PRO = Editions::PRO;
 
-    public string $schemaVersion = '1.2.1';
+    public string $schemaVersion = '1.4.0';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
 
     public static function editions(): array
     {
+        // Order matters: lowest tier first. Existing installs are stored as
+        // `pro` and stay full-featured; only an explicit Lite license restricts.
         return [
+            self::EDITION_LITE,
             self::EDITION_PRO,
         ];
     }
@@ -123,19 +130,31 @@ class Booked extends Plugin
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
-        $this->registerCommerceListeners();
+        $this->registerPaymentGateways();
+        // Fires in both editions: it queues the customer quantity-changed email
+        // (a core booking notification); the Pro-only bits inside (webhook +
+        // calendar update) self-gate. See Editions / PRD §6.
         $this->registerQuantityChangeListeners();
-        $this->registerCalendarSyncListeners();
-        $this->registerVirtualMeetingListeners();
-        $this->registerWebhookListeners();
+        // Pro-only integrations/automation — not wired under Lite. Services stay
+        // registered (so references resolve); only their event listeners and the
+        // MCP tools are skipped. See Editions / PRD §6.
+        if (Editions::isPro()) {
+            $this->registerCommerceListeners();
+            $this->registerCalendarSyncListeners();
+            $this->registerVirtualMeetingListeners();
+            $this->registerWebhookListeners();
+        }
         $this->registerTemplateRoots();
         $this->registerElementTypes();
         $this->registerPermissions();
         $this->registerTemplateVariable();
-        $this->registerGraphQl();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
-        $this->registerMcpTools();
+        // GraphQL + MCP are Pro-only (PRD §6) — not registered under Lite.
+        if (Editions::isPro()) {
+            $this->registerGraphQl();
+            $this->registerMcpTools();
+        }
     }
 
     public static function displayName(): string
@@ -230,7 +249,25 @@ class Booked extends Plugin
             'refundPolicy' => \anvildev\booked\services\RefundPolicyService::class,
             'mutex' => \anvildev\booked\services\MutexFactory::class,
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
+            'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
+            'payments' => \anvildev\booked\services\PaymentService::class,
         ]);
+    }
+
+    /**
+     * Register the built-in payment gateway adapters. Available in both editions
+     * — direct payments are Lite's anchor feature. Third parties add more via the
+     * same EVENT_REGISTER_PAYMENT_GATEWAYS event.
+     */
+    private function registerPaymentGateways(): void
+    {
+        Event::on(
+            \anvildev\booked\services\PaymentGatewayService::class,
+            \anvildev\booked\services\PaymentGatewayService::EVENT_REGISTER_PAYMENT_GATEWAYS,
+            function(\anvildev\booked\events\RegisterPaymentGatewaysEvent $event) {
+                $event->gateways[] = new \anvildev\booked\gateways\StripeGateway();
+            },
+        );
     }
 
     public function getReminder(): \anvildev\booked\services\ReminderService
@@ -323,9 +360,21 @@ class Booked extends Plugin
         return $this->get('multiDayAvailability');
     }
 
+    public function getPaymentGateways(): \anvildev\booked\services\PaymentGatewayService
+    {
+        return $this->get('paymentGateways');
+    }
+
+    public function getPayments(): \anvildev\booked\services\PaymentService
+    {
+        return $this->get('payments');
+    }
+
     public function isCommerceEnabled(): bool
     {
-        return Craft::$app->plugins->isPluginEnabled('commerce') && $this->getSettings()->commerceEnabled;
+        // Single source of truth: the settings model resolves payment mode +
+        // edition gating (commerce is Pro-only).
+        return $this->getSettings()->isCommerceEnabled();
     }
 
     private function registerCommerceListeners(): void
@@ -449,6 +498,22 @@ class Booked extends Plugin
             function(\anvildev\booked\events\AfterQuantityChangeEvent $event) {
                 $reservationId = $event->reservation->getId();
 
+                // Customer quantity-changed email — a core notification, both editions.
+                try {
+                    $this->bookingNotification->queueQuantityChangedEmail(
+                        $reservationId,
+                        $event->previousQuantity,
+                        $event->newQuantity,
+                    );
+                } catch (\Throwable $e) {
+                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
+                }
+
+                // Webhook dispatch + calendar update are Pro-only.
+                if (!Editions::isPro()) {
+                    return;
+                }
+
                 try {
                     $webhookEventType = $event->increaseBy > 0
                         ? \anvildev\booked\services\WebhookService::EVENT_BOOKING_QUANTITY_INCREASED
@@ -465,16 +530,6 @@ class Booked extends Plugin
                     ]);
                 } catch (\Throwable $e) {
                     Craft::error("Failed to dispatch quantity change webhook for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
-                }
-
-                try {
-                    $this->bookingNotification->queueQuantityChangedEmail(
-                        $reservationId,
-                        $event->previousQuantity,
-                        $event->newQuantity,
-                    );
-                } catch (\Throwable $e) {
-                    Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
                 }
 
                 try {
@@ -708,6 +763,10 @@ class Booked extends Plugin
                     'booked/api/v1/locks/release' => 'booked/slot/release-lock',
                     // Booking
                     'booked/api/v1/bookings' => 'booked/booking/create-booking',
+                    // Direct payments
+                    'booked/api/v1/payment/create' => 'booked/payment/create',
+                    'booked/api/v1/payment/confirm' => 'booked/payment/confirm',
+                    'booked/api/v1/payment/webhook/<gateway:[\w-]+>' => 'booked/payment/webhook',
                     // Waitlist
                     'booked/api/v1/waitlist/event' => 'booked/waitlist/join-event-waitlist',
                     'booked/api/v1/waitlist/convert' => 'booked/waitlist-conversion/convert',
@@ -816,10 +875,20 @@ class Booked extends Plugin
             ['settings', 'nav.settings', 'booked/settings', 'booked-manageSettings'],
         ];
 
+        // Pro-only nav entries are hidden under Lite; the reports entry points at
+        // the basic revenue report instead of the full dashboard. See Editions.
+        $isPro = Editions::isPro();
+        $proOnlyNav = ['event-dates', 'waitlist', 'webhooks'];
+
         $subnav = [];
         foreach ($navDefs as $def) {
+            $key = $def[0];
+            if (!$isPro && in_array($key, $proOnlyNav, true)) {
+                continue;
+            }
             if ($can(...array_slice($def, 3))) {
-                $subnav[$def[0]] = ['label' => Craft::t('booked', $def[1]), 'url' => $def[2]];
+                $url = (!$isPro && $key === 'reports') ? 'booked/reports/revenue' : $def[2];
+                $subnav[$key] = ['label' => Craft::t('booked', $def[1]), 'url' => $url];
             }
         }
 

@@ -2,6 +2,7 @@
 
 namespace anvildev\booked\traits;
 
+use anvildev\booked\Booked;
 use anvildev\booked\contracts\ReservationInterface;
 use anvildev\booked\helpers\DateHelper;
 
@@ -73,6 +74,17 @@ trait HasMultiDaySupport
 
         // Multi-day overlapping with any date = conflict
         return true;
+    }
+
+    /**
+     * The reservation's payment status, resolved mode-aware (Commerce order or
+     * the native payments table) by the payment service — one query surface for
+     * CP columns, conditions, GraphQL and exports. See PRD §7.5.
+     */
+    public function getPaymentStatus(): string
+    {
+        /** @var ReservationInterface $this */
+        return Booked::getInstance()->getPayments()->getStatusForReservation($this);
     }
 
     public function getTotalPrice(): float

@@ -3,6 +3,7 @@
 namespace anvildev\booked\controllers\cp;
 
 use anvildev\booked\Booked;
+use anvildev\booked\Editions;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Service;
 use anvildev\booked\records\WaitlistRecord;
@@ -18,6 +19,7 @@ class WaitlistController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
+        Editions::requirePro();
         $this->requirePermission('booked-manageWaitlist');
         return true;
     }

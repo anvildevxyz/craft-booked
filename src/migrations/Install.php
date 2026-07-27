@@ -80,6 +80,10 @@ class Install extends Migration
                 'smsCancellationTemplate' => $this->text()->null(),
                 'smsMaxRetries' => $this->integer()->notNull()->defaultValue(3),
                 'defaultCountryCode' => $this->string(5)->notNull()->defaultValue('US'),
+                'paymentMode' => $this->string(20)->null(),
+                'stripePublishableKey' => $this->text()->null(),
+                'stripeSecretKey' => $this->text()->null(),
+                'stripeWebhookSecret' => $this->text()->null(),
                 'commerceEnabled' => $this->boolean()->notNull()->defaultValue(false),
                 'commerceTaxCategoryId' => $this->integer()->null(),
                 'pendingCartExpirationHours' => $this->integer()->notNull()->defaultValue(48),
@@ -638,6 +642,25 @@ class Install extends Migration
             $this->addForeignKey(null, '{{%booked_waitlist}}', 'employeeId', '{{%elements}}', 'id', 'SET NULL');
             $this->addForeignKey(null, '{{%booked_waitlist}}', 'locationId', '{{%elements}}', 'id', 'SET NULL');
             $this->addForeignKey(null, '{{%booked_waitlist}}', 'userId', '{{%users}}', 'id', 'SET NULL');
+
+            // Native (Commerce-free) payment records. Amounts in minor units. See PRD §7.5.
+            $this->createTable('{{%booked_payments}}', [
+                'id' => $this->primaryKey(),
+                'reservationId' => $this->integer()->notNull(),
+                'gateway' => $this->string(64)->notNull(),
+                'externalId' => $this->string(255)->null(),
+                'status' => $this->string(20)->notNull()->defaultValue('pending'),
+                'amount' => $this->integer()->notNull()->defaultValue(0),
+                'currency' => $this->string(3)->notNull(),
+                'refundedAmount' => $this->integer()->notNull()->defaultValue(0),
+                'payload' => $this->text()->null(),
+                'dateCreated' => $this->dateTime()->notNull(),
+                'dateUpdated' => $this->dateTime()->notNull(),
+                'uid' => $this->uid(),
+            ]);
+            $this->createIndex(null, '{{%booked_payments}}', 'reservationId');
+            $this->createIndex(null, '{{%booked_payments}}', 'externalId');
+            $this->addForeignKey(null, '{{%booked_payments}}', 'reservationId', '{{%booked_reservations}}', 'id', 'CASCADE', null);
         }
 
         return true;

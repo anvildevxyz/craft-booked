@@ -4,6 +4,7 @@ namespace anvildev\booked\controllers;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\BookingHelpersTrait;
+use anvildev\booked\Editions;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\elements\EventDate;
 use anvildev\booked\elements\Service;
@@ -26,6 +27,16 @@ class WaitlistController extends Controller
     public function init(): void
     {
         parent::init();
+    }
+
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+        // Waitlist is a Pro capability — deny the frontend join API under Lite.
+        Editions::requirePro();
+        return true;
     }
 
     public function actionJoinWaitlist(): Response

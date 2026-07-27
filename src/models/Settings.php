@@ -112,6 +112,25 @@ class Settings extends Model
     public int $smsMaxRetries = 3;
     public ?string $defaultCountryCode = 'US';
 
+    // Payments
+    public const PAYMENT_MODE_NONE = 'none';
+    public const PAYMENT_MODE_DIRECT = 'direct';
+    public const PAYMENT_MODE_COMMERCE = 'commerce';
+
+    /**
+     * Active payment path: `none` (free bookings), `direct` (native gateway,
+     * Commerce-free), or `commerce` (Craft Commerce). Null means "not set" and
+     * is resolved from the legacy {@see $commerceEnabled} flag — see
+     * {@see getPaymentMode()}, which is the automatic migration (no data
+     * migration needed). `commerce` is Pro-only (gated in {@see isCommerceEnabled()}).
+     */
+    public ?string $paymentMode = null;
+
+    // Stripe (direct payment gateway). Store secrets as $ENV_VAR references.
+    public ?string $stripePublishableKey = null;
+    public ?string $stripeSecretKey = null;
+    public ?string $stripeWebhookSecret = null;
+
     // Commerce
     public bool $commerceEnabled = false;
     public ?int $commerceTaxCategoryId = null;
@@ -259,6 +278,8 @@ class Settings extends Model
             [['ownerName', 'ownerNotificationSubject', 'ownerNotificationLanguage', 'bookingConfirmationSubject', 'reminderEmailSubject', 'cancellationEmailSubject'], 'string', 'skipOnEmpty' => true],
             [['smsProvider', 'twilioAccountSid', 'twilioAuthToken', 'twilioPhoneNumber'], 'string'],
             [['commerceEnabled'], 'boolean'],
+            [['paymentMode'], 'in', 'range' => [self::PAYMENT_MODE_NONE, self::PAYMENT_MODE_DIRECT, self::PAYMENT_MODE_COMMERCE], 'skipOnEmpty' => true],
+            [['stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret'], 'string'],
             [['commerceTaxCategoryId'], 'integer', 'skipOnEmpty' => true],
             [['pendingCartExpirationHours'], 'integer', 'min' => 1, 'max' => 168],
             [['commerceCartUrl', 'commerceCheckoutUrl'], 'string', 'max' => 255],
@@ -393,6 +414,9 @@ class Settings extends Model
                 'reminderEmailSubject', 'emailReminderHoursBefore', 'sendCancellationEmail',
                 'cancellationEmailSubject',
             ],
+            'payments' => [
+                'paymentMode', 'stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret',
+            ],
             'commerce' => [
                 'defaultCurrency', 'commerceEnabled', 'commerceTaxCategoryId', 'pendingCartExpirationHours',
                 'commerceCartUrl', 'commerceCheckoutUrl', 'enableAutoRefund', 'defaultRefundTiers',
@@ -515,9 +539,34 @@ class Settings extends Model
         self::$cachedAt = null;
     }
 
+    /**
+     * Resolve the active payment mode. An explicit, valid {@see $paymentMode}
+     * wins; otherwise it is derived from the legacy {@see $commerceEnabled} flag
+     * (true → `commerce`, false → `none`) so existing installs migrate with no
+     * data migration. Edition gating is applied by the callers below, not here.
+     */
+    public function getPaymentMode(): string
+    {
+        $valid = [self::PAYMENT_MODE_NONE, self::PAYMENT_MODE_DIRECT, self::PAYMENT_MODE_COMMERCE];
+        if (in_array($this->paymentMode, $valid, true)) {
+            return $this->paymentMode;
+        }
+        return $this->commerceEnabled ? self::PAYMENT_MODE_COMMERCE : self::PAYMENT_MODE_NONE;
+    }
+
+    /** Whether the native (Commerce-free) direct payment path is active. */
+    public function isDirectPayment(): bool
+    {
+        return $this->getPaymentMode() === self::PAYMENT_MODE_DIRECT;
+    }
+
     public function isCommerceEnabled(): bool
     {
-        return $this->commerceEnabled && Craft::$app->plugins->isPluginEnabled('commerce');
+        // Commerce mode is Pro-only; a Lite install never runs in commerce mode
+        // even if the mode is set.
+        return $this->getPaymentMode() === self::PAYMENT_MODE_COMMERCE
+            && \anvildev\booked\Editions::isPro()
+            && Craft::$app->plugins->isPluginEnabled('commerce');
     }
 
     public function isGoogleCalendarConfigured(): bool
@@ -542,7 +591,10 @@ class Settings extends Model
 
     public function isSmsConfigured(): bool
     {
-        return $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
+        // SMS is a Pro capability — never configured under Lite, so every send
+        // path (send/reminders/queue) short-circuits in one place.
+        return \anvildev\booked\Editions::isPro()
+            && $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
     }
 
     public function canUseCommerce(): bool

@@ -167,6 +167,25 @@ describe('BookedApi — stale-response guard (channels)', () => {
     expect(b).toBeTruthy();
   });
 
+  it('createPayment posts to payment/create with the reservation body', async () => {
+    const f = fakeFetch({ json: { success: true, paymentToken: 'sig|u|1' } });
+    const api = new BookedApi({ csrf, fetch: f });
+    await api.createPayment({ reservationId: 7, token: 'conf-tok' });
+    const { url, init } = f.calls[0];
+    expect(url).toContain('/booked/api/v1/payment/create');
+    expect(init.body.toString()).toContain('reservationId=7');
+    expect(init.body.toString()).toContain('token=conf-tok');
+  });
+
+  it('confirmPayment posts the signed payment token', async () => {
+    const f = fakeFetch({ json: { success: true, status: 'paid', paid: true } });
+    const api = new BookedApi({ csrf, fetch: f });
+    await api.confirmPayment('sig|u|1');
+    const { url, init } = f.calls[0];
+    expect(url).toContain('/booked/api/v1/payment/confirm');
+    expect(init.body.toString()).toContain('paymentToken=sig');
+  });
+
   it('manageLoad sends the confirmation token as manageToken, never the reserved `token` query param', async () => {
     const f = fakeFetch({ json: { success: true } });
     const api = new BookedApi({ site: 'en', fetch: f });

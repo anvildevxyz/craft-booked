@@ -4,6 +4,7 @@ namespace anvildev\booked\variables;
 
 use anvildev\booked\Booked;
 use anvildev\booked\contracts\ReservationQueryInterface;
+use anvildev\booked\Editions;
 use anvildev\booked\elements\BlackoutDate;
 use anvildev\booked\elements\db\BlackoutDateQuery;
 use anvildev\booked\elements\db\EmployeeQuery;
@@ -29,6 +30,12 @@ use Twig\Markup;
 
 class BookingVariable
 {
+    /** Whether the active edition is Pro (default-open). Drives CP template gating. */
+    public function isPro(): bool
+    {
+        return Editions::isPro();
+    }
+
     public function getForm(array $options = []): Markup
     {
         $viewMode = $options['viewMode'] ?? Booked::getInstance()->getSettings()->defaultViewMode ?? 'wizard';
