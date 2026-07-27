@@ -1,6 +1,6 @@
 {
   "name": "@anvildev/booked-wizard",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Headless booking wizard core + zero-dependency vanilla renderer for the Booked Craft CMS plugin.",
   "license": "proprietary",
   "type": "module",

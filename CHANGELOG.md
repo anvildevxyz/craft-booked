@@ -1,9 +1,23 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 - 2026-07-27
+
+> **Take paid bookings with Stripe — no Craft Commerce required.** Booked gains a native, Commerce-free payment path alongside the existing Commerce integration. Direct-payment pages must allow Stripe in their Content Security Policy (`js.stripe.com` / `api.stripe.com`) — see [docs/payments-setup.md](docs/payments-setup.md).
+
+### Added
+- **Direct (Commerce-free) payments** — take paid bookings through **Stripe** with no Craft Commerce dependency. A new payment mode (`none` / `direct` / `commerce`) drives an in-page **Stripe Payment Element** checkout: a priced booking is created *pending* and confirmed by a signature-verified **webhook** (the source of truth). Payments are stored in a new `booked_payments` table in minor units, authorized by signed per-reservation tokens, behind a pluggable `PaymentGatewayInterface` (Stripe at launch).
+- **Refunds** — full or partial, policy-aware refunds issued from the booking edit screen. A new **payment panel** shows status, the amount, a Stripe-dashboard deep link, and a refund control gated by the new **`booked-manageRefunds`** permission. Refunds issued directly in the Stripe dashboard sync back to Booked automatically.
+- **Payments-aware reporting** — in direct mode, revenue reflects **actually-captured** amounts net of refunds; the bookings CSV export gains gateway, external-ID, payment-status, and refunded columns.
+- **Operational tooling** — `booked/doctor` now checks direct-payment configuration (key shapes, webhook secret, gateway, currency, and test/live-vs-environment mismatches); a new `booked/payments/reconcile` console command reconciles local records against Stripe as a safety net for missed webhooks; abandoned pending payments are garbage-collected after a configurable TTL (`pendingPaymentTtlMinutes`, default 30).
+- **Docs & tests** — [docs/payments-setup.md](docs/payments-setup.md) (setup, webhook, CSP, testing, troubleshooting) and a Playwright browser E2E for the direct-payment checkout (`tests/e2e/`).
 
 ### Changed
+- Hardened the payment webhook — gateway event-ID de-duplication and idempotent refund reconciliation — plus a stricter per-reservation rate-limit bucket on `payment/create`.
 - The legacy-wizard deprecation notice now reads "deprecated as of Booked 1.3 and will be removed in 2.0" for clarity. Internal design docs reworded to past tense now that the vanilla wizard is the default.
+- `schemaVersion` bumped to 1.4.1 (payments table + settings columns).
+
+### Removed
+- The short-lived Lite/Pro **edition split** was dropped before release: Booked ships as a single full-featured plugin, and direct payments are available to every install.
 
 ## 1.3.0 - 2026-07-26
 
