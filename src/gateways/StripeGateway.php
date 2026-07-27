@@ -124,6 +124,28 @@ class StripeGateway implements PaymentGatewayInterface
 
         $object = $event->data->object ?? null;
 
+        // Refund events (e.g. a refund issued in the Stripe dashboard): normalize
+        // to the parent PaymentIntent + the absolute refunded total so the caller
+        // can reconcile it against the local record. The charge object carries the
+        // intent id and the running `amount_refunded`.
+        if ($event->type === 'charge.refunded' && is_object($object)) {
+            $intentId = $object->payment_intent ?? null;
+            $refunded = isset($object->amount_refunded) ? (int) $object->amount_refunded : 0;
+            $captured = isset($object->amount) ? (int) $object->amount : null;
+            $status = ($captured !== null && $refunded >= $captured)
+                ? PaymentRecord::STATUS_REFUNDED
+                : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
+
+            return new WebhookEvent(
+                $event->type,
+                $event->id,
+                is_string($intentId) ? $intentId : null,
+                $status,
+                $event->toArray(),
+                $refunded,
+            );
+        }
+
         return new WebhookEvent(
             $event->type,
             $event->id,

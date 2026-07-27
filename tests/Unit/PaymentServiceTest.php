@@ -149,6 +149,64 @@ class PaymentServiceTest extends TestCase
         $this->assertStringContainsString("'webhook'", $src);
     }
 
+    // ---- Webhook hardening + rate-limit (#47/#49) -----------------------
+
+    public function testWebhookEventCarriesRefundedAmount(): void
+    {
+        $e = new \anvildev\booked\payments\WebhookEvent(
+            'charge.refunded',
+            'evt_1',
+            'pi_1',
+            PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+            [],
+            1000,
+        );
+        $this->assertSame(1000, $e->refundedAmount);
+        $this->assertSame('pi_1', $e->externalId);
+        $this->assertSame(PaymentRecord::STATUS_PARTIALLY_REFUNDED, $e->status);
+    }
+
+    public function testWebhookDedupesByEventIdAndRoutesRefunds(): void
+    {
+        $src = self::methodSource('anvildev\booked\controllers\PaymentController', 'actionWebhook');
+        // Event-ID dedup before any state change.
+        $this->assertStringContainsString('booked:webhook:', $src);
+        $this->assertStringContainsString('->exists($dedupeKey)', $src);
+        // Paid still confirms; refunds route to the idempotent sync.
+        $this->assertStringContainsString('handleVerifiedPayment(', $src);
+        $this->assertStringContainsString('applyRefundSync(', $src);
+        // Processed marker set only after handling.
+        $this->assertStringContainsString('->set($dedupeKey', $src);
+    }
+
+    public function testApplyRefundSyncIsAbsoluteAndIdempotent(): void
+    {
+        $src = self::methodSource('anvildev\booked\services\PaymentService', 'applyRefundSync');
+        // Absolute set (clamped to captured), not an increment.
+        $this->assertStringContainsString('min($refundedAmount, $captured)', $src);
+        $this->assertStringContainsString('$record->refundedAmount = $refundedAmount', $src);
+        // No-op when already reconciled to this total.
+        $this->assertStringContainsString('return;', $src);
+        $this->assertStringContainsString('EVENT_PAYMENT_REFUNDED', $src);
+    }
+
+    public function testStripeNormalizesRefundEventToIntent(): void
+    {
+        $src = self::methodSource('anvildev\booked\gateways\StripeGateway', 'verifyWebhook');
+        $this->assertStringContainsString("'charge.refunded'", $src);
+        $this->assertStringContainsString('payment_intent', $src);
+        $this->assertStringContainsString('amount_refunded', $src);
+    }
+
+    public function testPaymentCreateHasPerReservationBucket(): void
+    {
+        $src = self::methodSource('anvildev\booked\controllers\PaymentController', 'actionCreate');
+        $this->assertStringContainsString('PAYMENT_CREATE_PER_RESERVATION_LIMIT', $src);
+        $this->assertStringContainsString('booked_payment_create_res_', $src);
+        // The per-IP bucket is still enforced too.
+        $this->assertStringContainsString("checkRateLimit('booked_payment_throttle'", $src);
+    }
+
     // ---- resolveRefundAmount (pure refund math; #37) --------------------
 
     public function testResolveRefundFullWithFullPolicy(): void
