@@ -5,6 +5,7 @@ namespace anvildev\booked\services;
 use anvildev\booked\Booked;
 use anvildev\booked\records\CalendarInviteRecord;
 use anvildev\booked\records\OAuthStateTokenRecord;
+use anvildev\booked\records\PaymentRecord;
 use anvildev\booked\records\ReservationRecord;
 use Craft;
 use craft\base\Component;
@@ -27,6 +28,7 @@ class MaintenanceService extends Component
             'expiredWaitlist' => $this->cleanupExpiredWaitlist(),
             'webhookLogs' => $this->cleanupOldWebhookLogs(),
             'stalePendingReservations' => $this->cleanupStalePendingReservations(),
+            'stalePendingPayments' => $this->cleanupStalePendingPayments(),
             'expiredOAuthTokens' => $this->cleanupExpiredOAuthTokens(),
             'expiredCalendarInvites' => $this->cleanupExpiredCalendarInvites(),
         ];
@@ -117,6 +119,63 @@ class MaintenanceService extends Component
             return $cancelled;
         } catch (\Throwable $e) {
             Craft::error("Failed to cleanup stale pending reservations: {$e->getMessage()}", __METHOD__);
+            return 0;
+        }
+    }
+
+    /**
+     * Garbage-collect abandoned **direct-payment** bookings: reservations left
+     * `pending` past the configured TTL whose Stripe checkout was never completed.
+     * Cancelling them releases the held capacity. Complements
+     * {@see cleanupStalePendingReservations} (which is Commerce-only) — this covers
+     * the direct-mode path, where there is no Commerce order to key off.
+     *
+     * A reservation with a paid/refunded payment record is *never* cancelled, so a
+     * webhook that lands right at the TTL boundary can't lose a booking the
+     * customer actually paid for. No-op outside direct mode.
+     */
+    public function cleanupStalePendingPayments(?int $minutes = null): int
+    {
+        $settings = Booked::getInstance()->getSettings();
+        if (!$settings->isDirectPayment()) {
+            return 0;
+        }
+
+        $minutes = max(1, (int) ($minutes ?? $settings->pendingPaymentTtlMinutes));
+
+        try {
+            $cutoff = (new \DateTime("-{$minutes} minutes"))->format('Y-m-d H:i:s');
+
+            // Reservations that HAVE been paid must be excluded even if their
+            // confirm lost a race — never cancel a paid booking.
+            $paidReservationIds = (new Query())
+                ->select('reservationId')
+                ->from('{{%booked_payments}}')
+                ->where(['status' => [
+                    PaymentRecord::STATUS_PAID,
+                    PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+                    PaymentRecord::STATUS_REFUNDED,
+                ]])
+                ->column();
+
+            $query = (new Query())
+                ->select('id')
+                ->from('{{%booked_reservations}}')
+                ->where(['status' => ReservationRecord::STATUS_PENDING])
+                ->andWhere(['<=', 'dateCreated', $cutoff]);
+            if ($paidReservationIds) {
+                $query->andWhere(['not in', 'id', $paidReservationIds]);
+            }
+
+            $cancelled = 0;
+            foreach ($query->column() as $id) {
+                $this->cancelStaleReservation((int) $id, "Direct payment not completed within {$minutes} minutes");
+                $cancelled++;
+            }
+
+            return $cancelled;
+        } catch (\Throwable $e) {
+            Craft::error("Failed to cleanup stale pending payments: {$e->getMessage()}", __METHOD__);
             return 0;
         }
     }

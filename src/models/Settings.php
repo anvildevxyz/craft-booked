@@ -131,6 +131,11 @@ class Settings extends Model
     public ?string $stripeSecretKey = null;
     public ?string $stripeWebhookSecret = null;
 
+    // Minutes a direct-payment booking may stay `pending` before it's garbage-
+    // collected (its reservation cancelled, releasing capacity). Abandoned Stripe
+    // Elements checkouts are freed on this cadence. See MaintenanceService.
+    public int $pendingPaymentTtlMinutes = 30;
+
     // Commerce
     public bool $commerceEnabled = false;
     public ?int $commerceTaxCategoryId = null;
@@ -282,6 +287,7 @@ class Settings extends Model
             [['stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret'], 'string'],
             [['commerceTaxCategoryId'], 'integer', 'skipOnEmpty' => true],
             [['pendingCartExpirationHours'], 'integer', 'min' => 1, 'max' => 168],
+            [['pendingPaymentTtlMinutes'], 'integer', 'min' => 5, 'max' => 1440],
             [['commerceCartUrl', 'commerceCheckoutUrl'], 'string', 'max' => 255],
             [['enableAutoRefund'], 'boolean'],
             [['defaultRefundTiers'], 'safe'],
@@ -416,6 +422,7 @@ class Settings extends Model
             ],
             'payments' => [
                 'paymentMode', 'stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret',
+                'pendingPaymentTtlMinutes',
             ],
             'commerce' => [
                 'defaultCurrency', 'commerceEnabled', 'commerceTaxCategoryId', 'pendingCartExpirationHours',

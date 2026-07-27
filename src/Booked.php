@@ -102,7 +102,7 @@ class Booked extends Plugin
     public const EDITION_LITE = Editions::LITE;
     public const EDITION_PRO = Editions::PRO;
 
-    public string $schemaVersion = '1.4.0';
+    public string $schemaVersion = '1.4.1';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
 
