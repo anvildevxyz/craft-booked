@@ -11,11 +11,6 @@
     box-sizing: border-box;
 }
 
-/* Alpine.js x-cloak - hide elements until Alpine is initialized */
-[x-cloak] {
-    display: none !important;
-}
-
 /* ============================================================================
    CONTAINER & BASE LAYOUT
    ============================================================================ */

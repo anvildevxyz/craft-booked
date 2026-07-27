@@ -29,6 +29,7 @@ return [
     'permissions.accessPlugin' => 'Zugriff auf Booked',
     'permissions.viewBookings' => 'Buchungen ansehen',
     'permissions.manageBookings' => 'Buchungen verwalten',
+    'permissions.manageRefunds' => 'Rückerstattungen ausführen',
     'permissions.viewCalendar' => 'Kalender ansehen',
     'permissions.viewReports' => 'Berichte ansehen',
     'permissions.manageSettings' => 'Einstellungen verwalten',

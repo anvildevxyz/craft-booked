@@ -805,6 +805,9 @@ class Booked extends Plugin
                                         'booked-manageBookings' => [
                                             'label' => Craft::t('booked', 'permissions.manageBookings'),
                                         ],
+                                        'booked-manageRefunds' => [
+                                            'label' => Craft::t('booked', 'permissions.manageRefunds'),
+                                        ],
                                     ],
                                 ],
                                 'booked-viewCalendar' => [
