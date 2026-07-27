@@ -1,9 +1,18 @@
+> ## ⚠️ Superseded — editions dropped (2026-07-27)
+> The **Lite/Pro edition split** in this PRD was **reversed**: Booked ships 1.4.0
+> as a **single full-featured plugin** (back to the original draft-v1 §11 stance).
+> Everything about the *edition model* (§5) and the Lite-vs-Pro packaging is
+> **no longer accurate**. The **direct-payments design (§7) and the §13 payment
+> decisions remain the source of truth** and were implemented as-is. This doc is
+> kept for design history and the payment architecture. See the M2/M3 issues and
+> the editions-removal change for what actually shipped.
+
 # PRD: Booked Lite Edition + Direct Payments (Commerce-Free)
 
-Status: **Draft v2** (reconciles the "Direct Payments" draft v1 with a Lite-edition packaging strategy)
+Status: **Superseded** (editions dropped; direct-payments design implemented)
 Owner: Anvil / Booked
 Date: 2026-07-26
-Target release: **Booked 1.4.0** (minor — introduces a second edition + a native payment layer)
+Target release: **Booked 1.4.0** (native payment layer; the edition split was later dropped)
 
 > ⚠️ **Decisions still open** — the feature matrix in §6 and the open questions in §13 need sign-off before we break this into issues. Everything marked _(PROPOSED)_ is a starting point, not a commitment.
 
