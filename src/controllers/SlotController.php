@@ -4,7 +4,6 @@ namespace anvildev\booked\controllers;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\BookingHelpersTrait;
-use anvildev\booked\Editions;
 use anvildev\booked\controllers\traits\HandlesExceptionsTrait;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\elements\EventDate;
@@ -55,12 +54,6 @@ class SlotController extends Controller
     {
         if (!parent::beforeAction($action)) {
             return false;
-        }
-        // Multi-day / range booking is Pro-only; single-slot + day endpoints stay
-        // open for Lite. Deny the multi-day availability/lock actions under Lite.
-        $multiDayActions = ['get-range-capacity', 'get-valid-end-dates', 'create-multi-day-lock'];
-        if (in_array($action->id, $multiDayActions, true)) {
-            Editions::requirePro();
         }
         return true;
     }

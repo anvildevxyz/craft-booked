@@ -569,10 +569,7 @@ class Settings extends Model
 
     public function isCommerceEnabled(): bool
     {
-        // Commerce mode is Pro-only; a Lite install never runs in commerce mode
-        // even if the mode is set.
         return $this->getPaymentMode() === self::PAYMENT_MODE_COMMERCE
-            && \anvildev\booked\Editions::isPro()
             && Craft::$app->plugins->isPluginEnabled('commerce');
     }
 
@@ -598,10 +595,7 @@ class Settings extends Model
 
     public function isSmsConfigured(): bool
     {
-        // SMS is a Pro capability — never configured under Lite, so every send
-        // path (send/reminders/queue) short-circuits in one place.
-        return \anvildev\booked\Editions::isPro()
-            && $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
+        return $this->smsEnabled && !empty($this->twilioAccountSid) && !empty($this->twilioAuthToken) && !empty($this->twilioPhoneNumber);
     }
 
     public function canUseCommerce(): bool
