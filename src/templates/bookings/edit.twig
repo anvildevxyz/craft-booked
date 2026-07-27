@@ -354,6 +354,49 @@
             </div>
         </div>
 
+        {% if payment is defined and payment %}
+        <div class="booked-payment-panel">
+            <h3>{{ 'payment.panelHeading'|t('booked') }}</h3>
+            <div class="summary-row">
+                <span>{{ 'payment.statusLabel'|t('booked') }}</span>
+                <span class="booked-payment-status booked-payment-status--{{ payment.status }}">{{ ('payment.status.' ~ payment.status)|t('booked') }}</span>
+            </div>
+            <div class="summary-row">
+                <span>{{ 'payment.amountCaptured'|t('booked') }}</span>
+                <span>{{ payment.amount|currency(payment.currency) }}</span>
+            </div>
+            {% if payment.refunded > 0 %}
+            <div class="summary-row">
+                <span>{{ 'payment.amountRefunded'|t('booked') }}</span>
+                <span>−{{ payment.refunded|currency(payment.currency) }}</span>
+            </div>
+            {% endif %}
+            <div class="summary-row">
+                <span>{{ 'payment.gatewayLabel'|t('booked') }}</span>
+                <span>
+                    {{ payment.gateway|capitalize }}
+                    {% if payment.dashboardUrl %} — <a href="{{ payment.dashboardUrl }}" target="_blank" rel="noopener">{{ payment.externalId }}</a>
+                    {% elseif payment.externalId %} — <code>{{ payment.externalId }}</code>
+                    {% endif %}
+                </span>
+            </div>
+            {% if payment.canRefund %}
+            <form method="post" class="booked-refund-form">
+                {{ csrfInput() }}
+                {{ actionInput('booked/bookings/refund') }}
+                {{ hiddenInput('id', reservation.id) }}
+                {{ redirectInput(craft.app.request.pathInfo) }}
+                <label class="booked-refund-amount">
+                    {{ 'payment.refundAmountLabel'|t('booked') }}
+                    <input type="number" name="amount" step="0.01" min="0.01" max="{{ payment.maxRefund }}" placeholder="{{ payment.maxRefund }}">
+                </label>
+                <p class="booked-refund-hint light">{{ 'payment.maxRefundable'|t('booked', { amount: payment.maxRefund|currency(payment.currency) }) }}</p>
+                <button type="submit" class="btn submit">{{ 'payment.refundButton'|t('booked') }}</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="booking-meta-info">
             <span>{{ 'form.created'|t('booked') }}: {{ reservation.dateCreated|date('d.m.Y H:i') }}</span>
             <span class="separator">·</span>

@@ -155,7 +155,7 @@ class ControllerReflectionTest extends TestCase
             'cp/LocationsController' => ['anvildev\booked\controllers\cp\LocationsController', 3],
             'cp/BlackoutDatesController' => ['anvildev\booked\controllers\cp\BlackoutDatesController', 5],
             'cp/EventDatesController' => ['anvildev\booked\controllers\cp\EventDatesController', 6],
-            'cp/BookingsController' => ['anvildev\booked\controllers\cp\BookingsController', 10],
+            'cp/BookingsController' => ['anvildev\booked\controllers\cp\BookingsController', 11],
             'cp/SettingsController' => ['anvildev\booked\controllers\cp\SettingsController', 14],
             'cp/WaitlistController' => ['anvildev\booked\controllers\cp\WaitlistController', 6],
             'cp/WebhooksController' => ['anvildev\booked\controllers\cp\WebhooksController', 9],
