@@ -14,8 +14,10 @@ use anvildev\booked\elements\Service;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\CsvHelper;
 use anvildev\booked\helpers\FormFieldHelper;
+use anvildev\booked\records\PaymentRecord;
 use anvildev\booked\records\ReservationRecord;
 use anvildev\booked\services\BookingService;
+use anvildev\booked\services\PaymentService;
 use Craft;
 use craft\web\Controller;
 use craft\web\Response;
@@ -559,9 +561,19 @@ class BookingsController extends Controller
 
         $query->orderBy(['bookingDate' => SORT_DESC, 'startTime' => SORT_DESC]);
 
+        // Direct-payment provenance columns are added only when the install is in
+        // direct mode; free/unpaid rows within it just leave those cells blank.
+        $directMode = Booked::getInstance()->getSettings()->isDirectPayment();
+        $currency = $directMode ? Booked::getInstance()->reports->getCurrency() : 'USD';
+
+        $header = ['ID', 'Name', 'Email', 'Phone', 'Service', 'Employee', 'Location', 'Event', 'Date', 'Start Time', 'End Time', 'Quantity', 'Status', 'Notes', 'Created'];
+        if ($directMode) {
+            array_push($header, 'Payment Status', 'Gateway', 'External ID', 'Refunded');
+        }
+
         $handle = fopen('php://temp', 'r+');
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, ['ID', 'Name', 'Email', 'Phone', 'Service', 'Employee', 'Location', 'Event', 'Date', 'Start Time', 'End Time', 'Quantity', 'Status', 'Notes', 'Created']);
+        fputcsv($handle, $header);
 
         foreach ($query->each(100) as $r) {
             $service = $r->serviceId ? Service::find()->id($r->serviceId)->one() : null;
@@ -569,7 +581,7 @@ class BookingsController extends Controller
             $location = $r->locationId ? Location::find()->siteId('*')->id($r->locationId)->one() : null;
             $eventDate = $r->eventDateId ? EventDate::find()->id($r->eventDateId)->one() : null;
 
-            fputcsv($handle, [
+            $row = [
                 (string)$r->id,
                 CsvHelper::sanitizeValue($r->userName ?? ''),
                 CsvHelper::sanitizeValue($r->userEmail ?? ''),
@@ -585,7 +597,25 @@ class BookingsController extends Controller
                 (string)$r->getStatusLabel(),
                 CsvHelper::sanitizeValue($r->notes ?? ''),
                 $r->dateCreated ? $r->dateCreated->format('Y-m-d H:i:s') : '',
-            ]);
+            ];
+
+            if ($directMode) {
+                /** @var PaymentRecord|null $payment */
+                $payment = PaymentRecord::find()
+                    ->where(['reservationId' => $r->id])
+                    ->orderBy(['dateCreated' => SORT_DESC])
+                    ->one();
+                if ($payment) {
+                    $row[] = (string)$payment->status;
+                    $row[] = (string)$payment->gateway;
+                    $row[] = CsvHelper::sanitizeValue((string)$payment->externalId);
+                    $row[] = number_format(PaymentService::fromMinorUnits((int)($payment->refundedAmount ?? 0), $currency), 2, '.', '');
+                } else {
+                    array_push($row, '', '', '', '');
+                }
+            }
+
+            fputcsv($handle, $row);
         }
 
         rewind($handle);
