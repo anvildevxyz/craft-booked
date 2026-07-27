@@ -30,6 +30,9 @@ class PaymentController extends Controller
     use HandlesExceptionsTrait;
     use BookingHelpersTrait;
 
+    /** Per-reservation `create` attempts allowed per minute (IP-independent). */
+    private const PAYMENT_CREATE_PER_RESERVATION_LIMIT = 5;
+
     protected array|bool|int $allowAnonymous = ['create', 'confirm', 'webhook'];
 
     public $enableCsrfValidation = true;
@@ -64,13 +67,35 @@ class PaymentController extends Controller
             return $this->asJson(['received' => false])->setStatusCode(400);
         }
 
-        // Only payment-success events advance state; others are acked and ignored.
-        if ($event->status === PaymentRecord::STATUS_PAID && $event->externalId) {
+        // Idempotent delivery: gateways re-send events (retries, at-least-once).
+        // Drop a re-delivered event before touching any state. The TTL covers the
+        // gateway's retry window; the status/absolute-amount guards below are the
+        // durable backstop if the cache is evicted.
+        $cache = Craft::$app->getCache();
+        $dedupeKey = "booked:webhook:{$gateway}:{$event->eventId}";
+        if ($cache->exists($dedupeKey)) {
+            return $this->asJson(['received' => true, 'duplicate' => true]);
+        }
+
+        $payments = Booked::getInstance()->getPayments();
+        if ($event->externalId) {
             $record = PaymentRecord::findOne(['externalId' => $event->externalId, 'gateway' => $gateway]);
             if ($record) {
-                Booked::getInstance()->getPayments()->handleVerifiedPayment($record);
+                if ($event->status === PaymentRecord::STATUS_PAID) {
+                    $payments->handleVerifiedPayment($record);
+                } elseif (
+                    in_array($event->status, [PaymentRecord::STATUS_REFUNDED, PaymentRecord::STATUS_PARTIALLY_REFUNDED], true)
+                    && $event->refundedAmount !== null
+                ) {
+                    // A refund issued outside Booked (e.g. the Stripe dashboard).
+                    $payments->applyRefundSync($record, $event->refundedAmount);
+                }
             }
         }
+
+        // Mark processed only after handling succeeded — a thrown handler leaves
+        // the key unset so the gateway's retry can reprocess.
+        $cache->set($dedupeKey, true, 60 * 60 * 72);
 
         // Always 200 a verified event so the gateway stops retrying.
         return $this->asJson(['received' => true]);
@@ -81,7 +106,7 @@ class PaymentController extends Controller
         $this->requirePostRequest();
         $this->requireAcceptsJson();
 
-        // Stricter, separate bucket from booking submission.
+        // Stricter, separate bucket from booking submission (per-IP).
         if (!$this->checkRateLimit('booked_payment_throttle', 20)) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
@@ -89,6 +114,16 @@ class PaymentController extends Controller
         $request = Craft::$app->request;
         $reservationId = (int) $request->getRequiredBodyParam('reservationId');
         $token = (string) $request->getRequiredBodyParam('token');
+
+        // Second, tighter bucket keyed by the reservation itself (IP-independent):
+        // blunts token-guessing that rotates IPs to hammer a single reservation.
+        // `checkRateLimit` folds the IP into its key, so count directly here.
+        $resThrottleKey = "booked_payment_create_res_{$reservationId}";
+        $resAttempts = (int) (Craft::$app->getCache()->get($resThrottleKey) ?: 0);
+        if ($resAttempts >= self::PAYMENT_CREATE_PER_RESERVATION_LIMIT) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+        Craft::$app->getCache()->set($resThrottleKey, $resAttempts + 1, 60);
 
         $reservation = ReservationFactory::findById($reservationId);
         if (!$reservation || !hash_equals($reservation->getConfirmationToken(), $token)) {

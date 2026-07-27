@@ -177,6 +177,43 @@ class PaymentService extends Component
         return $result;
     }
 
+    /**
+     * Reconcile a refund observed via webhook — e.g. one issued directly in the
+     * gateway dashboard, which never went through {@see refund()}. Sets the
+     * record's *absolute* refunded total + status. Idempotent: re-delivering the
+     * same webhook writes the same value, so it never compounds.
+     */
+    public function applyRefundSync(PaymentRecord $record, int $refundedAmount): void
+    {
+        $captured = (int) $record->amount;
+        $refundedAmount = max(0, min($refundedAmount, $captured));
+        if ($refundedAmount === 0) {
+            return;
+        }
+
+        $status = $refundedAmount >= $captured
+            ? PaymentRecord::STATUS_REFUNDED
+            : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
+
+        // Nothing changed (already reconciled to this total) — stay a no-op.
+        if ((int) ($record->refundedAmount ?? 0) === $refundedAmount && $record->status === $status) {
+            return;
+        }
+
+        $record->refundedAmount = $refundedAmount;
+        $record->status = $status;
+        $record->save(false);
+
+        if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
+            $event = new PaymentRefundedEvent();
+            $event->reservationId = (int) $record->reservationId;
+            $event->record = $record;
+            $event->amount = $refundedAmount;
+            $event->totalRefunded = $refundedAmount;
+            $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
+        }
+    }
+
     /** Confirm a pending reservation (direct mode) and fire the usual notifications. */
     private function confirmReservation(int $reservationId): void
     {
