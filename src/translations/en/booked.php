@@ -29,6 +29,7 @@ return [
     'permissions.accessPlugin' => 'Access Booked',
     'permissions.viewBookings' => 'View Bookings',
     'permissions.manageBookings' => 'Manage Bookings',
+    'permissions.manageRefunds' => 'Issue Refunds',
     'permissions.viewCalendar' => 'View Calendar',
     'permissions.viewReports' => 'View Reports',
     'permissions.manageSettings' => 'Manage Settings',

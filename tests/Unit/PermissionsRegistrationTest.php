@@ -44,6 +44,7 @@ class PermissionsRegistrationTest extends TestCase
             'accessPlugin' => ['booked-accessPlugin'],
             'viewBookings' => ['booked-viewBookings'],
             'manageBookings' => ['booked-manageBookings'],
+            'manageRefunds' => ['booked-manageRefunds'],
             'viewCalendar' => ['booked-viewCalendar'],
             'viewReports' => ['booked-viewReports'],
             'manageServices' => ['booked-manageServices'],
@@ -61,9 +62,9 @@ class PermissionsRegistrationTest extends TestCase
         preg_match_all("/('booked-[a-zA-Z]+')\s*=>\s*\[/", $this->bookedSource, $matches);
 
         $this->assertCount(
-            12,
+            13,
             $matches[1],
-            'Booked.php should register exactly 12 permissions. Found: ' . implode(', ', $matches[1])
+            'Booked.php should register exactly 13 permissions. Found: ' . implode(', ', $matches[1])
         );
     }
 
@@ -172,6 +173,7 @@ class PermissionsRegistrationTest extends TestCase
             'manageEvents' => ['permissions.manageEvents'],
             'manageBlackoutDates' => ['permissions.manageBlackoutDates'],
             'manageWaitlist' => ['permissions.manageWaitlist'],
+            'manageRefunds' => ['permissions.manageRefunds'],
         ];
     }
 }
