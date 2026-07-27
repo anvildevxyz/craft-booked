@@ -196,6 +196,19 @@ class PaymentService extends Component
         return (int) round($amount * 100);
     }
 
+    /**
+     * Convert integer minor units back to a decimal major-unit amount for the
+     * currency — the inverse of {@see toMinorUnits}, used to render stored payment
+     * amounts (which are always minor units) in reports and exports.
+     */
+    public static function fromMinorUnits(int $minorUnits, string $currency): float
+    {
+        if (in_array(strtoupper($currency), self::ZERO_DECIMAL_CURRENCIES, true)) {
+            return (float) $minorUnits;
+        }
+        return $minorUnits / 100;
+    }
+
     private static function securityKey(): string
     {
         return (string) App::parseEnv(Craft::$app->getConfig()->getGeneral()->securityKey);

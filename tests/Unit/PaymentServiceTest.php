@@ -25,6 +25,23 @@ class PaymentServiceTest extends TestCase
         $this->assertSame(1500, PaymentService::toMinorUnits(1500.0, 'VND'));
     }
 
+    public function testFromMinorUnitsRoundTripsToMinorUnits(): void
+    {
+        // Inverse of toMinorUnits — renders stored minor units back to major units.
+        $this->assertSame(40.0, PaymentService::fromMinorUnits(4000, 'USD'));
+        $this->assertSame(25.5, PaymentService::fromMinorUnits(2550, 'EUR'));
+        $this->assertSame(19.99, PaymentService::fromMinorUnits(1999, 'GBP'));
+        $this->assertSame(0.0, PaymentService::fromMinorUnits(0, 'USD'));
+    }
+
+    public function testFromMinorUnitsZeroDecimalCurrencyIsNotDivided(): void
+    {
+        // JPY/KRW/VND minor unit IS the major unit — no /100.
+        $this->assertSame(1000.0, PaymentService::fromMinorUnits(1000, 'JPY'));
+        $this->assertSame(5000.0, PaymentService::fromMinorUnits(5000, 'krw'));
+        $this->assertSame(1500.0, PaymentService::fromMinorUnits(1500, 'VND'));
+    }
+
     /**
      * @dataProvider finalizedProvider
      */
