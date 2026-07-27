@@ -84,6 +84,7 @@ class Install extends Migration
                 'stripePublishableKey' => $this->text()->null(),
                 'stripeSecretKey' => $this->text()->null(),
                 'stripeWebhookSecret' => $this->text()->null(),
+                'pendingPaymentTtlMinutes' => $this->integer()->notNull()->defaultValue(30),
                 'commerceEnabled' => $this->boolean()->notNull()->defaultValue(false),
                 'commerceTaxCategoryId' => $this->integer()->null(),
                 'pendingCartExpirationHours' => $this->integer()->notNull()->defaultValue(48),
