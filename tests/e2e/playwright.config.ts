@@ -1,0 +1,22 @@
+import { defineConfig, devices } from '@playwright/test';
+
+/**
+ * Playwright config for the direct-payment browser E2E. Run from the plugin root:
+ *   BOOKED_E2E_URL=https://your-site/wizard/service npx playwright test -c tests/e2e/playwright.config.ts
+ */
+export default defineConfig({
+  testDir: '.',
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  retries: 0,
+  reporter: 'list',
+  use: {
+    baseURL: process.env.BOOKED_E2E_URL,
+    ignoreHTTPSErrors: true, // DDEV self-signed certs
+    headless: true,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+});
