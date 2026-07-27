@@ -5,7 +5,6 @@ namespace anvildev\booked\controllers\cp;
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\HandlesExceptionsTrait;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
-use anvildev\booked\Editions;
 use anvildev\booked\elements\EventDate;
 use anvildev\booked\helpers\RefundTierHelper;
 use Craft;
@@ -25,7 +24,6 @@ class EventDatesController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
-        Editions::requirePro();
         $this->requirePermission('booked-manageEvents');
         return true;
     }

@@ -95,26 +95,9 @@ use yii\base\Event;
  */
 class Booked extends Plugin
 {
-    /**
-     * Edition constants. Lite is the lightweight "paid bookings" tier; Pro is
-     * the full product. See {@see Editions} for the capability gate.
-     */
-    public const EDITION_LITE = Editions::LITE;
-    public const EDITION_PRO = Editions::PRO;
-
     public string $schemaVersion = '1.4.1';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
-
-    public static function editions(): array
-    {
-        // Order matters: lowest tier first. Existing installs are stored as
-        // `pro` and stay full-featured; only an explicit Lite license restricts.
-        return [
-            self::EDITION_LITE,
-            self::EDITION_PRO,
-        ];
-    }
 
     public function init(): void
     {
@@ -131,30 +114,19 @@ class Booked extends Plugin
         $this->registerSiteRoutes();
         $this->registerApiRoutes();
         $this->registerPaymentGateways();
-        // Fires in both editions: it queues the customer quantity-changed email
-        // (a core booking notification); the Pro-only bits inside (webhook +
-        // calendar update) self-gate. See Editions / PRD §6.
         $this->registerQuantityChangeListeners();
-        // Pro-only integrations/automation — not wired under Lite. Services stay
-        // registered (so references resolve); only their event listeners and the
-        // MCP tools are skipped. See Editions / PRD §6.
-        if (Editions::isPro()) {
-            $this->registerCommerceListeners();
-            $this->registerCalendarSyncListeners();
-            $this->registerVirtualMeetingListeners();
-            $this->registerWebhookListeners();
-        }
+        $this->registerCommerceListeners();
+        $this->registerCalendarSyncListeners();
+        $this->registerVirtualMeetingListeners();
+        $this->registerWebhookListeners();
         $this->registerTemplateRoots();
         $this->registerElementTypes();
         $this->registerPermissions();
         $this->registerTemplateVariable();
         $this->registerFieldTypes();
         $this->registerWidgetTypes();
-        // GraphQL + MCP are Pro-only (PRD §6) — not registered under Lite.
-        if (Editions::isPro()) {
-            $this->registerGraphQl();
-            $this->registerMcpTools();
-        }
+        $this->registerGraphQl();
+        $this->registerMcpTools();
     }
 
     public static function displayName(): string
@@ -498,7 +470,7 @@ class Booked extends Plugin
             function(\anvildev\booked\events\AfterQuantityChangeEvent $event) {
                 $reservationId = $event->reservation->getId();
 
-                // Customer quantity-changed email — a core notification, both editions.
+                // Customer quantity-changed email — a core notification.
                 try {
                     $this->bookingNotification->queueQuantityChangedEmail(
                         $reservationId,
@@ -507,11 +479,6 @@ class Booked extends Plugin
                     );
                 } catch (\Throwable $e) {
                     Craft::error("Failed to queue quantity change email for reservation #{$reservationId}: " . $e->getMessage(), __METHOD__);
-                }
-
-                // Webhook dispatch + calendar update are Pro-only.
-                if (!Editions::isPro()) {
-                    return;
                 }
 
                 try {
@@ -878,20 +845,11 @@ class Booked extends Plugin
             ['settings', 'nav.settings', 'booked/settings', 'booked-manageSettings'],
         ];
 
-        // Pro-only nav entries are hidden under Lite; the reports entry points at
-        // the basic revenue report instead of the full dashboard. See Editions.
-        $isPro = Editions::isPro();
-        $proOnlyNav = ['event-dates', 'waitlist', 'webhooks'];
-
         $subnav = [];
         foreach ($navDefs as $def) {
             $key = $def[0];
-            if (!$isPro && in_array($key, $proOnlyNav, true)) {
-                continue;
-            }
             if ($can(...array_slice($def, 3))) {
-                $url = (!$isPro && $key === 'reports') ? 'booked/reports/revenue' : $def[2];
-                $subnav[$key] = ['label' => Craft::t('booked', $def[1]), 'url' => $url];
+                $subnav[$key] = ['label' => Craft::t('booked', $def[1]), 'url' => $def[2]];
             }
         }
 

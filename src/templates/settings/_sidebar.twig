@@ -10,19 +10,14 @@
     'webhooks': { label: 'settings.sidebar.webhooks'|t('booked'), url: url('booked/settings/webhooks') },
 } %}
 
-{# Pro-only settings tabs are hidden under Lite. See Editions / PRD §6. #}
-{% set proSettingsTabs = ['waitlist', 'sms', 'calendar', 'meetings', 'commerce', 'webhooks'] %}
-
 <nav id="settings-nav">
     <ul>
         {% for key, item in settingsSubnavItems %}
-            {% if craft.booked.isPro or key not in proSettingsTabs %}
-                <li>
-                    <a href="{{ item.url }}" class="{% if key == selectedSettingsSubnavItem %}sel{% endif %}">
-                        {{ item.label }}
-                    </a>
-                </li>
-            {% endif %}
+            <li>
+                <a href="{{ item.url }}" class="{% if key == selectedSettingsSubnavItem %}sel{% endif %}">
+                    {{ item.label }}
+                </a>
+            </li>
         {% endfor %}
     </ul>
 </nav>

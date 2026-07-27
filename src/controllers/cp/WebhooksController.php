@@ -4,7 +4,6 @@ namespace anvildev\booked\controllers\cp;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
-use anvildev\booked\Editions;
 use anvildev\booked\records\WebhookRecord;
 use anvildev\booked\services\WebhookService;
 use Craft;
@@ -21,7 +20,6 @@ class WebhooksController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
-        Editions::requirePro();
         $this->requirePermission('booked-manageSettings');
         return true;
     }
