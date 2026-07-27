@@ -1897,6 +1897,12 @@ return [
     'This feature requires Booked Pro.' => 'This feature requires Booked Pro.',
     'payment.gatewayUnavailable' => 'The payment gateway is not available.',
     'payment.createFailed' => 'The payment could not be started. Please try again.',
+    // Direct-payment refunds.
+    'payment.refundNoPayment' => 'This reservation has no refundable payment.',
+    'payment.refundAlreadyFull' => 'This payment has already been fully refunded.',
+    'payment.refundPolicyZero' => 'The refund policy allows no refund for this reservation.',
+    'payment.refundExceedsRemaining' => 'The refund exceeds the remaining refundable amount.',
+    'payment.refundExceedsPolicy' => 'The refund exceeds the amount allowed by the refund policy.',
     // Direct-payment wizard step (client-side status/errors).
     'payment.preparing' => 'Preparing secure payment…',
     'payment.processing' => 'Processing your payment…',
