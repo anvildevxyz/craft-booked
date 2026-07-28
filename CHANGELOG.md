@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.1 - 2026-07-28
 
 ### Added
 - **Payments settings tab** (Settings → Payments) — a Control-Panel UI to choose the payment mode (None / Direct / Commerce), enter Stripe keys (as `$ENV` references) and the webhook signing secret, set the currency and the pending-payment timeout, and see the exact webhook endpoint URL to register in Stripe. Previously these could only be set via the database or project config.
