@@ -120,11 +120,17 @@ class ReportsService extends Component
      */
     private function aggregateDirectPaymentsSum(string $startDate, string $endDate): float
     {
+        // Currency is install-wide (PRD §13). Sum only rows in the current
+        // currency and convert once — so a stray legacy row in a different
+        // currency can't be summed as raw minor units into the wrong total.
+        $currency = $this->getCurrency();
+
         $query = (new Query())
             ->from('{{%booked_payments}} p')
             ->innerJoin('{{%booked_reservations}} r', 'p.reservationId = r.id')
             ->where(['r.status' => 'confirmed'])
             ->andWhere(['between', 'r.bookingDate', $startDate, $endDate])
+            ->andWhere(['p.currency' => $currency])
             ->andWhere(['p.status' => [
                 PaymentRecord::STATUS_PAID,
                 PaymentRecord::STATUS_PARTIALLY_REFUNDED,
@@ -138,7 +144,7 @@ class ReportsService extends Component
 
         $minorUnits = (int) $query->sum('p.amount - COALESCE(p.refundedAmount, 0)');
 
-        return PaymentService::fromMinorUnits($minorUnits, $this->getCurrency());
+        return PaymentService::fromMinorUnits($minorUnits, $currency);
     }
 
     public function getByServiceData(?string $startDate = null, ?string $endDate = null): array
