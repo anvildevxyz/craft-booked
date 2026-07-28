@@ -35,7 +35,7 @@ class TwilioSmsService extends Component
         $settings = Booked::getInstance()->getSettings();
 
         if (!$settings->isSmsConfigured()) {
-            Craft::warning('SMS sending attempted but SMS is not configured or not Pro edition', __METHOD__);
+            Craft::warning('SMS sending attempted but SMS is not configured', __METHOD__);
             return false;
         }
 

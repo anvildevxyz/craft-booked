@@ -151,36 +151,44 @@ export function createPaymentStep(opts = {}) {
       setPayEnabled(false);
       clearError();
       setStatus(t('payment.processing'));
+
+      // Phase 1 — confirm with Stripe. This is BEFORE any charge, so a failure
+      // here is safe to retry (re-enable Pay).
+      let confirmError = null;
       try {
         const win = getWin();
         const returnUrl = win && win.location ? win.location.href : undefined;
-        const { error } = await state.stripe.confirmPayment({
+        const res = await state.stripe.confirmPayment({
           elements: state.elements,
           ...(returnUrl ? { confirmParams: { return_url: returnUrl } } : {}),
           redirect: 'if_required',
         });
-        if (error) {
-          setStatus('');
-          showError(error.message || t('payment.failed'));
-          setPayEnabled(true);
-          state.paying = false;
-          return;
-        }
-
-        // The webhook is the source of truth; poll confirm until it finalizes.
-        for (let i = 0; i < maxPolls; i++) {
-          const result = await wizard.confirmDirectPayment();
-          if (result && result.paid) return; // core → confirmed → success step
-          if (i < maxPolls - 1) await wait(pollDelayMs);
-        }
-        // Paid at Stripe but not yet finalized here: the webhook will catch up.
-        setStatus(t('payment.finalizing'));
+        confirmError = res && res.error;
       } catch (err) {
+        confirmError = err || new Error('confirm failed');
+      }
+      if (confirmError) {
         setStatus('');
-        showError((err && err.message) || t('payment.failed'));
+        showError(confirmError.message || t('payment.failed'));
         setPayEnabled(true);
         state.paying = false;
+        return;
       }
+
+      // Phase 2 — the card is now CHARGED. From here we never re-enable Pay or
+      // show a payment failure: a transient poll error is not a payment failure.
+      // The webhook is the source of truth; poll for the UX transition, and if it
+      // hasn't landed yet, leave the "finalizing" note — the webhook will confirm.
+      for (let i = 0; i < maxPolls; i++) {
+        try {
+          const result = await wizard.confirmDirectPayment();
+          if (result && result.paid) return; // core → confirmed → success step
+        } catch {
+          /* transient confirm-poll error — keep polling; do NOT fail the payment */
+        }
+        if (i < maxPolls - 1) await wait(pollDelayMs);
+      }
+      setStatus(t('payment.finalizing'));
     },
   };
 }

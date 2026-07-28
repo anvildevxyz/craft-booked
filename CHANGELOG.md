@@ -8,6 +8,16 @@
 ### Changed
 - The **payment mode and currency are now chosen in one place** (Settings → Payments). The redundant "Enable Commerce" switch was removed from the Commerce tab, which is now Commerce-specific configuration (tax category, cart/checkout URLs, refund tiers) that applies when the mode is Commerce.
 
+### Fixed
+- **Payment concurrency hardening** (from an adversarial verification pass of the 1.4.0 payment code):
+  - **Critical:** the pending-payment garbage collector could cancel a booking a webhook had just confirmed — leaving it paid-but-cancelled with the slot released. The cancel is now an atomic conditional UPDATE that only touches a still-`pending` row.
+  - Confirmation (webhook vs. client poll) is now a single atomic transition, so a race can't double-fire confirmation emails/SMS/calendar invites.
+  - Refunds serialize per reservation (mutex), so concurrent refunds can't lose an update and later exceed the refund policy.
+  - Two distinct same-amount partial refunds now use distinct Stripe idempotency keys (previously Stripe silently replayed the first while Booked double-counted it).
+  - Refund reconciliation from webhooks is monotonic — an out-of-order `charge.refunded` can no longer revert a full refund to partial.
+  - Checkout UI: a transient confirm-poll error after the card was charged no longer re-enables "Pay" (which invited a double charge); and the soft-lock timer is stopped on entering payment so it can't expire mid-checkout and strand a paid booking.
+- Removed stale "requires Pro edition" wording from SMS/reminder/calendar log messages left over from the edition removal.
+
 ## 1.4.0 - 2026-07-27
 
 > **Take paid bookings with Stripe — no Craft Commerce required.** Booked gains a native, Commerce-free payment path alongside the existing Commerce integration. Direct-payment pages must allow Stripe in their Content Security Policy (`js.stripe.com` / `api.stripe.com`) — see [docs/payments-setup.md](docs/payments-setup.md).

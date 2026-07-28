@@ -194,15 +194,17 @@ class MaintenanceService extends Component
             ? $existing . "\n---\n" . $reason
             : $reason;
 
-        Craft::$app->db->createCommand()
+        $affected = Craft::$app->db->createCommand()
             ->update(
                 '{{%booked_reservations}}',
                 ['status' => ReservationRecord::STATUS_CANCELLED, 'activeSlotKey' => null, 'notes' => $updatedNotes],
-                ['id' => $reservationId],
+                ['id' => $reservationId, 'status' => ReservationRecord::STATUS_PENDING],
             )
             ->execute();
 
-        Booked::getInstance()->getAudit()->logCancellation($reservationId, 'system (maintenance)', $reason, 'service');
+        if ($affected > 0) {
+            Booked::getInstance()->getAudit()->logCancellation($reservationId, 'system (maintenance)', $reason, 'service');
+        }
     }
 
     private function removeOrderLink(int $reservationId): void

@@ -22,7 +22,7 @@ use yii\base\InvalidConfigException;
  *
  * Handles OAuth authentication flows (authorization, token storage, refresh),
  * and pushes reservation data to external calendars via their respective APIs.
- * Requires the Pro edition.
+ * Available in all editions.
  */
 class CalendarSyncService extends Component
 {
