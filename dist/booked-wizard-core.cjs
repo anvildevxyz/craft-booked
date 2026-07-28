@@ -1553,6 +1553,8 @@ var Wizard = class {
         return { ok: true, paying: true, redirectUrl: result.redirectUrl };
       }
       if (result && result.paymentRequired && result.reservation) {
+        this._ctx.lock = null;
+        this._lock.destroy();
         this._machine.transition(STATES.PAYING);
         this._ctx.reservation = result.reservation;
         this._pendingPayment = {
@@ -1618,10 +1620,10 @@ var Wizard = class {
     if (res && res.paid) {
       this._ctx.lock = null;
       this._lock.destroy();
-      if (this._machine.state !== STATES.CONFIRMED) {
-        this._machine.transition(STATES.CONFIRMED);
+      const confirmed = this._machine.state === STATES.CONFIRMED || this._machine.transition(STATES.CONFIRMED);
+      if (confirmed) {
+        this._emitter.emit("booking:confirmed", { reservation: this._ctx.reservation });
       }
-      this._emitter.emit("booking:confirmed", { reservation: this._ctx.reservation });
     }
     return res || { paid: false };
   }

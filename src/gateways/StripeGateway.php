@@ -92,7 +92,7 @@ class StripeGateway implements PaymentGatewayInterface
                 'payment_intent' => $payment->externalId,
                 'amount' => $amount,
             ], [
-                'idempotency_key' => 'booked_re_' . $payment->id . '_' . $amount,
+                'idempotency_key' => 'booked_re_' . $payment->id . '_' . (int) ($payment->refundedAmount ?? 0) . '_' . $amount,
             ]);
         } catch (\Throwable $e) {
             return new RefundResult(false, 0, null, $e->getMessage());
@@ -124,10 +124,7 @@ class StripeGateway implements PaymentGatewayInterface
 
         $object = $event->data->object ?? null;
 
-        // Refund events (e.g. a refund issued in the Stripe dashboard): normalize
-        // to the parent PaymentIntent + the absolute refunded total so the caller
-        // can reconcile it against the local record. The charge object carries the
-        // intent id and the running `amount_refunded`.
+        // Refund events: normalize to the parent PaymentIntent + absolute refunded total.
         if ($event->type === 'charge.refunded' && is_object($object)) {
             $intentId = $object->payment_intent ?? null;
             $refunded = isset($object->amount_refunded) ? (int) $object->amount_refunded : 0;

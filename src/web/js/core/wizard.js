@@ -651,11 +651,11 @@ export class Wizard {
         this._emitter.emit('payment:redirect', { url: result.redirectUrl });
         return { ok: true, paying: true, redirectUrl: result.redirectUrl };
       }
-      // Direct (Commerce-free) payment: the booking is created *pending* and must
-      // be paid in-page via Stripe Elements before it's confirmed. Hold onto the
-      // reservation id + confirmation token so the payment step can call
-      // `payment/create`, and hand the reservation to the step via an event.
+      // Direct payment: booking created *pending*, paid in-page before confirming.
       if (result && result.paymentRequired && result.reservation) {
+        // Drop the soft lock before PAYING so its expiry can't strand a paid booking.
+        this._ctx.lock = null;
+        this._lock.destroy();
         this._machine.transition(STATES.PAYING);
         this._ctx.reservation = result.reservation;
         this._pendingPayment = {
@@ -729,10 +729,13 @@ export class Wizard {
     if (res && res.paid) {
       this._ctx.lock = null;
       this._lock.destroy();
-      if (this._machine.state !== STATES.CONFIRMED) {
-        this._machine.transition(STATES.CONFIRMED);
+      // Only announce the booking as confirmed if the machine actually reached
+      // CONFIRMED — never emit booking:confirmed from an inconsistent state.
+      const confirmed =
+        this._machine.state === STATES.CONFIRMED || this._machine.transition(STATES.CONFIRMED);
+      if (confirmed) {
+        this._emitter.emit('booking:confirmed', { reservation: this._ctx.reservation });
       }
-      this._emitter.emit('booking:confirmed', { reservation: this._ctx.reservation });
     }
     return res || { paid: false };
   }

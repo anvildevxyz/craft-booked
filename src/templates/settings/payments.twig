@@ -1,0 +1,112 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedSettingsAsset") %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'settings' %}
+{% set selectedSettingsSubnavItem = 'payments' %}
+{% set title = 'settings.payments.title'|t('booked') %}
+
+{% block sidebar %}
+    {% include 'booked/settings/_sidebar' %}
+{% endblock %}
+
+{% set mode = settings.paymentMode ?? settings.getPaymentMode() %}
+{% set commerceInstalled = craft.app.plugins.isPluginEnabled('commerce') %}
+
+{% set modeOptions = [
+    { label: 'settings.payments.mode.none'|t('booked'), value: 'none' },
+    { label: 'settings.payments.mode.direct'|t('booked'), value: 'direct' },
+] %}
+{% if commerceInstalled %}
+    {% set modeOptions = modeOptions|merge([{ label: 'settings.payments.mode.commerce'|t('booked'), value: 'commerce' }]) %}
+{% endif %}
+
+{% block content %}
+    <form method="post" accept-charset="UTF-8" id="settings-form">
+        {{ csrfInput() }}
+        <input type="hidden" name="action" value="booked/cp/settings/save">
+        <input type="hidden" name="tab" value="payments">
+        {{ redirectInput('booked/settings/payments') }}
+
+        <h2 class="heading first">{{ 'settings.payments.title'|t('booked') }}</h2>
+        <p class="light">{{ 'settings.payments.description'|t('booked') }}</p>
+        <hr>
+
+        {{ forms.selectField({
+            label: 'settings.payments.mode.label'|t('booked'),
+            instructions: 'settings.payments.mode.instructions'|t('booked'),
+            id: 'paymentMode',
+            name: 'settings[paymentMode]',
+            options: modeOptions,
+            value: mode,
+        }) }}
+
+        {% set currencyInput %}
+            {{ forms.select({
+                id: 'defaultCurrency',
+                name: 'settings[defaultCurrency]',
+                options: currencyOptions,
+                value: settings.defaultCurrency ?? 'auto',
+                class: 'selectize fullwidth',
+            }) }}
+        {% endset %}
+        {{ forms.field({
+            label: 'settings.booking.defaultCurrency'|t('booked'),
+            instructions: 'settings.payments.currencyInstructions'|t('booked'),
+            id: 'defaultCurrency',
+        }, currencyInput) }}
+
+        <hr>
+        <h2>{{ 'settings.payments.stripe.title'|t('booked') }}</h2>
+        <p class="light">{{ 'settings.payments.stripe.description'|t('booked') }}</p>
+
+        {{ forms.autosuggestField({
+            label: 'settings.payments.stripe.publishableKey'|t('booked'),
+            instructions: 'settings.payments.stripe.publishableKeyInstructions'|t('booked'),
+            id: 'stripePublishableKey',
+            name: 'settings[stripePublishableKey]',
+            suggestEnvVars: true,
+            value: settings.stripePublishableKey,
+            placeholder: '$STRIPE_PUBLISHABLE_KEY',
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'settings.payments.stripe.secretKey'|t('booked'),
+            instructions: 'settings.payments.stripe.secretKeyInstructions'|t('booked'),
+            id: 'stripeSecretKey',
+            name: 'settings[stripeSecretKey]',
+            suggestEnvVars: true,
+            value: settings.stripeSecretKey,
+            placeholder: '$STRIPE_SECRET_KEY',
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'settings.payments.stripe.webhookSecret'|t('booked'),
+            instructions: 'settings.payments.stripe.webhookSecretInstructions'|t('booked'),
+            id: 'stripeWebhookSecret',
+            name: 'settings[stripeWebhookSecret]',
+            suggestEnvVars: true,
+            value: settings.stripeWebhookSecret,
+            placeholder: '$STRIPE_WEBHOOK_SECRET',
+        }) }}
+
+        {{ forms.field({
+            label: 'settings.payments.stripe.webhookUrl'|t('booked'),
+            instructions: 'settings.payments.stripe.webhookUrlInstructions'|t('booked'),
+        }, '<code class="fullwidth">' ~ webhookUrl ~ '</code>') }}
+
+        {{ forms.textField({
+            label: 'settings.payments.pendingTtl'|t('booked'),
+            instructions: 'settings.payments.pendingTtlInstructions'|t('booked'),
+            id: 'pendingPaymentTtlMinutes',
+            name: 'settings[pendingPaymentTtlMinutes]',
+            value: settings.pendingPaymentTtlMinutes,
+            type: 'number',
+            min: 5,
+            max: 1440,
+            size: 5,
+        }) }}
+    </form>
+{% endblock %}

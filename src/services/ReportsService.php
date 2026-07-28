@@ -75,13 +75,8 @@ class ReportsService extends Component
     }
 
     /**
-     * Aggregate revenue for a date range.
-     *
-     * In **direct** payment mode, revenue is the money actually captured
-     * (`amount − refundedAmount`) from the payments table — so refunds reduce the
-     * figure — per the §13 decision to reconcile minor units at the reports layer.
-     * In commerce/none mode it stays catalog-priced (service.price, eventDate.price,
-     * serviceExtra.price × quantity), which does not reflect discounts/coupons.
+     * Revenue for a date range. Direct mode = money actually captured
+     * (`amount − refundedAmount`) from the payments table; else catalog-priced.
      */
     private function aggregateRevenueSum(string $startDate, string $endDate): float
     {
@@ -112,19 +107,20 @@ class ReportsService extends Component
         return (float) $query->sum('COALESCE(s.price, 0) * r.quantity + COALESCE(ed.price, 0) * r.quantity + COALESCE(re_sum.extras_total, 0)');
     }
 
-    /**
-     * Direct-mode revenue: net captured amount (`amount − refundedAmount`) across
-     * paid/refunded payment rows for confirmed reservations in the range, summed in
-     * minor units and converted once to the install-wide currency. Failed/pending
-     * rows are excluded (never captured). Honors the same staff scoping.
-     */
+    /** Direct-mode revenue: SUM(amount − refundedAmount) of captured rows, one currency. */
     private function aggregateDirectPaymentsSum(string $startDate, string $endDate): float
     {
+        // Currency is install-wide (PRD §13). Sum only rows in the current
+        // currency and convert once — so a stray legacy row in a different
+        // currency can't be summed as raw minor units into the wrong total.
+        $currency = $this->getCurrency();
+
         $query = (new Query())
             ->from('{{%booked_payments}} p')
             ->innerJoin('{{%booked_reservations}} r', 'p.reservationId = r.id')
             ->where(['r.status' => 'confirmed'])
             ->andWhere(['between', 'r.bookingDate', $startDate, $endDate])
+            ->andWhere(['p.currency' => $currency])
             ->andWhere(['p.status' => [
                 PaymentRecord::STATUS_PAID,
                 PaymentRecord::STATUS_PARTIALLY_REFUNDED,
@@ -138,7 +134,7 @@ class ReportsService extends Component
 
         $minorUnits = (int) $query->sum('p.amount - COALESCE(p.refundedAmount, 0)');
 
-        return PaymentService::fromMinorUnits($minorUnits, $this->getCurrency());
+        return PaymentService::fromMinorUnits($minorUnits, $currency);
     }
 
     public function getByServiceData(?string $startDate = null, ?string $endDate = null): array

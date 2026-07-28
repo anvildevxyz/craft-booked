@@ -39,10 +39,8 @@ class PaymentService extends Component
      */
     public function createForReservation(ReservationInterface $reservation, PaymentGatewayInterface $gateway): array
     {
-        $settings = Booked::getInstance()->getSettings();
-        $currency = $settings->defaultCurrency && $settings->defaultCurrency !== 'auto'
-            ? $settings->defaultCurrency
-            : 'USD';
+        // Shared resolver so record/report/refund currencies always agree.
+        $currency = Booked::getInstance()->getReports()->getCurrency();
         $amount = self::toMinorUnits($reservation->getTotalPrice(), $currency);
 
         $context = new PaymentContext(
@@ -55,11 +53,8 @@ class PaymentService extends Component
 
         $session = $gateway->createPayment($reservation, $context);
 
-        // Reuse the record for this gateway intent: Stripe's per-reservation
-        // idempotency key returns the same PaymentIntent (same externalId) on
-        // retry/refresh, so a repeated create must not insert a duplicate row
-        // (which would make the paid booking read as unpaid). Never clobber a
-        // status the webhook has already advanced.
+        // Reuse the row for this intent (same externalId on retry/refresh) so a
+        // repeated create doesn't duplicate it; never clobber an advanced status.
         $record = PaymentRecord::findOne(['externalId' => $session->externalId, 'gateway' => $gateway->getHandle()])
             ?? new PaymentRecord();
         $record->reservationId = $reservation->getId();
@@ -108,97 +103,85 @@ class PaymentService extends Component
     }
 
     /**
-     * Refund a direct (Commerce-free) payment, honoring the reservation's refund
-     * policy. `$amount` is in the currency's minor units; `null` refunds the
-     * maximum the policy currently allows (capped at the remaining refundable).
-     *
-     * The refund policy is a hard ceiling: an explicit amount above it — or above
-     * what's still refundable — is rejected *before* any gateway call, so the
-     * customer is never over-refunded. Idempotent by construction: each call only
-     * ever adds up to the remaining refundable, and a fully-refunded payment
-     * refuses further refunds.
-     *
-     * On a gateway failure the record is left untouched and the failed
-     * {@see RefundResult} is returned (caller surfaces `->error`). On success the
-     * record's `refundedAmount`/`status` advance and {@see EVENT_PAYMENT_REFUNDED}
-     * fires. Commerce-mode refunds go through {@see RefundService} instead.
-     *
-     * @param int|null $amount Minor units; null = policy-allowed maximum.
-     * @throws RuntimeException on a guard violation. Its message is a translation
-     *                          key (e.g. `payment.refundExceedsPolicy`); the caller
-     *                          renders it with `Craft::t('booked', $e->getMessage())`.
+     * Refund a direct payment (per-reservation mutex, policy-capped, idempotent).
+     * `$amount` is minor units; null = the policy-allowed maximum. Throws
+     * RuntimeException (message = a translation key) on a guard violation.
      */
     public function refund(ReservationInterface $reservation, ?int $amount = null): RefundResult
     {
-        /** @var PaymentRecord|null $record */
-        $record = PaymentRecord::find()
-            ->where(['reservationId' => $reservation->getId()])
-            ->orderBy(['dateCreated' => SORT_DESC])
-            ->one();
-
-        if (!$record || !in_array($record->status, [
-            PaymentRecord::STATUS_PAID,
-            PaymentRecord::STATUS_PARTIALLY_REFUNDED,
-        ], true)) {
-            throw new RuntimeException('payment.refundNoPayment');
+        $mutex = Craft::$app->getMutex();
+        $mutexKey = 'booked:refund:' . $reservation->getId();
+        if (!$mutex->acquire($mutexKey, 10)) {
+            throw new RuntimeException('payment.refundBusy');
         }
 
-        $captured = (int) $record->amount;
-        $alreadyRefunded = (int) ($record->refundedAmount ?? 0);
-        $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
-        $requested = self::resolveRefundAmount($captured, $alreadyRefunded, $pct, $amount);
+        try {
+            /** @var PaymentRecord|null $record */
+            $record = PaymentRecord::find()
+                ->where(['reservationId' => $reservation->getId()])
+                ->orderBy(['dateCreated' => SORT_DESC])
+                ->one();
 
-        $gateway = Booked::getInstance()->getPaymentGateways()->getGateway((string) $record->gateway);
-        if (!$gateway) {
-            throw new RuntimeException('payment.gatewayUnavailable');
+            if (!$record || !in_array($record->status, [
+                PaymentRecord::STATUS_PAID,
+                PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+            ], true)) {
+                throw new RuntimeException('payment.refundNoPayment');
+            }
+
+            $captured = (int) $record->amount;
+            $alreadyRefunded = (int) ($record->refundedAmount ?? 0);
+            $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
+            $requested = self::resolveRefundAmount($captured, $alreadyRefunded, $pct, $amount);
+
+            $gateway = Booked::getInstance()->getPaymentGateways()->getGateway((string) $record->gateway);
+            if (!$gateway) {
+                throw new RuntimeException('payment.gatewayUnavailable');
+            }
+
+            $result = $gateway->refund($record, $requested);
+            if (!$result->success) {
+                return $result; // record untouched; caller surfaces $result->error
+            }
+
+            $totalRefunded = $alreadyRefunded + $result->refundedAmount;
+            $record->refundedAmount = $totalRefunded;
+            $record->status = $totalRefunded >= $captured
+                ? PaymentRecord::STATUS_REFUNDED
+                : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
+            $record->save(false);
+
+            if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
+                $event = new PaymentRefundedEvent();
+                $event->reservationId = (int) $record->reservationId;
+                $event->record = $record;
+                $event->amount = $result->refundedAmount;
+                $event->totalRefunded = $totalRefunded;
+                $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
+            }
+
+            return $result;
+        } finally {
+            $mutex->release($mutexKey);
         }
-
-        $result = $gateway->refund($record, $requested);
-        if (!$result->success) {
-            return $result; // record untouched; caller surfaces $result->error
-        }
-
-        $totalRefunded = $alreadyRefunded + $result->refundedAmount;
-        $record->refundedAmount = $totalRefunded;
-        $record->status = $totalRefunded >= $captured
-            ? PaymentRecord::STATUS_REFUNDED
-            : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
-        $record->save(false);
-
-        if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
-            $event = new PaymentRefundedEvent();
-            $event->reservationId = (int) $record->reservationId;
-            $event->record = $record;
-            $event->amount = $result->refundedAmount;
-            $event->totalRefunded = $totalRefunded;
-            $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
-        }
-
-        return $result;
     }
 
     /**
-     * Reconcile a refund observed via webhook — e.g. one issued directly in the
-     * gateway dashboard, which never went through {@see refund()}. Sets the
-     * record's *absolute* refunded total + status. Idempotent: re-delivering the
-     * same webhook writes the same value, so it never compounds.
+     * Reconcile a refund seen via webhook (e.g. issued in the gateway dashboard):
+     * sets the absolute refunded total + status, monotonically.
      */
     public function applyRefundSync(PaymentRecord $record, int $refundedAmount): void
     {
         $captured = (int) $record->amount;
         $refundedAmount = max(0, min($refundedAmount, $captured));
-        if ($refundedAmount === 0) {
+
+        if ($refundedAmount <= (int) ($record->refundedAmount ?? 0)) {
             return;
         }
 
         $status = $refundedAmount >= $captured
             ? PaymentRecord::STATUS_REFUNDED
             : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
-
-        // Nothing changed (already reconciled to this total) — stay a no-op.
-        if ((int) ($record->refundedAmount ?? 0) === $refundedAmount && $record->status === $status) {
-            return;
-        }
 
         $record->refundedAmount = $refundedAmount;
         $record->status = $status;
@@ -217,15 +200,16 @@ class PaymentService extends Component
     /** Confirm a pending reservation (direct mode) and fire the usual notifications. */
     private function confirmReservation(int $reservationId): void
     {
-        $record = \anvildev\booked\records\ReservationRecord::findOne($reservationId);
-        // Only a still-pending reservation may be confirmed. A late or replayed
-        // webhook must NOT resurrect a reservation that was cancelled or expired
-        // (nor re-fire notifications on an already-confirmed one).
-        if (!$record || $record->status !== \anvildev\booked\records\ReservationRecord::STATUS_PENDING) {
+        $affected = Craft::$app->db->createCommand()
+            ->update(
+                '{{%booked_reservations}}',
+                ['status' => \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED],
+                ['id' => $reservationId, 'status' => \anvildev\booked\records\ReservationRecord::STATUS_PENDING],
+            )
+            ->execute();
+        if ($affected < 1) {
             return;
         }
-        $record->status = \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED;
-        $record->save(false);
 
         try {
             $ns = Booked::getInstance()->bookingNotification;
@@ -295,14 +279,8 @@ class PaymentService extends Component
     }
 
     /**
-     * Pure refund-amount resolution (no I/O). Validates a requested refund against
-     * the refund-policy ceiling (a percentage of the captured amount, net of prior
-     * refunds) and the remaining refundable, returning the minor-unit amount to
-     * send to the gateway. `$requested` null = the policy-allowed maximum.
-     *
-     * Mirrors {@see resolveStatus} — the I/O-free core that {@see refund} wraps —
-     * so the money math is unit-testable without a DB or gateway.
-     *
+     * Pure (no-I/O) refund-amount resolution: validate a requested refund against
+     * the policy ceiling + remaining refundable. `$requested` null = policy max.
      * @throws RuntimeException with a translation-key message on any violation.
      */
     public static function resolveRefundAmount(int $captured, int $alreadyRefunded, int $policyPercent, ?int $requested): int

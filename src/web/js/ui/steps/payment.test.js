@@ -61,6 +61,30 @@ describe('loadStripeJs', () => {
   it('rejects when handed something that is not a browser window', async () => {
     await expect(loadStripeJs({})).rejects.toThrow(/browser/);
   });
+
+  it('removes a failed Stripe.js <script> so a later load can retry', async () => {
+    delete window.Stripe;
+    document.querySelectorAll('script[data-booked-stripe-js]').forEach((s) => s.remove());
+
+    // First load fails — the dead script must be removed (not left to hang retries).
+    const p1 = loadStripeJs(window);
+    const s1 = document.querySelector('script[data-booked-stripe-js]');
+    expect(s1).not.toBeNull();
+    s1.dispatchEvent(new Event('error'));
+    await expect(p1).rejects.toThrow(/failed to load/);
+    expect(document.querySelector('script[data-booked-stripe-js]')).toBeNull();
+
+    // Retry starts a fresh script and can succeed.
+    const ctor = () => ({});
+    const p2 = loadStripeJs(window);
+    const s2 = document.querySelector('script[data-booked-stripe-js]');
+    expect(s2).not.toBeNull();
+    window.Stripe = ctor;
+    s2.dispatchEvent(new Event('load'));
+    await expect(p2).resolves.toBe(ctor);
+    delete window.Stripe;
+    s2.remove();
+  });
 });
 
 describe('createPaymentStep — mount', () => {
@@ -148,6 +172,31 @@ describe('createPaymentStep — pay', () => {
     await flush();
 
     expect(wizard.confirmDirectPayment).toHaveBeenCalledTimes(2);
+    expect(region.querySelector('[data-booked-payment-status]').textContent).toBe('payment.finalizing');
+  });
+
+  it('does NOT re-enable Pay when the confirm-poll throws after the card was charged', async () => {
+    // Regression: confirmPayment succeeded (card charged), but a transient poll
+    // error must not surface as a payment failure or re-enable Pay — that would
+    // invite a double charge. It defers to the webhook instead.
+    const { ctor } = fakeStripe(); // confirmPayment resolves with no error → charged
+    const wizard = fakeWizard({
+      confirmDirectPayment: vi.fn(async () => {
+        throw new Error('network blip');
+      }),
+    });
+    const region = mountRegion();
+    const step = createPaymentStep({ win: fakeWin(ctor), pollDelayMs: 0, maxPolls: 2 });
+
+    await step.mount(region, wizard);
+    await flush();
+    region.querySelector('[data-booked-action="pay"]').click();
+    await flush();
+
+    const pay = region.querySelector('[data-booked-action="pay"]');
+    const err = region.querySelector('[data-booked-payment-error]');
+    expect(pay.disabled).toBe(true); // stays disabled — no retry after charge
+    expect(err.hidden).toBe(true); // no payment-failed error shown
     expect(region.querySelector('[data-booked-payment-status]').textContent).toBe('payment.finalizing');
   });
 });
