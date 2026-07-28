@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- **Payments settings tab** (Settings → Payments) — a Control-Panel UI to choose the payment mode (None / Direct / Commerce), enter Stripe keys (as `$ENV` references) and the webhook signing secret, set the currency and the pending-payment timeout, and see the exact webhook endpoint URL to register in Stripe. Previously these could only be set via the database or project config.
+
+### Changed
+- The **payment mode and currency are now chosen in one place** (Settings → Payments). The redundant "Enable Commerce" switch was removed from the Commerce tab, which is now Commerce-specific configuration (tax category, cart/checkout URLs, refund tiers) that applies when the mode is Commerce.
+
 ### Fixed
 - **Payment concurrency hardening** (from an adversarial verification pass of the 1.4.0 payment code):
   - **Critical:** the pending-payment garbage collector could cancel a booking a webhook had just confirmed — leaving it paid-but-cancelled with the slot released. The cancel is now an atomic conditional UPDATE that only touches a still-`pending` row.

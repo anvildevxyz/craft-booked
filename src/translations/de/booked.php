@@ -1271,7 +1271,30 @@ return [
     'settings.sidebar.smsNotifications' => 'SMS-Benachrichtigungen',
     'settings.sidebar.calendar' => 'Kalender',
     'settings.sidebar.virtualMeetings' => 'Virtuelle Meetings',
+    'settings.sidebar.payments' => 'Zahlungen',
     'settings.sidebar.commerce' => 'Commerce',
+
+    // Zahlungen-Einstellungen
+    'settings.payments.title' => 'Zahlungen',
+    'settings.payments.description' => 'Nehmen Sie bezahlte Buchungen mit Stripe entgegen – ganz ohne Craft Commerce – oder wickeln Sie Zahlungen über Commerce ab.',
+    'settings.payments.mode.label' => 'Zahlungsmodus',
+    'settings.payments.mode.instructions' => 'Wie bezahlte Buchungen abgewickelt werden. **Direkt** nimmt die Zahlung direkt auf der Seite über Stripe entgegen (ohne Commerce). **Commerce** wickelt die Zahlung über Craft Commerce ab. **Keine** hält alle Buchungen kostenlos.',
+    'settings.payments.mode.none' => 'Keine (kostenlose Buchungen)',
+    'settings.payments.mode.direct' => 'Direkt – Stripe (ohne Commerce)',
+    'settings.payments.mode.commerce' => 'Craft Commerce',
+    'settings.payments.currencyInstructions' => 'Die für bezahlte Buchungen berechnete Währung. „Automatisch erkennen“ verwendet die primäre Währung von Commerce, sonst USD.',
+    'settings.payments.stripe.title' => 'Stripe',
+    'settings.payments.stripe.description' => 'Wird im Direkt-Modus verwendet. Speichern Sie Schlüssel als Umgebungsvariablen und referenzieren Sie sie hier (z. B. $STRIPE_SECRET_KEY), damit Geheimnisse nie in der Projektkonfiguration landen.',
+    'settings.payments.stripe.publishableKey' => 'Publishable Key',
+    'settings.payments.stripe.publishableKeyInstructions' => 'Ihr Stripe Publishable Key (pk_…).',
+    'settings.payments.stripe.secretKey' => 'Secret Key',
+    'settings.payments.stripe.secretKeyInstructions' => 'Ihr Stripe Secret Key (sk_…). Halten Sie diesen geheim.',
+    'settings.payments.stripe.webhookSecret' => 'Webhook-Signatur-Geheimnis',
+    'settings.payments.stripe.webhookSecretInstructions' => 'Das Signatur-Geheimnis (whsec_…) Ihres Stripe-Webhook-Endpunkts. Erforderlich – Zahlungen werden durch den verifizierten Webhook bestätigt.',
+    'settings.payments.stripe.webhookUrl' => 'Webhook-Endpunkt-URL',
+    'settings.payments.stripe.webhookUrlInstructions' => 'Fügen Sie diese URL als Webhook-Endpunkt in Stripe hinzu, abonniert auf payment_intent.succeeded und charge.refunded.',
+    'settings.payments.pendingTtl' => 'Zeitlimit für ausstehende Zahlung (Minuten)',
+    'settings.payments.pendingTtlInstructions' => 'Wie lange eine Buchung unbezahlt bleiben darf, bevor sie automatisch storniert und ihr Slot freigegeben wird.',
     'settings.sidebar.webhooks' => 'Webhooks',
 
     // Einstellungen - Buchung
@@ -1493,6 +1516,7 @@ return [
     // Einstellungen - Commerce
     'settings.commerce.title' => 'Commerce-Integration',
     'settings.commerce.description' => 'Integration mit Craft Commerce für die Zahlungsabwicklung.',
+    'settings.commerce.modeMovedNote' => 'Zahlungsmodus und Währung werden jetzt festgelegt auf dem Tab',
     'settings.commerce.enable' => 'Commerce-Integration aktivieren',
     'settings.commerce.enableInstructions' => 'Wenn aktiviert, erfordern Services mit einem Preis eine Zahlung über Craft Commerce, bevor die Buchung bestätigt wird.',
     'settings.commerce.notInstalled' => 'Craft Commerce ist nicht installiert oder nicht aktiviert.',
