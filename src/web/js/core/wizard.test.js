@@ -10,7 +10,14 @@ import { STATES } from './machine.js';
 function fakeApi(overrides = {}) {
   return {
     commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
-    services: vi.fn(async () => ({ services: [{ id: 12, name: 'Haircut', price: 40, durationType: 'minutes' }] })),
+    // Two services, so the service step stays visible: a lone service is
+    // auto-selected and its step skipped (covered separately below).
+    services: vi.fn(async () => ({
+      services: [
+        { id: 12, name: 'Haircut', price: 40, durationType: 'minutes' },
+        { id: 13, name: 'Shave', price: 25, durationType: 'minutes' },
+      ],
+    })),
     serviceExtras: vi.fn(async () => ({ extras: [] })),
     employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1, name: 'Main' }], serviceHasSchedule: true })),
     createSlotLock: vi.fn(async () => ({ success: true, token: 'lock-abc', expiresIn: 300 })),
@@ -173,6 +180,89 @@ describe('Wizard — headless booking (M1 exit demo)', () => {
     wizard.goNext(); // review
     await wizard.submit();
     expect(api.createBooking.mock.calls[0][0].extras).toEqual({ 5: 2 });
+  });
+});
+
+describe('Wizard — lone service/employee steps are skipped', () => {
+  const oneService = { services: [{ id: 12, name: 'Haircut', price: 40, durationType: 'minutes' }] };
+
+  function loneSetup(overrides = {}) {
+    return {
+      services: vi.fn(async () => oneService),
+      employees: vi.fn(async () => ({
+        employees: [{ id: 4, name: 'Ada' }],
+        locations: [{ id: 1, name: 'Main' }],
+        serviceHasSchedule: false,
+      })),
+      ...overrides,
+    };
+  }
+
+  it('opens straight on the calendar with one service, one location and one employee', async () => {
+    const { wizard } = newWizard(loneSetup());
+    await wizard.start();
+
+    expect(wizard.stepId).toBe('datetime');
+    const state = wizard.getState();
+    expect(state.context.serviceId).toBe(12);
+    expect(state.context.employeeId).toBe(4);
+    expect(state.context.locationId).toBe(1);
+    // Only datetime, info and review remain, so the progress indicator agrees.
+    expect(state.position).toBe(1);
+    expect(state.total).toBe(3);
+  });
+
+  it('cannot be navigated back into a skipped step', async () => {
+    const { wizard } = newWizard(loneSetup());
+    await wizard.start();
+
+    expect(wizard.goBack().ok).toBe(false);
+    expect(wizard.stepId).toBe('datetime');
+  });
+
+  it('books end to end with the auto-selected service and employee', async () => {
+    const { wizard, api } = newWizard(loneSetup());
+    await wizard.start();
+
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00', quantity: 1 });
+    expect(wizard.goNext().stepId).toBe('info');
+    wizard.setCustomer({ name: 'Ada Lovelace', email: 'ada@example.com' });
+    expect(wizard.goNext().stepId).toBe('review');
+    expect(await wizard.submit()).toMatchObject({ ok: true, confirmed: true });
+
+    expect(api.createBooking.mock.calls[0][0]).toMatchObject({ serviceId: 12, employeeId: 4 });
+  });
+
+  it('still stops on extras when the lone service has add-ons', async () => {
+    const { wizard } = newWizard(loneSetup({ serviceExtras: vi.fn(async () => ({ extras: [{ id: 5, price: 10 }] })) }));
+    await wizard.start();
+
+    expect(wizard.stepId).toBe('extras');
+    expect(wizard.goBack().ok).toBe(false);
+  });
+
+  it('still shows the employee step when there is a choice to make', async () => {
+    const { wizard } = newWizard(
+      loneSetup({
+        employees: vi.fn(async () => ({
+          employees: [{ id: 4, name: 'Ada' }, { id: 5, name: 'Grace' }],
+          locations: [{ id: 1, name: 'Main' }],
+          serviceHasSchedule: false,
+        })),
+      }),
+    );
+    await wizard.start();
+
+    expect(wizard.stepId).toBe('employee');
+  });
+
+  it('leaves the event flow alone — an event booking carries no service', async () => {
+    const { wizard, api } = newWizard(loneSetup(), { flow: 'event' });
+    await wizard.start();
+
+    expect(wizard.stepId).toBe('event');
+    expect(wizard.getState().context.serviceId).toBeNull();
+    expect(api.serviceExtras).not.toHaveBeenCalled();
   });
 });
 

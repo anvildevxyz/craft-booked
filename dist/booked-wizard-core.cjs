@@ -989,14 +989,10 @@ function canLeaveStep(stepId, ctx, opts = {}) {
 var bookingFlow = {
   id: "booking",
   steps: [
-    { id: "service", visible: () => true },
+    { id: "service", visible: (ctx) => !(Array.isArray(ctx.services) && ctx.services.length === 1) },
     { id: "extras", visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
     { id: "location", visible: (ctx) => Array.isArray(ctx.locations) && ctx.locations.length > 1 },
-    {
-      // Shown whenever employees exist; skipped only when there are none.
-      id: "employee",
-      visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 0
-    },
+    { id: "employee", visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 1 },
     { id: "datetime", visible: () => true },
     { id: "info", visible: () => true },
     { id: "review", visible: () => true }
@@ -1125,7 +1121,10 @@ var Wizard = class {
       this._emitter.emit("data:loaded", { kind: "services", items: this._ctx.services });
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
+      } else if (this._flow.id === "booking" && this._ctx.services.length === 1) {
+        await this._loadServiceData(this._ctx.services[0].id);
       }
+      this._flow.reset();
       const conversionToken = this._options.conversionToken;
       if (conversionToken) {
         await this._applyConversion(conversionToken);
