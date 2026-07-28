@@ -12,13 +12,17 @@ webhook. This guide covers setup, testing, and troubleshooting.
 
 ## 1. Payment modes
 
-Set the mode in **Settings → Payments** (or in config):
+**Settings → Payments** is the single place you choose how you get paid:
 
 | Mode | Behaviour |
 |------|-----------|
 | `none` | Bookings are free; no payment is taken. |
 | `direct` | Native Stripe checkout, no Commerce. **This guide.** |
 | `commerce` | Payment runs through Craft Commerce. |
+
+Pick the mode (and the currency) on the **Payments** tab. When you choose
+**Commerce**, its Commerce-specific settings (tax category, cart/checkout URLs,
+refund tiers) live on the separate **Settings → Commerce** tab.
 
 A service (or event date) with a **price** is what triggers payment. Free
 services always confirm immediately, regardless of mode.

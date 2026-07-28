@@ -21,33 +21,15 @@
 
         <h2 class="heading first">{{ 'settings.commerce.title'|t('booked') }}</h2>
         <p class="light">{{ 'settings.commerce.description'|t('booked') }}</p>
+        {# Payment mode + currency are chosen once on the Payments tab; this tab is
+           Commerce-specific configuration that applies when the mode is Commerce. #}
+        <div class="pane" style="margin-bottom:24px;">
+            <p>{{ 'settings.commerce.modeMovedNote'|t('booked') }} <a href="{{ url('booked/settings/payments') }}">{{ 'settings.sidebar.payments'|t('booked') }}</a>.</p>
+        </div>
         <hr>
-        {# Currency options are built in the controller with Auto-detect as first option #}
-        {% set currencyInput %}
-            {{ forms.select({
-                id: 'defaultCurrency',
-                name: 'settings[defaultCurrency]',
-                options: currencyOptions,
-                value: settings.defaultCurrency ?? 'auto',
-                class: 'selectize fullwidth',
-            }) }}
-        {% endset %}
-
-        {{ forms.field({
-            label: 'settings.booking.defaultCurrency'|t('booked'),
-            instructions: 'settings.booking.defaultCurrencyInstructions'|t('booked'),
-            id: 'defaultCurrency',
-        }, currencyInput) }}
 
         {% if craft.app.plugins.isPluginEnabled('commerce') %}
             <fieldset>
-                {{ forms.lightswitchField({
-                    label: 'settings.commerce.enable'|t('booked'),
-                    instructions: 'settings.commerce.enableInstructions'|t('booked'),
-                    id: 'commerceEnabled',
-                    name: 'settings[commerceEnabled]',
-                    on: settings.commerceEnabled
-                }) }}
 
                 {% set taxCategories = craft.commerce.taxCategories.allTaxCategories %}
                 {% set taxOptions = [{label: 'settings.commerce.defaultTaxCategory'|t('booked'), value: ''}] %}

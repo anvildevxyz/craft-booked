@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Payments settings tab** (Settings → Payments) — a Control-Panel UI to choose the payment mode (None / Direct / Commerce), enter Stripe keys (as `$ENV` references) and the webhook signing secret, set the currency and the pending-payment timeout, and see the exact webhook endpoint URL to register in Stripe. Previously these could only be set via the database or project config.
+
+### Changed
+- The **payment mode and currency are now chosen in one place** (Settings → Payments). The redundant "Enable Commerce" switch was removed from the Commerce tab, which is now Commerce-specific configuration (tax category, cart/checkout URLs, refund tiers) that applies when the mode is Commerce.
+
 ## 1.4.0 - 2026-07-27
 
 > **Take paid bookings with Stripe — no Craft Commerce required.** Booked gains a native, Commerce-free payment path alongside the existing Commerce integration. Direct-payment pages must allow Stripe in their Content Security Policy (`js.stripe.com` / `api.stripe.com`) — see [docs/payments-setup.md](docs/payments-setup.md).
