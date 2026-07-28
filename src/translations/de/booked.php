@@ -1516,6 +1516,7 @@ return [
     // Einstellungen - Commerce
     'settings.commerce.title' => 'Commerce-Integration',
     'settings.commerce.description' => 'Integration mit Craft Commerce für die Zahlungsabwicklung.',
+    'settings.commerce.modeMovedNote' => 'Zahlungsmodus und Währung werden jetzt festgelegt auf dem Tab',
     'settings.commerce.enable' => 'Commerce-Integration aktivieren',
     'settings.commerce.enableInstructions' => 'Wenn aktiviert, erfordern Services mit einem Preis eine Zahlung über Craft Commerce, bevor die Buchung bestätigt wird.',
     'settings.commerce.notInstalled' => 'Craft Commerce ist nicht installiert oder nicht aktiviert.',

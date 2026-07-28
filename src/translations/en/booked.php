@@ -1521,6 +1521,7 @@ return [
     // Settings - Commerce
     'settings.commerce.title' => 'Commerce Integration',
     'settings.commerce.description' => 'Integrate with Craft Commerce for payment processing.',
+    'settings.commerce.modeMovedNote' => 'Payment mode and currency are now chosen on the',
     'settings.commerce.enable' => 'Enable Commerce Integration',
     'settings.commerce.enableInstructions' => 'When enabled, services with a price will require payment through Craft Commerce before the booking is confirmed.',
     'settings.commerce.notInstalled' => 'Craft Commerce is not installed or not enabled.',
