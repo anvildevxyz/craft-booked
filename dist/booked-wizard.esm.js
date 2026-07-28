@@ -268,6 +268,8 @@ var Context = class {
     this.selectedLocation = initial.selectedLocation ?? null;
     this.employeeId = initial.employeeId ?? null;
     this.selectedEmployee = initial.selectedEmployee ?? null;
+    this.servicePreselected = initial.servicePreselected ?? false;
+    this.locationPreselected = initial.locationPreselected ?? false;
     this.services = initial.services ?? [];
     this.extras = initial.extras ?? [];
     this.locations = initial.locations ?? [];
@@ -385,6 +387,8 @@ var Context = class {
       selectedLocation: this.selectedLocation,
       employeeId: this.employeeId,
       selectedEmployee: this.selectedEmployee,
+      servicePreselected: this.servicePreselected,
+      locationPreselected: this.locationPreselected,
       // Data lists the renderer needs to populate step content.
       services: this.services,
       extras: this.extras,
@@ -936,9 +940,9 @@ function canLeaveStep(stepId, ctx, opts = {}) {
 var bookingFlow = {
   id: "booking",
   steps: [
-    { id: "service", visible: (ctx) => !(Array.isArray(ctx.services) && ctx.services.length === 1) },
+    { id: "service", visible: (ctx) => !(ctx.servicePreselected || Array.isArray(ctx.services) && ctx.services.length === 1) },
     { id: "extras", visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
-    { id: "location", visible: (ctx) => Array.isArray(ctx.locations) && ctx.locations.length > 1 },
+    { id: "location", visible: (ctx) => !ctx.locationPreselected && Array.isArray(ctx.locations) && ctx.locations.length > 1 },
     { id: "employee", visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 1 },
     { id: "datetime", visible: () => true },
     { id: "info", visible: () => true },
@@ -1068,10 +1072,12 @@ var Wizard = class {
       this._emitter.emit("data:loaded", { kind: "services", items: this._ctx.services });
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
+        this._ctx.servicePreselected = true;
       } else if (this._flow.id === "booking" && this._ctx.services.length === 1) {
         await this._loadServiceData(this._ctx.services[0].id);
       }
       this._flow.reset();
+      await this._applyDeepLinks();
       const conversionToken = this._options.conversionToken;
       if (conversionToken) {
         await this._applyConversion(conversionToken);
@@ -1116,6 +1122,40 @@ var Wizard = class {
     this._flow.setContext(this._ctx);
     this._flow.goTo("datetime");
     this._emitter.emit("conversion:loaded", { entry });
+  }
+  /**
+   * Apply integrator deep-link prefills (config). A preselected location scopes
+   * the employees and skips the location step; a preselected date opens the
+   * calendar on that day (the customer still confirms the slot, which acquires
+   * the lock — a link never carries a lock in). Only booking-flow selections a
+   * loaded service actually offers are honored.
+   */
+  async _applyDeepLinks() {
+    const opts = this._options;
+    if (this._flow.id !== "booking") return;
+    const locationId = opts.locationId != null ? Number(opts.locationId) : null;
+    if (locationId != null && this._ctx.locations.some((l) => l.id === locationId)) {
+      await this.selectLocation(locationId);
+      this._ctx.locationPreselected = true;
+    }
+    const employeeId = opts.employeeId != null ? Number(opts.employeeId) : null;
+    if (employeeId != null && this._ctx.employees.some((e) => e.id === employeeId)) {
+      this._ctx.employeeId = employeeId;
+      this._ctx.selectedEmployee = this._ctx.employees.find((e) => e.id === employeeId) ?? null;
+    }
+    if (opts.date) {
+      this._ctx.date = String(opts.date);
+      if (opts.time) this._ctx.time = String(opts.time);
+    }
+    this._flow.setContext(this._ctx);
+    if (opts.date) {
+      this._flow.goTo("datetime");
+    } else if (locationId != null || employeeId != null) {
+      this._flow.reset();
+    }
+    if (locationId != null || employeeId != null || opts.date) {
+      this._emitter.emit("deeplink:loaded", { locationId, employeeId, date: this._ctx.date, time: this._ctx.time });
+    }
   }
   _applyCommerce(payload) {
     this._ctx.commerce = {
@@ -1173,9 +1213,27 @@ var Wizard = class {
     this._flow.setContext(this._ctx);
     return this.getState();
   }
-  selectLocation(id) {
+  async selectLocation(id) {
     this._ctx.locationId = id;
     this._ctx.selectedLocation = this._ctx.locations.find((l) => l.id === id) ?? null;
+    if (this._ctx.serviceId != null) {
+      let employees;
+      try {
+        employees = await this._api.employees(this._ctx.serviceId, { locationId: id });
+      } catch (err) {
+        if (!(err && err.aborted)) this._toError(err);
+        return this.getState();
+      }
+      this._ctx.employees = list(employees, "employees");
+      this._ctx.employeeId = null;
+      this._ctx.selectedEmployee = null;
+      if (this._ctx.employees.length === 1) {
+        this._ctx.selectedEmployee = this._ctx.employees[0];
+        this._ctx.employeeId = this._ctx.employees[0].id;
+      }
+      this._flow.setContext(this._ctx);
+      this._emitter.emit("data:loaded", { kind: "location", items: { employees: this._ctx.employees } });
+    }
     return this.getState();
   }
   selectEmployee(id) {
@@ -1513,9 +1571,9 @@ var Wizard = class {
       }
       this._ctx.lock = null;
       this._lock.destroy();
-      this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
       this._ctx.reservation = reservation ?? null;
+      this._machine.transition(STATES.CONFIRMED);
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {
@@ -1874,11 +1932,11 @@ var Renderer = class {
       const id = Number(el.getAttribute("data-booked-id"));
       if (Number.isInteger(id)) this._wizard.selectService(id);
     });
-    bind("click", '[data-booked-action="select-location"]', (e, el) => {
+    bind("click", '[data-booked-action="select-location"]', async (e, el) => {
       e.preventDefault();
       const id = Number(el.getAttribute("data-booked-id"));
       if (Number.isInteger(id)) {
-        this._wizard.selectLocation(id);
+        await this._wizard.selectLocation(id);
         this._updateActiveStep();
       }
     });
@@ -2828,6 +2886,37 @@ var eventDateStep = {
       if (inc && region.contains(inc)) adjust(1);
       else if (dec && region.contains(dec)) adjust(-1);
     });
+    delegate(region, "click", '[data-booked-action="waitlist-event"]', (event, el) => {
+      event.preventDefault();
+      const id = Number(el.getAttribute("data-booked-id"));
+      if (!Number.isInteger(id)) return;
+      s.waitlistEventId = id;
+      const wl = qs("[data-booked-waitlist]", region);
+      if (!wl) return;
+      setText(qs("[data-booked-waitlist-event]", region), el.querySelector('[data-booked-field="title"]')?.textContent ?? "");
+      setHidden(qs("[data-booked-waitlist-form]", region), false);
+      setHidden(qs("[data-booked-waitlist-success]", region), true);
+      setHidden(wl, false);
+      qs('[data-booked-waitlist] [data-booked-field="name"]', region)?.focus();
+    });
+    delegate(region, "click", '[data-booked-action="join-waitlist"]', async (event) => {
+      event.preventDefault();
+      if (s.waitlistEventId == null) return;
+      const val = (f) => {
+        const el = qs(`[data-booked-waitlist] [data-booked-field="${f}"]`, region);
+        return el ? el.value : "";
+      };
+      const res = await wizard.joinWaitlist({
+        eventDateId: s.waitlistEventId,
+        userName: val("name"),
+        userEmail: val("email"),
+        userPhone: val("phone")
+      });
+      if (res && res.ok) {
+        setHidden(qs("[data-booked-waitlist-form]", region), true);
+        setHidden(qs("[data-booked-waitlist-success]", region), false);
+      }
+    });
     wizard.loadEventDates().then(() => this.render(region, wizard));
   },
   render(region, wizard) {
@@ -2845,13 +2934,17 @@ var eventDateStep = {
       if (card) {
         card.setAttribute("data-booked-id", String(event.id));
         card.setAttribute("aria-pressed", "false");
-        if (event.isFullyBooked) card.setAttribute("aria-disabled", "true");
+        if (event.isFullyBooked) {
+          card.setAttribute("data-booked-action", "waitlist-event");
+          card.setAttribute("data-booked-soldout", "true");
+        }
       }
       setText(frag.querySelector('[data-booked-field="title"]'), event.title);
       setText(frag.querySelector('[data-booked-field="date"]'), event.formattedDate ?? event.date);
       setText(frag.querySelector('[data-booked-field="time"]'), event.formattedTimeRange ?? event.startTime);
       setText(frag.querySelector('[data-booked-field="capacity"]'), event.remainingCapacity);
       setText(frag.querySelector('[data-booked-field="price"]'), formatPrice(event.price, currencySymbol));
+      setHidden(frag.querySelector("[data-booked-waitlist-hint]"), !event.isFullyBooked);
       list2.appendChild(frag);
     }
     for (const card of qsa('[data-booked-action="select-event"]', region)) {
@@ -2969,7 +3062,7 @@ var reviewStep = {
     setRow(region, "extras-total", context.extrasTotal > 0 ? formatPrice(context.extrasTotal, currencySymbol) : "");
     setRow(region, "customer-name", context.customer?.name ?? "");
     setRow(region, "customer-email", context.customer?.email ?? "");
-    setRow(region, "total", formatPrice(context.totalPrice, currencySymbol));
+    setRow(region, "total", context.totalPrice > 0 ? formatPrice(context.totalPrice, currencySymbol) : "");
     const paymentNotice = qs("[data-booked-payment-notice]", region);
     if (paymentNotice) setHidden(paymentNotice, !context.requiresPayment);
   }

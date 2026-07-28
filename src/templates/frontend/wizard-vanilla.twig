@@ -87,6 +87,10 @@
         paymentMode: settings.getPaymentMode(),
     },
     serviceId: serviceId ?? null,
+    locationId: locationId ?? craft.app.request.getParam('locationId'),
+    employeeId: employeeId ?? craft.app.request.getParam('employeeId'),
+    date: date ?? craft.app.request.getParam('date'),
+    time: time ?? craft.app.request.getParam('time'),
     conversionToken: craft.app.request.getParam('conversionToken') ?? craft.app.request.getParam('waitlist'),
     captcha: captchaEnabled ? {
         provider: captchaProvider,
@@ -225,9 +229,9 @@
     <section data-booked-step="review" hidden>
         <h2 data-booked-step-heading>{{ labels.confirmBooking }}</h2>
         <dl class="booked-summary">
-            <dt>{{ labels.selectService }}</dt><dd data-booked-summary="service"></dd>
-            <dt>{{ 'wizard.selectEmployee'|t('booked') }}</dt><dd data-booked-summary="employee"></dd>
-            <dt>{{ 'wizard.selectLocation'|t('booked') }}</dt><dd data-booked-summary="location"></dd>
+            <dt>{{ 'labels.service'|t('booked') }}</dt><dd data-booked-summary="service"></dd>
+            <dt>{{ 'labels.employee'|t('booked') }}</dt><dd data-booked-summary="employee"></dd>
+            <dt>{{ 'labels.location'|t('booked') }}</dt><dd data-booked-summary="location"></dd>
             <dt>{{ 'labels.date'|t('booked') }}</dt><dd data-booked-summary="date"></dd>
             <dt>{{ 'labels.time'|t('booked') }}</dt><dd data-booked-summary="time"></dd>
             <dt>{{ 'labels.dateRange'|t('booked') }}</dt><dd data-booked-summary="date-range"></dd>

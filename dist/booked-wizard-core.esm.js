@@ -268,6 +268,8 @@ var Context = class {
     this.selectedLocation = initial.selectedLocation ?? null;
     this.employeeId = initial.employeeId ?? null;
     this.selectedEmployee = initial.selectedEmployee ?? null;
+    this.servicePreselected = initial.servicePreselected ?? false;
+    this.locationPreselected = initial.locationPreselected ?? false;
     this.services = initial.services ?? [];
     this.extras = initial.extras ?? [];
     this.locations = initial.locations ?? [];
@@ -385,6 +387,8 @@ var Context = class {
       selectedLocation: this.selectedLocation,
       employeeId: this.employeeId,
       selectedEmployee: this.selectedEmployee,
+      servicePreselected: this.servicePreselected,
+      locationPreselected: this.locationPreselected,
       // Data lists the renderer needs to populate step content.
       services: this.services,
       extras: this.extras,
@@ -943,9 +947,9 @@ function canLeaveStep(stepId, ctx, opts = {}) {
 var bookingFlow = {
   id: "booking",
   steps: [
-    { id: "service", visible: (ctx) => !(Array.isArray(ctx.services) && ctx.services.length === 1) },
+    { id: "service", visible: (ctx) => !(ctx.servicePreselected || Array.isArray(ctx.services) && ctx.services.length === 1) },
     { id: "extras", visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
-    { id: "location", visible: (ctx) => Array.isArray(ctx.locations) && ctx.locations.length > 1 },
+    { id: "location", visible: (ctx) => !ctx.locationPreselected && Array.isArray(ctx.locations) && ctx.locations.length > 1 },
     { id: "employee", visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 1 },
     { id: "datetime", visible: () => true },
     { id: "info", visible: () => true },
@@ -1075,10 +1079,12 @@ var Wizard = class {
       this._emitter.emit("data:loaded", { kind: "services", items: this._ctx.services });
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
+        this._ctx.servicePreselected = true;
       } else if (this._flow.id === "booking" && this._ctx.services.length === 1) {
         await this._loadServiceData(this._ctx.services[0].id);
       }
       this._flow.reset();
+      await this._applyDeepLinks();
       const conversionToken = this._options.conversionToken;
       if (conversionToken) {
         await this._applyConversion(conversionToken);
@@ -1123,6 +1129,40 @@ var Wizard = class {
     this._flow.setContext(this._ctx);
     this._flow.goTo("datetime");
     this._emitter.emit("conversion:loaded", { entry });
+  }
+  /**
+   * Apply integrator deep-link prefills (config). A preselected location scopes
+   * the employees and skips the location step; a preselected date opens the
+   * calendar on that day (the customer still confirms the slot, which acquires
+   * the lock — a link never carries a lock in). Only booking-flow selections a
+   * loaded service actually offers are honored.
+   */
+  async _applyDeepLinks() {
+    const opts = this._options;
+    if (this._flow.id !== "booking") return;
+    const locationId = opts.locationId != null ? Number(opts.locationId) : null;
+    if (locationId != null && this._ctx.locations.some((l) => l.id === locationId)) {
+      await this.selectLocation(locationId);
+      this._ctx.locationPreselected = true;
+    }
+    const employeeId = opts.employeeId != null ? Number(opts.employeeId) : null;
+    if (employeeId != null && this._ctx.employees.some((e) => e.id === employeeId)) {
+      this._ctx.employeeId = employeeId;
+      this._ctx.selectedEmployee = this._ctx.employees.find((e) => e.id === employeeId) ?? null;
+    }
+    if (opts.date) {
+      this._ctx.date = String(opts.date);
+      if (opts.time) this._ctx.time = String(opts.time);
+    }
+    this._flow.setContext(this._ctx);
+    if (opts.date) {
+      this._flow.goTo("datetime");
+    } else if (locationId != null || employeeId != null) {
+      this._flow.reset();
+    }
+    if (locationId != null || employeeId != null || opts.date) {
+      this._emitter.emit("deeplink:loaded", { locationId, employeeId, date: this._ctx.date, time: this._ctx.time });
+    }
   }
   _applyCommerce(payload) {
     this._ctx.commerce = {
@@ -1180,9 +1220,27 @@ var Wizard = class {
     this._flow.setContext(this._ctx);
     return this.getState();
   }
-  selectLocation(id) {
+  async selectLocation(id) {
     this._ctx.locationId = id;
     this._ctx.selectedLocation = this._ctx.locations.find((l) => l.id === id) ?? null;
+    if (this._ctx.serviceId != null) {
+      let employees;
+      try {
+        employees = await this._api.employees(this._ctx.serviceId, { locationId: id });
+      } catch (err) {
+        if (!(err && err.aborted)) this._toError(err);
+        return this.getState();
+      }
+      this._ctx.employees = list(employees, "employees");
+      this._ctx.employeeId = null;
+      this._ctx.selectedEmployee = null;
+      if (this._ctx.employees.length === 1) {
+        this._ctx.selectedEmployee = this._ctx.employees[0];
+        this._ctx.employeeId = this._ctx.employees[0].id;
+      }
+      this._flow.setContext(this._ctx);
+      this._emitter.emit("data:loaded", { kind: "location", items: { employees: this._ctx.employees } });
+    }
     return this.getState();
   }
   selectEmployee(id) {
@@ -1520,9 +1578,9 @@ var Wizard = class {
       }
       this._ctx.lock = null;
       this._lock.destroy();
-      this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
       this._ctx.reservation = reservation ?? null;
+      this._machine.transition(STATES.CONFIRMED);
       this._emitter.emit("booking:confirmed", { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {

@@ -75,6 +75,70 @@ describe('locationStep', () => {
     expect(region.querySelector('[data-booked-id="8"]').getAttribute('aria-pressed')).toBe('true');
     expect(region.querySelector('[data-booked-id="7"]').getAttribute('aria-pressed')).toBe('false');
   });
+
+  it('re-fetches employees scoped to the chosen location, dropping non-matching staff', async () => {
+    const employees = vi.fn(async (serviceId, query) =>
+      query?.locationId === 8
+        ? { employees: [{ id: 2, name: 'Grace' }], locations: [{ id: 7 }, { id: 8 }], serviceHasSchedule: false }
+        : {
+            employees: [
+              { id: 1, name: 'Ada' },
+              { id: 2, name: 'Grace' },
+            ],
+            locations: [{ id: 7 }, { id: 8 }],
+            serviceHasSchedule: false,
+          }
+    );
+    const wizard = await startedWizard({ employees });
+    expect(wizard.getState().context.employees.map((e) => e.id)).toEqual([1, 2]);
+
+    await wizard.selectLocation(8);
+
+    // Employees were re-fetched with the location filter, and only Uptown staff remain.
+    expect(employees).toHaveBeenLastCalledWith(12, { locationId: 8 });
+    const ctx = wizard.getState().context;
+    expect(ctx.employees.map((e) => e.id)).toEqual([2]);
+    expect(ctx.employeeId).toBe(2); // lone remaining option is auto-selected
+  });
+});
+
+describe('deep links', () => {
+  it('a preselected serviceId skips the service step even with several services', async () => {
+    const wizard = new Wizard({ apiClient: fakeApi(), flow: 'booking', serviceId: 13 });
+    await wizard.start();
+    const ctx = wizard.getState().context;
+    expect(ctx.servicePreselected).toBe(true);
+    expect(ctx.serviceId).toBe(13);
+    expect(wizard.stepId).not.toBe('service');
+  });
+
+  it('a preselected locationId skips the location step and scopes employees', async () => {
+    const employees = vi.fn(async (serviceId, query) =>
+      query?.locationId === 8
+        ? { employees: [{ id: 2, name: 'Grace' }], locations: [{ id: 7 }, { id: 8 }], serviceHasSchedule: false }
+        : {
+            employees: [
+              { id: 1, name: 'Ada' },
+              { id: 2, name: 'Grace' },
+            ],
+            locations: [{ id: 7 }, { id: 8 }],
+            serviceHasSchedule: false,
+          }
+    );
+    const wizard = new Wizard({
+      apiClient: fakeApi({ employees, serviceExtras: vi.fn(async () => ({ extras: [] })) }),
+      flow: 'booking',
+      serviceId: 12,
+      locationId: 8,
+    });
+    await wizard.start();
+    const ctx = wizard.getState().context;
+    expect(ctx.locationPreselected).toBe(true);
+    expect(ctx.locationId).toBe(8);
+    expect(ctx.employeeId).toBe(2); // scoped employees → lone option auto-selected
+    // service + location preselected, employee auto-selected → opens on the calendar.
+    expect(wizard.stepId).toBe('datetime');
+  });
 });
 
 describe('employeeStep', () => {

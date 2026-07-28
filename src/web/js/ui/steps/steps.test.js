@@ -184,6 +184,29 @@ describe('reviewStep', () => {
     expect(region.querySelector('[data-booked-summary="total"]').hidden).toBe(false);
   });
 
+  it('hides the total row (and its label) when the service has no price', async () => {
+    document.body.innerHTML = `
+      <section>
+        <dl>
+          <dt data-dt="total">Total</dt><dd data-booked-summary="total"></dd>
+        </dl>
+      </section>`;
+    const region = document.body.firstElementChild;
+    const wizard = await startedWizard({
+      services: vi.fn(async () => ({
+        services: [{ id: 12, title: 'Free Consult', price: 0, duration: 30, durationType: 'minutes' }],
+      })),
+    });
+    await wizard.selectService(12);
+    wizard.goNext();
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    reviewStep.render(region, wizard);
+
+    // A free service must not show a "0.00" total row.
+    expect(region.querySelector('[data-booked-summary="total"]').hidden).toBe(true);
+    expect(region.querySelector('[data-dt="total"]').hidden).toBe(true);
+  });
+
   it('keeps the payment notice hidden when no payment is required', async () => {
     document.body.innerHTML = REGION;
     const region = document.body.firstElementChild;

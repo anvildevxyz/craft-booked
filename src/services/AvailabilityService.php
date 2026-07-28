@@ -285,6 +285,11 @@ class AvailabilityService extends Component
         $servicesById = !empty($serviceIds) ? Service::find()->siteId('*')->id($serviceIds)->indexBy('id')->all() : [];
 
         foreach ($bookings as $booking) {
+            // Timeless bookings (whole-day/flexible-day services) don't block a
+            // timed window and have no start/end time to subtract.
+            if ($booking->startTime === null || $booking->endTime === null) {
+                continue;
+            }
             $bookingService = $booking->serviceId ? ($servicesById[$booking->serviceId] ?? null) : null;
             $blockedStart = $this->timeWindowService->addMinutes($booking->startTime, -($bookingService?->bufferBefore ?? 0));
             $blockedEnd = $this->timeWindowService->addMinutes($booking->endTime, $bookingService?->bufferAfter ?? 0);
@@ -304,6 +309,11 @@ class AvailabilityService extends Component
         $bufferAfter = $service->bufferAfter ?? 0;
 
         foreach ($bookings as $booking) {
+            // Timeless bookings (whole-day/flexible-day services) don't block a
+            // timed window and have no start/end time to subtract.
+            if ($booking->startTime === null || $booking->endTime === null) {
+                continue;
+            }
             $blockedStart = $this->timeWindowService->addMinutes($booking->startTime, -$bufferBefore);
             $blockedEnd = $this->timeWindowService->addMinutes($booking->endTime, $bufferAfter);
             $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
@@ -563,6 +573,30 @@ class AvailabilityService extends Component
         return false;
     }
 
+    /**
+     * Total quantity held by active soft locks overlapping a slot (matching
+     * employee/location), so a multi-capacity slot only loses the held seats
+     * instead of disappearing on the first hold.
+     *
+     * @param array $locks Pre-loaded active soft lock records
+     */
+    private function sumLockedQuantity(array $locks, string $startTime, string $endTime, ?int $employeeId, ?int $locationId): int
+    {
+        $total = 0;
+        foreach ($locks as $lock) {
+            if ($employeeId !== null && $lock->employeeId !== null && $lock->employeeId !== $employeeId) {
+                continue;
+            }
+            if ($locationId !== null && $lock->locationId !== null && $lock->locationId !== $locationId) {
+                continue;
+            }
+            if ($lock->startTime < $endTime && $lock->endTime > $startTime) {
+                $total += max(1, (int) ($lock->quantity ?? 1));
+            }
+        }
+        return $total;
+    }
+
     protected function filterPastSlots(array $slots, string $date, ?int $serviceId = null, ?Service $service = null, ?string $timezone = null): array
     {
         // Use the slot/employee timezone when available to avoid filtering
@@ -620,14 +654,39 @@ class AvailabilityService extends Component
             return $slots;
         }
 
-        return array_values(array_filter($slots, function($slot) use ($locks, $locationId) {
+        $result = [];
+        foreach ($slots as $slot) {
             $startTime = $slot['time'] ?? null;
             $endTime = $slot['endTime'] ?? null;
             if ($startTime === null || $endTime === null) {
-                return false;
+                continue;
             }
-            return !$this->isSlotLockedByRecords($locks, $startTime, $endTime, $slot['employeeId'] ?? null, $slot['locationId'] ?? $locationId);
-        }));
+            $employeeId = $slot['employeeId'] ?? null;
+            $slotLocationId = $slot['locationId'] ?? $locationId;
+
+            // Multi-capacity (group) slots: a soft lock holds a number of seats,
+            // not the whole slot. Decrement the remaining capacity by the held
+            // quantity and keep the slot while seats are still free. Single-
+            // capacity, per-employee and unlimited slots keep the original
+            // all-or-nothing hold.
+            $capacity = $slot['availableCapacity'] ?? null;
+            if (is_int($capacity) && $capacity > 1) {
+                $held = $this->sumLockedQuantity($locks, $startTime, $endTime, $employeeId, $slotLocationId);
+                $remaining = $capacity - $held;
+                if ($remaining <= 0) {
+                    continue;
+                }
+                $slot['availableCapacity'] = $remaining;
+                $result[] = $slot;
+                continue;
+            }
+
+            if (!$this->isSlotLockedByRecords($locks, $startTime, $endTime, $employeeId, $slotLocationId)) {
+                $result[] = $slot;
+            }
+        }
+
+        return array_values($result);
     }
 
     /**
@@ -657,6 +716,12 @@ class AvailabilityService extends Component
         $reservations = $preloadedReservations ?? $this->getReservationsForDate($date, null, $serviceId);
         $reservationsByEmployee = [];
         foreach ($reservations as $reservation) {
+            // Timeless bookings (whole-day services, events) can't overlap a timed
+            // slot; skip them so the time-overlap math below never receives a null
+            // start/end (preloaded reservations may span other services).
+            if ($reservation->startTime === null || $reservation->endTime === null) {
+                continue;
+            }
             $reservationsByEmployee[$reservation->employeeId][] = [
                 'start' => $reservation->startTime,
                 'end' => $reservation->endTime,

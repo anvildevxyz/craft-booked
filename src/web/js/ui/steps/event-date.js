@@ -11,7 +11,7 @@
  * revealed (bounded by `remainingCapacity`) and re-selects the event at the new
  * count — parity with the legacy wizard's multi-seat event booking.
  */
-import { qs, qsa, cloneTemplate, setText, setHidden } from '../dom.js';
+import { qs, qsa, cloneTemplate, setText, setHidden, delegate } from '../dom.js';
 import { formatPrice } from '../format.js';
 
 const state = new WeakMap();
@@ -39,6 +39,41 @@ export const eventDateStep = {
       else if (dec && region.contains(dec)) adjust(-1);
     });
 
+    // Sold-out events offer a waitlist instead of a dead end: clicking one reveals
+    // the shared waitlist form, scoped to that event date.
+    delegate(region, 'click', '[data-booked-action="waitlist-event"]', (event, el) => {
+      event.preventDefault();
+      const id = Number(el.getAttribute('data-booked-id'));
+      if (!Number.isInteger(id)) return;
+      s.waitlistEventId = id;
+      const wl = qs('[data-booked-waitlist]', region);
+      if (!wl) return;
+      setText(qs('[data-booked-waitlist-event]', region), el.querySelector('[data-booked-field="title"]')?.textContent ?? '');
+      setHidden(qs('[data-booked-waitlist-form]', region), false);
+      setHidden(qs('[data-booked-waitlist-success]', region), true);
+      setHidden(wl, false);
+      qs('[data-booked-waitlist] [data-booked-field="name"]', region)?.focus();
+    });
+
+    delegate(region, 'click', '[data-booked-action="join-waitlist"]', async (event) => {
+      event.preventDefault();
+      if (s.waitlistEventId == null) return;
+      const val = (f) => {
+        const el = qs(`[data-booked-waitlist] [data-booked-field="${f}"]`, region);
+        return el ? el.value : '';
+      };
+      const res = await wizard.joinWaitlist({
+        eventDateId: s.waitlistEventId,
+        userName: val('name'),
+        userEmail: val('email'),
+        userPhone: val('phone'),
+      });
+      if (res && res.ok) {
+        setHidden(qs('[data-booked-waitlist-form]', region), true);
+        setHidden(qs('[data-booked-waitlist-success]', region), false);
+      }
+    });
+
     // Load the event dates once the step first mounts.
     wizard.loadEventDates().then(() => this.render(region, wizard));
   },
@@ -59,13 +94,18 @@ export const eventDateStep = {
       if (card) {
         card.setAttribute('data-booked-id', String(event.id));
         card.setAttribute('aria-pressed', 'false');
-        if (event.isFullyBooked) card.setAttribute('aria-disabled', 'true');
+        if (event.isFullyBooked) {
+          // Sold out: not bookable, but offers the waitlist via its own action.
+          card.setAttribute('data-booked-action', 'waitlist-event');
+          card.setAttribute('data-booked-soldout', 'true');
+        }
       }
       setText(frag.querySelector('[data-booked-field="title"]'), event.title);
       setText(frag.querySelector('[data-booked-field="date"]'), event.formattedDate ?? event.date);
       setText(frag.querySelector('[data-booked-field="time"]'), event.formattedTimeRange ?? event.startTime);
       setText(frag.querySelector('[data-booked-field="capacity"]'), event.remainingCapacity);
       setText(frag.querySelector('[data-booked-field="price"]'), formatPrice(event.price, currencySymbol));
+      setHidden(frag.querySelector('[data-booked-waitlist-hint]'), !event.isFullyBooked);
       list.appendChild(frag);
     }
 

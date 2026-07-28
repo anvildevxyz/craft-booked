@@ -186,11 +186,11 @@ export class Renderer {
       const id = Number(el.getAttribute('data-booked-id'));
       if (Number.isInteger(id)) this._wizard.selectService(id);
     });
-    bind('click', '[data-booked-action="select-location"]', (e, el) => {
+    bind('click', '[data-booked-action="select-location"]', async (e, el) => {
       e.preventDefault();
       const id = Number(el.getAttribute('data-booked-id'));
       if (Number.isInteger(id)) {
-        this._wizard.selectLocation(id);
+        await this._wizard.selectLocation(id);
         this._updateActiveStep();
       }
     });

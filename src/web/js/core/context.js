@@ -18,6 +18,10 @@ export class Context {
     this.selectedLocation = initial.selectedLocation ?? null;
     this.employeeId = initial.employeeId ?? null;
     this.selectedEmployee = initial.selectedEmployee ?? null;
+    // Set when the integrator preselected the service/location (deep link /
+    // config), so that step is skipped even when several options exist.
+    this.servicePreselected = initial.servicePreselected ?? false;
+    this.locationPreselected = initial.locationPreselected ?? false;
 
     // Data lists (drive flow visibility predicates)
     this.services = initial.services ?? [];
@@ -171,6 +175,8 @@ export class Context {
       selectedLocation: this.selectedLocation,
       employeeId: this.employeeId,
       selectedEmployee: this.selectedEmployee,
+      servicePreselected: this.servicePreselected,
+      locationPreselected: this.locationPreselected,
       // Data lists the renderer needs to populate step content.
       services: this.services,
       extras: this.extras,
