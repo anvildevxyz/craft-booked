@@ -39,10 +39,10 @@ class PaymentService extends Component
      */
     public function createForReservation(ReservationInterface $reservation, PaymentGatewayInterface $gateway): array
     {
-        $settings = Booked::getInstance()->getSettings();
-        $currency = $settings->defaultCurrency && $settings->defaultCurrency !== 'auto'
-            ? $settings->defaultCurrency
-            : 'USD';
+        // One currency resolver for the whole payment lifecycle: the stored
+        // record.currency must match what reporting aggregates and what refunds
+        // convert with. `getCurrency()` resolves `auto` → Commerce primary → USD.
+        $currency = Booked::getInstance()->getReports()->getCurrency();
         $amount = self::toMinorUnits($reservation->getTotalPrice(), $currency);
 
         $context = new PaymentContext(

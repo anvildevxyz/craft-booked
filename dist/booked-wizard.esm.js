@@ -3033,24 +3033,22 @@ function loadStripeJs(win) {
   if (w.Stripe) return Promise.resolve(w.Stripe);
   if (stripeJsPromise) return stripeJsPromise;
   stripeJsPromise = new Promise((resolve, reject) => {
+    let script = w.document.querySelector("script[data-booked-stripe-js]");
+    if (!script) {
+      script = w.document.createElement("script");
+      script.src = STRIPE_JS_SRC;
+      script.async = true;
+      script.setAttribute("data-booked-stripe-js", "");
+      (w.document.head || w.document.body).appendChild(script);
+    }
     const finish = () => w.Stripe ? resolve(w.Stripe) : reject(new Error("Stripe.js loaded without a global"));
     const fail = () => {
+      script.remove();
       stripeJsPromise = null;
       reject(new Error("Stripe.js failed to load"));
     };
-    const existing = w.document.querySelector("script[data-booked-stripe-js]");
-    if (existing) {
-      existing.addEventListener("load", finish);
-      existing.addEventListener("error", fail);
-      return;
-    }
-    const script = w.document.createElement("script");
-    script.src = STRIPE_JS_SRC;
-    script.async = true;
-    script.setAttribute("data-booked-stripe-js", "");
     script.addEventListener("load", finish);
     script.addEventListener("error", fail);
-    (w.document.head || w.document.body).appendChild(script);
   });
   return stripeJsPromise;
 }

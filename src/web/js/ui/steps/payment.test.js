@@ -61,6 +61,30 @@ describe('loadStripeJs', () => {
   it('rejects when handed something that is not a browser window', async () => {
     await expect(loadStripeJs({})).rejects.toThrow(/browser/);
   });
+
+  it('removes a failed Stripe.js <script> so a later load can retry', async () => {
+    delete window.Stripe;
+    document.querySelectorAll('script[data-booked-stripe-js]').forEach((s) => s.remove());
+
+    // First load fails — the dead script must be removed (not left to hang retries).
+    const p1 = loadStripeJs(window);
+    const s1 = document.querySelector('script[data-booked-stripe-js]');
+    expect(s1).not.toBeNull();
+    s1.dispatchEvent(new Event('error'));
+    await expect(p1).rejects.toThrow(/failed to load/);
+    expect(document.querySelector('script[data-booked-stripe-js]')).toBeNull();
+
+    // Retry starts a fresh script and can succeed.
+    const ctor = () => ({});
+    const p2 = loadStripeJs(window);
+    const s2 = document.querySelector('script[data-booked-stripe-js]');
+    expect(s2).not.toBeNull();
+    window.Stripe = ctor;
+    s2.dispatchEvent(new Event('load'));
+    await expect(p2).resolves.toBe(ctor);
+    delete window.Stripe;
+    s2.remove();
+  });
 });
 
 describe('createPaymentStep — mount', () => {

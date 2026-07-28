@@ -18,6 +18,9 @@
   - Refund reconciliation from webhooks is monotonic — an out-of-order `charge.refunded` can no longer revert a full refund to partial.
   - Checkout UI: a transient confirm-poll error after the card was charged no longer re-enables "Pay" (which invited a double charge); and the soft-lock timer is stopped on entering payment so it can't expire mid-checkout and strand a paid booking.
 - Removed stale "requires Pro edition" wording from SMS/reminder/calendar log messages left over from the edition removal.
+- **Payment currency consistency:** the payment record, revenue reporting, and refunds now all resolve currency the same way (`auto` → Commerce primary → USD) instead of `createForReservation` forcing USD; direct-mode revenue sums within one currency; a CP refund converts using the payment's own stored currency.
+- **Payment-lockout fix:** the per-reservation `payment/create` throttle now counts only after the confirmation-token check, so a bogus-token probe against an enumerable reservation id can't lock the real customer out.
+- **Checkout resilience:** a failed Stripe.js load now removes its `<script>` so a later attempt can retry instead of hanging.
 
 ## 1.4.0 - 2026-07-27
 
