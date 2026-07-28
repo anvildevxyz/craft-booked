@@ -115,21 +115,22 @@ class PaymentController extends Controller
         $reservationId = (int) $request->getRequiredBodyParam('reservationId');
         $token = (string) $request->getRequiredBodyParam('token');
 
-        // Second, tighter bucket keyed by the reservation itself (IP-independent):
-        // blunts token-guessing that rotates IPs to hammer a single reservation.
-        // `checkRateLimit` folds the IP into its key, so count directly here.
+        $reservation = ReservationFactory::findById($reservationId);
+        if (!$reservation || !hash_equals($reservation->getConfirmationToken(), $token)) {
+            Booked::getInstance()->getAudit()->logAuthFailure('invalid_payment_token', ['reservationId' => $reservationId]);
+            return $this->jsonError(Craft::t('booked', 'booking.unauthorized'), statusCode: 403);
+        }
+
+        // Per-reservation bucket (IP-independent), counted ONLY after the token
+        // check passes — so a bogus-token probe against an enumerable reservation
+        // id can't fill a victim's bucket and lock the real customer out. The
+        // unguessable confirmation token means only that customer reaches here.
         $resThrottleKey = "booked_payment_create_res_{$reservationId}";
         $resAttempts = (int) (Craft::$app->getCache()->get($resThrottleKey) ?: 0);
         if ($resAttempts >= self::PAYMENT_CREATE_PER_RESERVATION_LIMIT) {
             return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
         }
         Craft::$app->getCache()->set($resThrottleKey, $resAttempts + 1, 60);
-
-        $reservation = ReservationFactory::findById($reservationId);
-        if (!$reservation || !hash_equals($reservation->getConfirmationToken(), $token)) {
-            Booked::getInstance()->getAudit()->logAuthFailure('invalid_payment_token', ['reservationId' => $reservationId]);
-            return $this->jsonError(Craft::t('booked', 'booking.unauthorized'), statusCode: 403);
-        }
 
         $gateway = Booked::getInstance()->getPaymentGateways()->getGateway('stripe');
         if (!$gateway) {

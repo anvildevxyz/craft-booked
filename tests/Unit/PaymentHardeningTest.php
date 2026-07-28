@@ -64,4 +64,39 @@ class PaymentHardeningTest extends TestCase
         $src = self::src('anvildev\booked\gateways\StripeGateway', 'refund');
         $this->assertStringContainsString("'booked_re_' . \$payment->id . '_' . (int) (\$payment->refundedAmount ?? 0) . '_' . \$amount", $src);
     }
+
+    // ---- Medium: currency consistency + throttle lockout ----------------
+
+    /** The stored payment currency uses the shared resolver, not a forced USD. */
+    public function testCreatePaymentUsesSharedCurrencyResolver(): void
+    {
+        $src = self::src('anvildev\booked\services\PaymentService', 'createForReservation');
+        $this->assertStringContainsString('getReports()->getCurrency()', $src);
+        $this->assertStringNotContainsString("'USD'", $src);
+    }
+
+    /** Direct-revenue is summed within one currency, not across mixed rows. */
+    public function testRevenueSumIsFilteredToOneCurrency(): void
+    {
+        $src = self::src('anvildev\booked\services\ReportsService', 'aggregateDirectPaymentsSum');
+        $this->assertStringContainsString("'p.currency' => \$currency", $src);
+    }
+
+    /** A CP refund converts with the payment's own currency, not the install one. */
+    public function testRefundConvertsWithPaymentCurrency(): void
+    {
+        $src = self::src('anvildev\booked\controllers\cp\BookingsController', 'actionRefund');
+        $this->assertStringContainsString('$record?->currency', $src);
+    }
+
+    /** The per-reservation throttle only counts token-authenticated attempts. */
+    public function testPaymentThrottleCountsAfterTokenCheck(): void
+    {
+        $src = self::src('anvildev\booked\controllers\PaymentController', 'actionCreate');
+        $authPos = strpos($src, 'hash_equals');
+        $throttlePos = strpos($src, 'booked_payment_create_res_');
+        $this->assertNotFalse($authPos);
+        $this->assertNotFalse($throttlePos);
+        $this->assertLessThan($throttlePos, $authPos, 'the per-reservation throttle must be counted AFTER the token check');
+    }
 }

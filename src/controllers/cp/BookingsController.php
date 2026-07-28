@@ -294,7 +294,14 @@ class BookingsController extends Controller
         $amountParam = $request->getBodyParam('amount');
         $amountMinor = null;
         if ($amountParam !== null && $amountParam !== '') {
-            $currency = Booked::getInstance()->reports->getCurrency();
+            // Convert with the payment's OWN currency (what the panel rendered),
+            // not the install currency — they can differ for historical payments.
+            /** @var PaymentRecord|null $record */
+            $record = PaymentRecord::find()
+                ->where(['reservationId' => $reservation->getId()])
+                ->orderBy(['dateCreated' => SORT_DESC])
+                ->one();
+            $currency = $record?->currency ?: Booked::getInstance()->reports->getCurrency();
             $amountMinor = PaymentService::toMinorUnits((float) $amountParam, $currency);
         }
 
