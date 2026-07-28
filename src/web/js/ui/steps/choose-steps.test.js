@@ -8,7 +8,14 @@ import { extrasStep } from './extras.js';
 function fakeApi(overrides = {}) {
   return {
     commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
-    services: vi.fn(async () => ({ services: [{ id: 12, name: 'Cut', price: 40, durationType: 'minutes' }] })),
+    // Two services keep the service step visible; the lone-service auto-skip
+    // is covered in core/wizard.test.js.
+    services: vi.fn(async () => ({
+      services: [
+        { id: 12, name: 'Cut', price: 40, durationType: 'minutes' },
+        { id: 13, name: 'Shave', price: 25, durationType: 'minutes' },
+      ],
+    })),
     serviceExtras: vi.fn(async () => ({ extras: [{ id: 5, name: 'Wash', price: 10, duration: 10 }] })),
     employees: vi.fn(async () => ({
       employees: [

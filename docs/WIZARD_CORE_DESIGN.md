@@ -120,10 +120,10 @@ The step order and skip rules become **data**, eliminating the forward/back dupl
 export const bookingFlow = {
   id: 'booking',
   steps: [
-    { id: 'service',   visible: () => true },
+    { id: 'service',   visible: ctx => ctx.services.length !== 1 },
     { id: 'extras',    visible: ctx => ctx.extras.length > 0 },
     { id: 'location',  visible: ctx => ctx.locations.length > 1 },
-    { id: 'employee',  visible: ctx => ctx.employees.length > 0 && !ctx.serviceHasSchedule },
+    { id: 'employee',  visible: ctx => ctx.employees.length > 1 },
     { id: 'datetime',  visible: () => true },
     { id: 'info',      visible: () => true },
     { id: 'review',    visible: () => true },
@@ -132,7 +132,7 @@ export const bookingFlow = {
 };
 ```
 
-`goNext()` / `goBack()` walk to the next/previous step whose `visible(ctx)` is true — a **single source of truth** for both directions. Auto-selection side effects (single location/employee) are handled by the data-load steps setting context, not by the navigation logic. This retires `getPreviousStep()` (the reverse state machine) and the `querySelector('[x-show*="step === 5"]')` focus hack.
+A step is visible only when it offers a real choice, so a one-service/one-employee setup opens directly on the calendar. `goNext()` / `goBack()` walk to the next/previous step whose `visible(ctx)` is true — a **single source of truth** for both directions. Auto-selection side effects (single service/location/employee) are handled by `start()` and the data-load steps setting context, not by the navigation logic. This retires `getPreviousStep()` (the reverse state machine) and the `querySelector('[x-show*="step === 5"]')` focus hack.
 
 Event flow (`flows/event.js`): steps `event → info → review`; management mode is a distinct entry that skips the booking flow entirely (see §3.4).
 

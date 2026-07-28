@@ -156,7 +156,16 @@ export class Wizard {
 
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
+      } else if (this._flow.id === 'booking' && this._ctx.services.length === 1) {
+        // A lone service is auto-selected so its step can be skipped, the same
+        // way a lone location/employee is handled in _loadServiceData(). Event
+        // bookings carry no service, so the event flow is left alone.
+        await this._loadServiceData(this._ctx.services[0].id);
       }
+
+      // The cursor was seeded before any of the above resolved, so it can still
+      // sit on a step the loaded selections just made invisible.
+      this._flow.reset();
 
       // Waitlist conversion: a "your slot is open" link prefills who/what.
       const conversionToken = this._options.conversionToken;

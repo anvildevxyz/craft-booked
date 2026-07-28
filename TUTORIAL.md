@@ -95,7 +95,18 @@ Create `templates/book.twig`:
 {% endblock %}
 ```
 
-The wizard automatically handles service selection, extras (optional add-ons), employee selection, date/time picking, and form submission. Steps are auto-skipped when irrelevant (e.g., no extras configured, single location).
+The wizard automatically handles service selection, extras (optional add-ons), employee selection, date/time picking, and form submission.
+
+A step is only shown when it offers a real choice, so it is skipped when:
+
+| Step | Skipped when |
+| --- | --- |
+| Service | Exactly one service exists (it is selected automatically) |
+| Extras | The selected service has no add-ons |
+| Location | Zero or one location serves the service |
+| Employee | Zero or one employee offers the service |
+
+With one service, one location and one employee, the wizard opens directly on the calendar. Auto-selected values still appear on the review step, so the customer confirms them before booking.
 
 ### Option B: Build a Custom Form
 

@@ -42,20 +42,27 @@ describe('Flow — booking step cursor', () => {
     expect(f.next()).toBe('location');
   });
 
-  it('shows employee when employees exist and the service has no own schedule', () => {
-    const f = new Flow(bookingFlow, ctx({ employees: [{ id: 1 }] }));
-    const visible = f.visibleIds;
-    expect(visible).toContain('employee');
-  });
-
-  it('shows employee when employees exist even for a schedule-carrying service (legacy parity)', () => {
-    const f = new Flow(bookingFlow, ctx({ employees: [{ id: 1 }], serviceHasSchedule: true }));
+  it('shows employee only when more than one exists', () => {
+    const f = new Flow(bookingFlow, ctx({ employees: [{ id: 1 }, { id: 2 }] }));
     expect(f.visibleIds).toContain('employee');
   });
 
-  it('hides employee only when there are no employees', () => {
-    const f = new Flow(bookingFlow, ctx({ employees: [], serviceHasSchedule: true }));
-    expect(f.visibleIds).not.toContain('employee');
+  it('shows employee for a schedule-carrying service too, when there is a choice', () => {
+    const f = new Flow(bookingFlow, ctx({ employees: [{ id: 1 }, { id: 2 }], serviceHasSchedule: true }));
+    expect(f.visibleIds).toContain('employee');
+  });
+
+  it('hides employee when there is nothing to choose between', () => {
+    for (const employees of [[], [{ id: 1 }]]) {
+      const f = new Flow(bookingFlow, ctx({ employees }));
+      expect(f.visibleIds).not.toContain('employee');
+    }
+  });
+
+  it('hides service when exactly one exists, and shows it otherwise', () => {
+    expect(new Flow(bookingFlow, ctx({ services: [{ id: 1 }] })).visibleIds).not.toContain('service');
+    expect(new Flow(bookingFlow, ctx({ services: [{ id: 1 }, { id: 2 }] })).visibleIds).toContain('service');
+    expect(new Flow(bookingFlow, ctx({ services: [] })).visibleIds).toContain('service');
   });
 
   it('forward and back are symmetric across every skip permutation', () => {
@@ -64,7 +71,10 @@ describe('Flow — booking step cursor', () => {
       ctx({ extras: [{ id: 1 }] }),
       ctx({ locations: [{ id: 1 }, { id: 2 }] }),
       ctx({ employees: [{ id: 1 }] }),
-      ctx({ extras: [{ id: 1 }], locations: [{ id: 1 }, { id: 2 }], employees: [{ id: 1 }] }),
+      ctx({ employees: [{ id: 1 }, { id: 2 }] }),
+      ctx({ services: [{ id: 1 }] }),
+      ctx({ services: [{ id: 1 }], employees: [{ id: 1 }] }),
+      ctx({ extras: [{ id: 1 }], locations: [{ id: 1 }, { id: 2 }], employees: [{ id: 1 }, { id: 2 }] }),
       ctx({ employees: [{ id: 1 }], serviceHasSchedule: true }),
     ];
     for (const c of permutations) {

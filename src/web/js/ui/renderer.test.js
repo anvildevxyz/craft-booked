@@ -7,7 +7,14 @@ import { create } from './index.js';
 function fakeApi(overrides = {}) {
   return {
     commerceSettings: vi.fn(async () => ({ commerceEnabled: false })),
-    services: vi.fn(async () => ({ services: [{ id: 12, name: 'Haircut', price: 40, durationType: 'minutes' }] })),
+    // Two services keep the service step visible; the lone-service auto-skip
+    // is covered in core/wizard.test.js.
+    services: vi.fn(async () => ({
+      services: [
+        { id: 12, name: 'Haircut', price: 40, durationType: 'minutes' },
+        { id: 13, name: 'Shave', price: 25, durationType: 'minutes' },
+      ],
+    })),
     serviceExtras: vi.fn(async () => ({ extras: [] })),
     employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1 }], serviceHasSchedule: true })),
     createSlotLock: vi.fn(async () => ({ success: true, token: 'lock-abc', expiresIn: 300 })),

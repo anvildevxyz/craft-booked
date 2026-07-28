@@ -6,6 +6,7 @@
 - **Payments settings tab** (Settings → Payments) — a Control-Panel UI to choose the payment mode (None / Direct / Commerce), enter Stripe keys (as `$ENV` references) and the webhook signing secret, set the currency and the pending-payment timeout, and see the exact webhook endpoint URL to register in Stripe. Previously these could only be set via the database or project config.
 
 ### Changed
+- **The wizard now skips the service and employee steps when there is only one of them** ([#64](https://github.com/anvildevxyz/craft-booked/issues/64)). A lone service is selected automatically the way a lone location already was, and the employee step is shown only when there is more than one to choose between — so a one-service, one-location, one-employee setup opens directly on the calendar instead of on two single-card steps. Auto-selected values still appear on the review step. The deprecated Alpine wizard is unchanged.
 - The **payment mode and currency are now chosen in one place** (Settings → Payments). The redundant "Enable Commerce" switch was removed from the Commerce tab, which is now Commerce-specific configuration (tax category, cart/checkout URLs, refund tiers) that applies when the mode is Commerce.
 
 ### Fixed
