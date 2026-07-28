@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 - 2026-07-28
+
+### Fixed
+- **Blackout dates could not be deleted from their element index** on Craft 5.10+. `BlackoutDate` was the only Booked element type missing from the element-type registration, so Craft's element-index delete threw a JavaScript error before the delete request was sent and the dates stayed put. Registering the type also restores blackout-date garbage collection (purging trashed rows), `{blackoutDate:…}` reference tags, and primary-site changes.
+- **The booking wizard no longer makes customers click through single-option steps.** When a service, location, or employee is the only choice, that step is auto-selected and skipped — a one-service/one-location/one-employee setup now opens straight on the calendar (the auto-selected values are still shown on the review step for confirmation).
+
 ## 1.4.1 - 2026-07-28
 
 ### Added
