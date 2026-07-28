@@ -660,15 +660,9 @@ export class Wizard {
         this._emitter.emit('payment:redirect', { url: result.redirectUrl });
         return { ok: true, paying: true, redirectUrl: result.redirectUrl };
       }
-      // Direct (Commerce-free) payment: the booking is created *pending* and must
-      // be paid in-page via Stripe Elements before it's confirmed. Hold onto the
-      // reservation id + confirmation token so the payment step can call
-      // `payment/create`, and hand the reservation to the step via an event.
+      // Direct payment: booking created *pending*, paid in-page before confirming.
       if (result && result.paymentRequired && result.reservation) {
-        // The reservation now exists server-side (pending) — the soft lock has
-        // done its job. Tear it down BEFORE entering PAYING so its expiry timer
-        // can't fire `lock:expired` mid-checkout and strand a booking the
-        // customer is about to pay for.
+        // Drop the soft lock before PAYING so its expiry can't strand a paid booking.
         this._ctx.lock = null;
         this._lock.destroy();
         this._machine.transition(STATES.PAYING);

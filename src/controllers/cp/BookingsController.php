@@ -216,10 +216,8 @@ class BookingsController extends Controller
     }
 
     /**
-     * Build the direct-payment panel context for the booking edit screen, or null
-     * when it doesn't apply (not direct mode, or no payment on this reservation).
-     * Exposes the captured/refunded amounts, gateway + external-ID deep link, and
-     * the policy-allowed remaining refund plus whether the current user may issue it.
+     * Direct-payment panel context for the booking edit screen (null if N/A):
+     * amounts, gateway + external-ID link, and the policy-allowed refund.
      *
      * @return array<string, mixed>|null
      */
@@ -277,10 +275,8 @@ class BookingsController extends Controller
     }
 
     /**
-     * Issue a direct-payment refund from the booking edit screen. Gated by the
-     * dedicated `booked-manageRefunds` permission (beyond the manage-bookings gate
-     * in beforeAction). An optional `amount` (major units) refunds partially; blank
-     * refunds the policy-allowed maximum.
+     * Issue a direct-payment refund from the edit screen (gated by
+     * `booked-manageRefunds`). Optional `amount` (major units); blank = policy max.
      */
     public function actionRefund(): Response
     {
