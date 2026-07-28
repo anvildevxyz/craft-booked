@@ -1915,6 +1915,7 @@ return [
     'payment.status.failed' => 'Failed',
     'payment.status.refunded' => 'Refunded',
     'payment.status.partiallyRefunded' => 'Partially refunded',
+    'payment.refundBusy' => 'Another refund for this booking is in progress. Please try again.',
     'payment.refundNoPayment' => 'This reservation has no refundable payment.',
     'payment.refundAlreadyFull' => 'This payment has already been fully refunded.',
     'payment.refundPolicyZero' => 'The refund policy allows no refund for this reservation.',

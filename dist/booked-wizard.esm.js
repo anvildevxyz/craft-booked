@@ -1500,6 +1500,8 @@ var Wizard = class {
         return { ok: true, paying: true, redirectUrl: result.redirectUrl };
       }
       if (result && result.paymentRequired && result.reservation) {
+        this._ctx.lock = null;
+        this._lock.destroy();
         this._machine.transition(STATES.PAYING);
         this._ctx.reservation = result.reservation;
         this._pendingPayment = {
@@ -1565,10 +1567,10 @@ var Wizard = class {
     if (res && res.paid) {
       this._ctx.lock = null;
       this._lock.destroy();
-      if (this._machine.state !== STATES.CONFIRMED) {
-        this._machine.transition(STATES.CONFIRMED);
+      const confirmed = this._machine.state === STATES.CONFIRMED || this._machine.transition(STATES.CONFIRMED);
+      if (confirmed) {
+        this._emitter.emit("booking:confirmed", { reservation: this._ctx.reservation });
       }
-      this._emitter.emit("booking:confirmed", { reservation: this._ctx.reservation });
     }
     return res || { paid: false };
   }
@@ -3128,33 +3130,35 @@ function createPaymentStep(opts = {}) {
       setPayEnabled(false);
       clearError();
       setStatus(t("payment.processing"));
+      let confirmError = null;
       try {
         const win = getWin();
         const returnUrl = win && win.location ? win.location.href : void 0;
-        const { error } = await state3.stripe.confirmPayment({
+        const res = await state3.stripe.confirmPayment({
           elements: state3.elements,
           ...returnUrl ? { confirmParams: { return_url: returnUrl } } : {},
           redirect: "if_required"
         });
-        if (error) {
-          setStatus("");
-          showError(error.message || t("payment.failed"));
-          setPayEnabled(true);
-          state3.paying = false;
-          return;
-        }
-        for (let i = 0; i < maxPolls; i++) {
-          const result = await wizard.confirmDirectPayment();
-          if (result && result.paid) return;
-          if (i < maxPolls - 1) await wait(pollDelayMs);
-        }
-        setStatus(t("payment.finalizing"));
+        confirmError = res && res.error;
       } catch (err) {
+        confirmError = err || new Error("confirm failed");
+      }
+      if (confirmError) {
         setStatus("");
-        showError(err && err.message || t("payment.failed"));
+        showError(confirmError.message || t("payment.failed"));
         setPayEnabled(true);
         state3.paying = false;
+        return;
       }
+      for (let i = 0; i < maxPolls; i++) {
+        try {
+          const result = await wizard.confirmDirectPayment();
+          if (result && result.paid) return;
+        } catch {
+        }
+        if (i < maxPolls - 1) await wait(pollDelayMs);
+      }
+      setStatus(t("payment.finalizing"));
     }
   };
 }

@@ -150,4 +150,29 @@ describe('createPaymentStep — pay', () => {
     expect(wizard.confirmDirectPayment).toHaveBeenCalledTimes(2);
     expect(region.querySelector('[data-booked-payment-status]').textContent).toBe('payment.finalizing');
   });
+
+  it('does NOT re-enable Pay when the confirm-poll throws after the card was charged', async () => {
+    // Regression: confirmPayment succeeded (card charged), but a transient poll
+    // error must not surface as a payment failure or re-enable Pay — that would
+    // invite a double charge. It defers to the webhook instead.
+    const { ctor } = fakeStripe(); // confirmPayment resolves with no error → charged
+    const wizard = fakeWizard({
+      confirmDirectPayment: vi.fn(async () => {
+        throw new Error('network blip');
+      }),
+    });
+    const region = mountRegion();
+    const step = createPaymentStep({ win: fakeWin(ctor), pollDelayMs: 0, maxPolls: 2 });
+
+    await step.mount(region, wizard);
+    await flush();
+    region.querySelector('[data-booked-action="pay"]').click();
+    await flush();
+
+    const pay = region.querySelector('[data-booked-action="pay"]');
+    const err = region.querySelector('[data-booked-payment-error]');
+    expect(pay.disabled).toBe(true); // stays disabled — no retry after charge
+    expect(err.hidden).toBe(true); // no payment-failed error shown
+    expect(region.querySelector('[data-booked-payment-status]').textContent).toBe('payment.finalizing');
+  });
 });

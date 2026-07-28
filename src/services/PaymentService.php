@@ -130,51 +130,61 @@ class PaymentService extends Component
      */
     public function refund(ReservationInterface $reservation, ?int $amount = null): RefundResult
     {
-        /** @var PaymentRecord|null $record */
-        $record = PaymentRecord::find()
-            ->where(['reservationId' => $reservation->getId()])
-            ->orderBy(['dateCreated' => SORT_DESC])
-            ->one();
-
-        if (!$record || !in_array($record->status, [
-            PaymentRecord::STATUS_PAID,
-            PaymentRecord::STATUS_PARTIALLY_REFUNDED,
-        ], true)) {
-            throw new RuntimeException('payment.refundNoPayment');
+        $mutex = Craft::$app->getMutex();
+        $mutexKey = 'booked:refund:' . $reservation->getId();
+        if (!$mutex->acquire($mutexKey, 10)) {
+            throw new RuntimeException('payment.refundBusy');
         }
 
-        $captured = (int) $record->amount;
-        $alreadyRefunded = (int) ($record->refundedAmount ?? 0);
-        $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
-        $requested = self::resolveRefundAmount($captured, $alreadyRefunded, $pct, $amount);
+        try {
+            /** @var PaymentRecord|null $record */
+            $record = PaymentRecord::find()
+                ->where(['reservationId' => $reservation->getId()])
+                ->orderBy(['dateCreated' => SORT_DESC])
+                ->one();
 
-        $gateway = Booked::getInstance()->getPaymentGateways()->getGateway((string) $record->gateway);
-        if (!$gateway) {
-            throw new RuntimeException('payment.gatewayUnavailable');
+            if (!$record || !in_array($record->status, [
+                PaymentRecord::STATUS_PAID,
+                PaymentRecord::STATUS_PARTIALLY_REFUNDED,
+            ], true)) {
+                throw new RuntimeException('payment.refundNoPayment');
+            }
+
+            $captured = (int) $record->amount;
+            $alreadyRefunded = (int) ($record->refundedAmount ?? 0);
+            $pct = Booked::getInstance()->getRefundPolicy()->calculateRefundPercentage($reservation);
+            $requested = self::resolveRefundAmount($captured, $alreadyRefunded, $pct, $amount);
+
+            $gateway = Booked::getInstance()->getPaymentGateways()->getGateway((string) $record->gateway);
+            if (!$gateway) {
+                throw new RuntimeException('payment.gatewayUnavailable');
+            }
+
+            $result = $gateway->refund($record, $requested);
+            if (!$result->success) {
+                return $result; // record untouched; caller surfaces $result->error
+            }
+
+            $totalRefunded = $alreadyRefunded + $result->refundedAmount;
+            $record->refundedAmount = $totalRefunded;
+            $record->status = $totalRefunded >= $captured
+                ? PaymentRecord::STATUS_REFUNDED
+                : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
+            $record->save(false);
+
+            if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
+                $event = new PaymentRefundedEvent();
+                $event->reservationId = (int) $record->reservationId;
+                $event->record = $record;
+                $event->amount = $result->refundedAmount;
+                $event->totalRefunded = $totalRefunded;
+                $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
+            }
+
+            return $result;
+        } finally {
+            $mutex->release($mutexKey);
         }
-
-        $result = $gateway->refund($record, $requested);
-        if (!$result->success) {
-            return $result; // record untouched; caller surfaces $result->error
-        }
-
-        $totalRefunded = $alreadyRefunded + $result->refundedAmount;
-        $record->refundedAmount = $totalRefunded;
-        $record->status = $totalRefunded >= $captured
-            ? PaymentRecord::STATUS_REFUNDED
-            : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
-        $record->save(false);
-
-        if ($this->hasEventHandlers(self::EVENT_PAYMENT_REFUNDED)) {
-            $event = new PaymentRefundedEvent();
-            $event->reservationId = (int) $record->reservationId;
-            $event->record = $record;
-            $event->amount = $result->refundedAmount;
-            $event->totalRefunded = $totalRefunded;
-            $this->trigger(self::EVENT_PAYMENT_REFUNDED, $event);
-        }
-
-        return $result;
     }
 
     /**
@@ -187,18 +197,14 @@ class PaymentService extends Component
     {
         $captured = (int) $record->amount;
         $refundedAmount = max(0, min($refundedAmount, $captured));
-        if ($refundedAmount === 0) {
+
+        if ($refundedAmount <= (int) ($record->refundedAmount ?? 0)) {
             return;
         }
 
         $status = $refundedAmount >= $captured
             ? PaymentRecord::STATUS_REFUNDED
             : PaymentRecord::STATUS_PARTIALLY_REFUNDED;
-
-        // Nothing changed (already reconciled to this total) — stay a no-op.
-        if ((int) ($record->refundedAmount ?? 0) === $refundedAmount && $record->status === $status) {
-            return;
-        }
 
         $record->refundedAmount = $refundedAmount;
         $record->status = $status;
@@ -217,15 +223,16 @@ class PaymentService extends Component
     /** Confirm a pending reservation (direct mode) and fire the usual notifications. */
     private function confirmReservation(int $reservationId): void
     {
-        $record = \anvildev\booked\records\ReservationRecord::findOne($reservationId);
-        // Only a still-pending reservation may be confirmed. A late or replayed
-        // webhook must NOT resurrect a reservation that was cancelled or expired
-        // (nor re-fire notifications on an already-confirmed one).
-        if (!$record || $record->status !== \anvildev\booked\records\ReservationRecord::STATUS_PENDING) {
+        $affected = Craft::$app->db->createCommand()
+            ->update(
+                '{{%booked_reservations}}',
+                ['status' => \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED],
+                ['id' => $reservationId, 'status' => \anvildev\booked\records\ReservationRecord::STATUS_PENDING],
+            )
+            ->execute();
+        if ($affected < 1) {
             return;
         }
-        $record->status = \anvildev\booked\records\ReservationRecord::STATUS_CONFIRMED;
-        $record->save(false);
 
         try {
             $ns = Booked::getInstance()->bookingNotification;

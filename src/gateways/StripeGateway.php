@@ -92,7 +92,7 @@ class StripeGateway implements PaymentGatewayInterface
                 'payment_intent' => $payment->externalId,
                 'amount' => $amount,
             ], [
-                'idempotency_key' => 'booked_re_' . $payment->id . '_' . $amount,
+                'idempotency_key' => 'booked_re_' . $payment->id . '_' . (int) ($payment->refundedAmount ?? 0) . '_' . $amount,
             ]);
         } catch (\Throwable $e) {
             return new RefundResult(false, 0, null, $e->getMessage());

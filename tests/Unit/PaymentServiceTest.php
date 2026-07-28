@@ -94,9 +94,12 @@ class PaymentServiceTest extends TestCase
     public function testConfirmReservationOnlyConfirmsPending(): void
     {
         // Guards against a late/replayed webhook resurrecting a cancelled or
-        // expired reservation: only a PENDING reservation may be confirmed.
+        // expired reservation, AND against a webhook+confirm-poll race double-
+        // firing notifications: an atomic conditional UPDATE flips only a still-
+        // pending row, and only the winner (affected===1) proceeds.
         $src = self::methodSource('anvildev\booked\services\PaymentService', 'confirmReservation');
-        $this->assertStringContainsString('!== \anvildev\booked\records\ReservationRecord::STATUS_PENDING', $src);
+        $this->assertStringContainsString('\anvildev\booked\records\ReservationRecord::STATUS_PENDING', $src);
+        $this->assertStringContainsString('if ($affected < 1)', $src);
     }
 
     public function testCreatePaymentReusesRecordByExternalId(): void

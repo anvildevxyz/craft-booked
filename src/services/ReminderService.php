@@ -161,7 +161,7 @@ class ReminderService extends Component
         }
 
         if (!Booked::getInstance()->getSettings()->isSmsConfigured()) {
-            Craft::info("SMS not configured or not Pro edition - skipping SMS reminder for reservation #{$reservation->id}", __METHOD__);
+            Craft::info("SMS not configured - skipping SMS reminder for reservation #{$reservation->id}", __METHOD__);
             return false;
         }
 
