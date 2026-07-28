@@ -529,6 +529,7 @@ class Booked extends Plugin
                 $event->types[] = \anvildev\booked\elements\Location::class;
                 $event->types[] = \anvildev\booked\elements\EventDate::class;
                 $event->types[] = \anvildev\booked\elements\Schedule::class;
+                $event->types[] = \anvildev\booked\elements\BlackoutDate::class;
 
                 // Required for PurchasableInterface support in Craft Commerce
                 if ($this->isCommerceEnabled()) {
