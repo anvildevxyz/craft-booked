@@ -2328,7 +2328,7 @@ The plugin fires the event with `wasPaid` and `shouldRefund` flags but does **no
 The booking wizard supports two Commerce submission modes:
 
 ```javascript
-// In the wizard's Alpine.js component
+// In the legacy wizard component (deprecated, removed in 2.0)
 async addToCart() {
     this.addToCartOnly = true;    // sends addToCart=1
     await this.submitBooking();   // redirects to cart

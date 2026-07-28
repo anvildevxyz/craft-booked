@@ -18,11 +18,13 @@ A comprehensive booking and reservation management plugin for Craft CMS, designe
 - **Customer Booking Limits**: Configurable limits per service to prevent overbooking
 - **Customer Self-Service Portal**: Logged-in customers can view, manage, and cancel their bookings
 - **Multi-Site Support**: Localized services with propagation across multiple sites
+- **Framework-Free Booking Wizard**: A zero-dependency, CSP-safe multi-step booking wizard (no front-end framework required) that auto-selects and skips single-option steps to shorten the path to booking; plus dedicated event-booking and customer self-service flows
 
 ### Advanced Features
 - **Calendar Sync**: Two-way sync with Google Calendar and Microsoft Outlook
 - **Virtual Meetings**: Automatic Zoom, Google Meet, and Microsoft Teams meeting creation for online appointments
-- **Payment Integration**: Native Craft Commerce integration
+- **Payments**: Take paid bookings with **Stripe — no Craft Commerce required** (direct payments), or through **Craft Commerce**. Includes full and partial, policy-aware **refunds**, a Control-Panel payment status panel, and a Settings → Payments UI for the payment mode, Stripe keys, currency, and webhook endpoint
+- **Payments-Aware Reporting**: In direct mode, revenue reflects actually-captured amounts net of refunds; the bookings CSV export gains gateway, payment-status, and refunded columns
 - **Email Notifications**: Customizable email templates for confirmations, reminders, and cancellations
 - **SMS Notifications**: Twilio integration for booking confirmations, reminders, and cancellations
 - **Webhooks**: Send booking events to Zapier, n8n, Make, or custom endpoints with HMAC signing
