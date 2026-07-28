@@ -124,15 +124,8 @@ class MaintenanceService extends Component
     }
 
     /**
-     * Garbage-collect abandoned **direct-payment** bookings: reservations left
-     * `pending` past the configured TTL whose Stripe checkout was never completed.
-     * Cancelling them releases the held capacity. Complements
-     * {@see cleanupStalePendingReservations} (which is Commerce-only) — this covers
-     * the direct-mode path, where there is no Commerce order to key off.
-     *
-     * A reservation with a paid/refunded payment record is *never* cancelled, so a
-     * webhook that lands right at the TTL boundary can't lose a booking the
-     * customer actually paid for. No-op outside direct mode.
+     * Garbage-collect abandoned direct-payment bookings — `pending` past the TTL,
+     * releasing capacity. Never cancels a paid/refunded booking. Direct mode only.
      */
     public function cleanupStalePendingPayments(?int $minutes = null): int
     {

@@ -67,10 +67,8 @@ class PaymentController extends Controller
             return $this->asJson(['received' => false])->setStatusCode(400);
         }
 
-        // Idempotent delivery: gateways re-send events (retries, at-least-once).
-        // Drop a re-delivered event before touching any state. The TTL covers the
-        // gateway's retry window; the status/absolute-amount guards below are the
-        // durable backstop if the cache is evicted.
+        // Drop a re-delivered event (gateways retry, at-least-once). TTL covers the
+        // retry window; the status/absolute-amount guards below are the durable backstop.
         $cache = Craft::$app->getCache();
         $dedupeKey = "booked:webhook:{$gateway}:{$event->eventId}";
         if ($cache->exists($dedupeKey)) {
@@ -121,10 +119,8 @@ class PaymentController extends Controller
             return $this->jsonError(Craft::t('booked', 'booking.unauthorized'), statusCode: 403);
         }
 
-        // Per-reservation bucket (IP-independent), counted ONLY after the token
-        // check passes — so a bogus-token probe against an enumerable reservation
-        // id can't fill a victim's bucket and lock the real customer out. The
-        // unguessable confirmation token means only that customer reaches here.
+        // Per-reservation bucket, counted only after the token check so a bogus-token
+        // probe can't fill a victim's bucket and lock the real customer out.
         $resThrottleKey = "booked_payment_create_res_{$reservationId}";
         $resAttempts = (int) (Craft::$app->getCache()->get($resThrottleKey) ?: 0);
         if ($resAttempts >= self::PAYMENT_CREATE_PER_RESERVATION_LIMIT) {
@@ -193,10 +189,8 @@ class PaymentController extends Controller
 
         $payments = Booked::getInstance()->getPayments();
         if ($result->paid) {
-            // Server-side retrieval is a trusted confirmation source (queried
-            // from the gateway, not client say-so). Route it through the SAME
-            // idempotent path as the webhook so the reservation is confirmed by
-            // whichever wins the race — never suppressed.
+            // Trusted server-side confirmation: route through the same idempotent
+            // path as the webhook (whichever wins the race confirms).
             $payments->handleVerifiedPayment($payment);
         } elseif (!PaymentService::isFinalized((string) $payment->status) && $payment->status !== $result->status) {
             // Reflect a non-terminal status for UX without finalizing the record.

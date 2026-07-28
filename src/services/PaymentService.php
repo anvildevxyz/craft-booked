@@ -39,9 +39,7 @@ class PaymentService extends Component
      */
     public function createForReservation(ReservationInterface $reservation, PaymentGatewayInterface $gateway): array
     {
-        // One currency resolver for the whole payment lifecycle: the stored
-        // record.currency must match what reporting aggregates and what refunds
-        // convert with. `getCurrency()` resolves `auto` → Commerce primary → USD.
+        // Shared resolver so record/report/refund currencies always agree.
         $currency = Booked::getInstance()->getReports()->getCurrency();
         $amount = self::toMinorUnits($reservation->getTotalPrice(), $currency);
 
@@ -55,11 +53,8 @@ class PaymentService extends Component
 
         $session = $gateway->createPayment($reservation, $context);
 
-        // Reuse the record for this gateway intent: Stripe's per-reservation
-        // idempotency key returns the same PaymentIntent (same externalId) on
-        // retry/refresh, so a repeated create must not insert a duplicate row
-        // (which would make the paid booking read as unpaid). Never clobber a
-        // status the webhook has already advanced.
+        // Reuse the row for this intent (same externalId on retry/refresh) so a
+        // repeated create doesn't duplicate it; never clobber an advanced status.
         $record = PaymentRecord::findOne(['externalId' => $session->externalId, 'gateway' => $gateway->getHandle()])
             ?? new PaymentRecord();
         $record->reservationId = $reservation->getId();
@@ -108,25 +103,9 @@ class PaymentService extends Component
     }
 
     /**
-     * Refund a direct (Commerce-free) payment, honoring the reservation's refund
-     * policy. `$amount` is in the currency's minor units; `null` refunds the
-     * maximum the policy currently allows (capped at the remaining refundable).
-     *
-     * The refund policy is a hard ceiling: an explicit amount above it — or above
-     * what's still refundable — is rejected *before* any gateway call, so the
-     * customer is never over-refunded. Idempotent by construction: each call only
-     * ever adds up to the remaining refundable, and a fully-refunded payment
-     * refuses further refunds.
-     *
-     * On a gateway failure the record is left untouched and the failed
-     * {@see RefundResult} is returned (caller surfaces `->error`). On success the
-     * record's `refundedAmount`/`status` advance and {@see EVENT_PAYMENT_REFUNDED}
-     * fires. Commerce-mode refunds go through {@see RefundService} instead.
-     *
-     * @param int|null $amount Minor units; null = policy-allowed maximum.
-     * @throws RuntimeException on a guard violation. Its message is a translation
-     *                          key (e.g. `payment.refundExceedsPolicy`); the caller
-     *                          renders it with `Craft::t('booked', $e->getMessage())`.
+     * Refund a direct payment (per-reservation mutex, policy-capped, idempotent).
+     * `$amount` is minor units; null = the policy-allowed maximum. Throws
+     * RuntimeException (message = a translation key) on a guard violation.
      */
     public function refund(ReservationInterface $reservation, ?int $amount = null): RefundResult
     {
@@ -188,10 +167,8 @@ class PaymentService extends Component
     }
 
     /**
-     * Reconcile a refund observed via webhook — e.g. one issued directly in the
-     * gateway dashboard, which never went through {@see refund()}. Sets the
-     * record's *absolute* refunded total + status. Idempotent: re-delivering the
-     * same webhook writes the same value, so it never compounds.
+     * Reconcile a refund seen via webhook (e.g. issued in the gateway dashboard):
+     * sets the absolute refunded total + status, monotonically.
      */
     public function applyRefundSync(PaymentRecord $record, int $refundedAmount): void
     {
@@ -302,14 +279,8 @@ class PaymentService extends Component
     }
 
     /**
-     * Pure refund-amount resolution (no I/O). Validates a requested refund against
-     * the refund-policy ceiling (a percentage of the captured amount, net of prior
-     * refunds) and the remaining refundable, returning the minor-unit amount to
-     * send to the gateway. `$requested` null = the policy-allowed maximum.
-     *
-     * Mirrors {@see resolveStatus} — the I/O-free core that {@see refund} wraps —
-     * so the money math is unit-testable without a DB or gateway.
-     *
+     * Pure (no-I/O) refund-amount resolution: validate a requested refund against
+     * the policy ceiling + remaining refundable. `$requested` null = policy max.
      * @throws RuntimeException with a translation-key message on any violation.
      */
     public static function resolveRefundAmount(int $captured, int $alreadyRefunded, int $policyPercent, ?int $requested): int

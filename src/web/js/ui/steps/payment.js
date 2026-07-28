@@ -1,21 +1,10 @@
 /**
- * Payment step renderer — the in-page Stripe checkout for direct (Commerce-free)
- * payments. Shown only when a `submit()` returns `paymentRequired` (the booking
- * was created *pending* and must be paid before it confirms).
+ * Payment step renderer — the in-page Stripe checkout for direct payments, shown
+ * when `submit()` returns `paymentRequired`. Drives the core's public methods:
+ * createDirectPayment() → mount the Payment Element → confirm → poll confirmDirectPayment().
  *
- * Flow, driven entirely through the headless core's public methods:
- *   1. `wizard.createDirectPayment()` → gateway bootstrap (clientSecret,
- *      publishableKey, signed paymentToken).
- *   2. Load Stripe.js, mount a Payment Element into `[data-booked-payment-element]`.
- *   3. On "Pay", `stripe.confirmPayment(...)`, then poll
- *      `wizard.confirmDirectPayment()` until the server (webhook-idempotent)
- *      reports `paid` — at which point the core moves to `confirmed` and the
- *      shell shows the success step exactly as a free/Commerce booking would.
- *
- * CSP note: Stripe Elements loads https://js.stripe.com and renders card fields
- * in Stripe-hosted iframes. Direct-payment pages MUST allow Stripe in their CSP
- * (`script-src`/`frame-src` js.stripe.com, `connect-src` api.stripe.com). This
- * is the one place the otherwise self-contained wizard needs an external script.
+ * CSP: direct-pay pages must allow Stripe (script-src/frame-src js.stripe.com,
+ * connect-src api.stripe.com) — the one external script the wizard needs.
  */
 import { qs, setText, setHidden } from '../dom.js';
 
@@ -152,8 +141,7 @@ export function createPaymentStep(opts = {}) {
       clearError();
       setStatus(t('payment.processing'));
 
-      // Phase 1 — confirm with Stripe. This is BEFORE any charge, so a failure
-      // here is safe to retry (re-enable Pay).
+      // Phase 1 — confirm with Stripe (before any charge; failure is retryable).
       let confirmError = null;
       try {
         const win = getWin();
@@ -175,10 +163,8 @@ export function createPaymentStep(opts = {}) {
         return;
       }
 
-      // Phase 2 — the card is now CHARGED. From here we never re-enable Pay or
-      // show a payment failure: a transient poll error is not a payment failure.
-      // The webhook is the source of truth; poll for the UX transition, and if it
-      // hasn't landed yet, leave the "finalizing" note — the webhook will confirm.
+      // Phase 2 — card CHARGED: never re-enable Pay or fail on a poll error. Poll
+      // for the UX transition; if it hasn't landed, the webhook will confirm.
       for (let i = 0; i < maxPolls; i++) {
         try {
           const result = await wizard.confirmDirectPayment();
