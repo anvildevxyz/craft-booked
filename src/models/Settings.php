@@ -422,7 +422,7 @@ class Settings extends Model
             ],
             'payments' => [
                 'paymentMode', 'stripePublishableKey', 'stripeSecretKey', 'stripeWebhookSecret',
-                'pendingPaymentTtlMinutes',
+                'pendingPaymentTtlMinutes', 'defaultCurrency',
             ],
             'commerce' => [
                 'defaultCurrency', 'commerceEnabled', 'commerceTaxCategoryId', 'pendingCartExpirationHours',

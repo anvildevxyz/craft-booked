@@ -53,6 +53,23 @@ class SettingsController extends Controller
         return $this->renderSettingsTemplate('booked/settings/notifications', 'notifications');
     }
 
+    public function actionPayments(): Response
+    {
+        $currencyOptions = [
+            ['label' => Craft::t('booked', 'settings.booking.autoDetectCurrency'), 'value' => 'auto'],
+        ];
+        foreach (new ISOCurrencies() as $currency) {
+            $currencyOptions[] = ['label' => $currency->getCode(), 'value' => $currency->getCode()];
+        }
+
+        return $this->renderTemplate('booked/settings/payments', [
+            'selectedSubnavItem' => 'payments',
+            'settings' => Settings::loadSettings(),
+            'currencyOptions' => $currencyOptions,
+            'webhookUrl' => \craft\helpers\UrlHelper::siteUrl('booked/api/v1/payment/webhook/stripe'),
+        ]);
+    }
+
     public function actionCommerce(): Response
     {
         $currencyOptions = [

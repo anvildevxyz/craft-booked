@@ -641,6 +641,7 @@ class Booked extends Plugin
                     'booked/settings/sms' => 'booked/cp/settings/sms',
                     'booked/settings/calendar' => 'booked/cp/settings/calendar',
                     'booked/settings/meetings' => 'booked/cp/settings/meetings',
+                    'booked/settings/payments' => 'booked/cp/settings/payments',
                     'booked/settings/commerce' => 'booked/cp/settings/commerce',
                     'booked/settings/webhooks' => 'booked/cp/settings/webhooks',
 
