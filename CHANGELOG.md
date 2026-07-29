@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.4 - 2026-07-29
+
+### Fixed
+- **Group-event holds no longer block the whole event.** An event soft lock reserved the entire event instead of the requested seats, so while one customer was in checkout a second customer was turned away ("This time slot is temporarily reserved") even when dozens of seats remained. Event locks now reserve only the requested seats against the event capacity, matching how appointment slot locks behave.
+
 ## 1.4.3 - 2026-07-29
 
 ### Fixed
