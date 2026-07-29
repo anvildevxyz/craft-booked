@@ -523,7 +523,7 @@ class SlotController extends Controller
             'employeeId' => null,
             'locationId' => $eventDate->locationId,
             'quantity' => $quantity,
-            'capacity' => $eventDate->capacity,
+            'capacity' => $eventDate->getRemainingCapacity(),
         ], $durationMinutes);
 
         if ($token === false) {
