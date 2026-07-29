@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.3 - 2026-07-29
 
 ### Fixed
 - **The booking calendar no longer errors when whole-day / flexible-day bookings exist.** Timeless (all-day) reservations were being fed into timed-slot overlap math, throwing on their null start/end times and taking down the availability calendar for unrelated timed services. Timeless bookings are now skipped from timed-slot calculations.
@@ -11,6 +11,8 @@
 - **Choosing a location now re-scopes the staff list.** Picking a location re-fetches employees filtered to it, so the employee step no longer lists staff from other locations (which sent the customer to an all-disabled calendar).
 - **A preselected service now skips the service step.** A `serviceId` deep link (or config) skips the service step even when several services exist, instead of showing it with nothing selected; `locationId`, `date` and `time` deep links are honored again.
 - **Sold-out events now offer a waitlist.** The vanilla event wizard gained the waitlist form the appointment wizard already had — a fully-booked event opens a "join the waitlist" form (scoped to that event) instead of being a dead end.
+- **Event slots are now held during checkout.** Soft locks for events were never created — the lock request carried a `serviceId` of `0`, which the lock guard treated as missing and rejected — so two customers could race for the last seat. Event soft locks now hold the slot like appointment locks do.
+- **The wizard no longer logs a 403 when an anonymous visitor loads the page.** The account "current user" probe required login before it could return its guest response; it is now reachable anonymously and reports the visitor as logged-out.
 
 ## 1.4.2 - 2026-07-28
 
