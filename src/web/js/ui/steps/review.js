@@ -52,8 +52,9 @@ export const reviewStep = {
     setRow(region, 'customer-name', context.customer?.name ?? '');
     setRow(region, 'customer-email', context.customer?.email ?? '');
 
-    // The total always shows — it is the number the customer confirms.
-    setRow(region, 'total', formatPrice(context.totalPrice, currencySymbol));
+    // The total shows only when there is a price to confirm; a free service
+    // (no price set) hides the row entirely rather than showing "0.00".
+    setRow(region, 'total', context.totalPrice > 0 ? formatPrice(context.totalPrice, currencySymbol) : '');
 
     // Show the payment notice when payment applies.
     const paymentNotice = qs('[data-booked-payment-notice]', region);

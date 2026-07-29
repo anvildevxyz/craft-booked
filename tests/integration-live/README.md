@@ -6,6 +6,18 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `soft-lock-capacity.php` covers
+
+Issue #74 — a soft lock on a multi-capacity (group) slot must hold only the
+seats it reserves, not blank the whole slot. Runs the real `AvailabilityService`
+slot soft-lock filter against a real lock record and asserts a capacity-10 slot
+survives a single hold (one seat consumed) while a single-capacity slot is still
+fully removed. Self-cleaning.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/soft-lock-capacity.php
+```
+
 ## What `payments.sh` covers
 
 1. **Happy path** — `payment/create` → confirm the PaymentIntent → **webhook** →

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **The booking calendar no longer errors when whole-day / flexible-day bookings exist.** Timeless (all-day) reservations were being fed into timed-slot overlap math, throwing on their null start/end times and taking down the availability calendar for unrelated timed services. Timeless bookings are now skipped from timed-slot calculations.
+- **Group-capacity slots no longer disappear while someone else is mid-checkout.** A soft lock on a slot with capacity greater than one now holds only the seats it reserves (by quantity) instead of hiding the whole slot; single-capacity and per-employee slots are unchanged (#74).
+- **Booking wizard review labels** read the singular nouns "Service", "Employee", "Location" and "Event" again, instead of the "Choose a …" step prompts (#75).
+- **A free service (no price set) no longer shows a "0.00" total row** in the wizard review — the row is hidden entirely (#76).
+- **The wizard success screen shows the booking id again.** The reservation is now placed on the context before the confirmed-state render, so the booking id and appointment are no longer blank (#77).
+- **Choosing a location now re-scopes the staff list.** Picking a location re-fetches employees filtered to it, so the employee step no longer lists staff from other locations (which sent the customer to an all-disabled calendar).
+- **A preselected service now skips the service step.** A `serviceId` deep link (or config) skips the service step even when several services exist, instead of showing it with nothing selected; `locationId`, `date` and `time` deep links are honored again.
+- **Sold-out events now offer a waitlist.** The vanilla event wizard gained the waitlist form the appointment wizard already had — a fully-booked event opens a "join the waitlist" form (scoped to that event) instead of being a dead end.
+
 ## 1.4.2 - 2026-07-28
 
 ### Fixed

@@ -31,10 +31,21 @@ const MARKUP = `
           <span data-booked-field="title"></span>
           <span data-booked-field="date"></span>
           <span data-booked-field="capacity"></span>
+          <span data-booked-waitlist-hint hidden>Join waitlist</span>
         </button>
       </template>
       <div data-booked-list="events"></div>
       <p data-booked-events-empty hidden>No events</p>
+      <div data-booked-waitlist hidden>
+        <p data-booked-waitlist-event></p>
+        <div data-booked-waitlist-form>
+          <input data-booked-field="name">
+          <input data-booked-field="email">
+          <input data-booked-field="phone">
+          <button data-booked-action="join-waitlist">Join</button>
+        </div>
+        <p data-booked-waitlist-success hidden>You're on the list</p>
+      </div>
     </section>
   </div>`;
 
@@ -59,16 +70,42 @@ describe('eventDateStep', () => {
   it('loads and renders event-date cards on mount', async () => {
     const { region, wizard } = await setup();
     eventDateStep.mount(region, wizard);
-    await vi.waitFor(() => expect(region.querySelectorAll('[data-booked-action="select-event"]')).toHaveLength(2));
+    await vi.waitFor(() => expect(region.querySelectorAll('[data-booked-id]')).toHaveLength(2));
     expect(card(region, 2208).querySelector('[data-booked-field="title"]').textContent).toBe('Yoga Retreat');
     expect(card(region, 2208).querySelector('[data-booked-field="date"]').textContent).toBe('Sep 15, 2026');
   });
 
-  it('marks a fully-booked event disabled', async () => {
+  it('offers a waitlist on a fully-booked event instead of a dead end', async () => {
     const { region, wizard } = await setup();
     eventDateStep.mount(region, wizard);
     await vi.waitFor(() => expect(card(region, 2209)).not.toBeNull());
-    expect(card(region, 2209).getAttribute('aria-disabled')).toBe('true');
+    const soldOut = card(region, 2209);
+    expect(soldOut.getAttribute('data-booked-soldout')).toBe('true');
+    // Sold-out cards use the waitlist action (not select-event) and show the hint.
+    expect(soldOut.getAttribute('data-booked-action')).toBe('waitlist-event');
+    expect(soldOut.querySelector('[data-booked-waitlist-hint]').hidden).toBe(false);
+  });
+
+  it('joining a sold-out event waitlist reveals the form and posts eventDateId', async () => {
+    const joinEventWaitlist = vi.fn(async () => ({ success: true }));
+    const { region, wizard } = await setup({ joinEventWaitlist });
+    eventDateStep.mount(region, wizard);
+    await vi.waitFor(() => expect(card(region, 2209)).not.toBeNull());
+
+    card(region, 2209).click(); // sold-out → reveal waitlist form
+    expect(region.querySelector('[data-booked-waitlist]').hidden).toBe(false);
+
+    region.querySelector('[data-booked-waitlist] [data-booked-field="name"]').value = 'Ada';
+    region.querySelector('[data-booked-waitlist] [data-booked-field="email"]').value = 'ada@example.com';
+    region.querySelector('[data-booked-action="join-waitlist"]').click();
+
+    await vi.waitFor(() => expect(joinEventWaitlist).toHaveBeenCalled());
+    expect(joinEventWaitlist).toHaveBeenCalledWith(
+      expect.objectContaining({ eventDateId: 2209, userName: 'Ada', userEmail: 'ada@example.com' })
+    );
+    await vi.waitFor(() =>
+      expect(region.querySelector('[data-booked-waitlist-success]').hidden).toBe(false)
+    );
   });
 
   it('selecting an event acquires the event lock and marks it selected', async () => {

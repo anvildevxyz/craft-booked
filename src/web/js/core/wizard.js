@@ -156,6 +156,9 @@ export class Wizard {
 
       if (this._options.serviceId != null) {
         await this._loadServiceData(this._options.serviceId);
+        // The integrator chose the service, so skip the service step even when
+        // several services exist (the selection is still shown on review).
+        this._ctx.servicePreselected = true;
       } else if (this._flow.id === 'booking' && this._ctx.services.length === 1) {
         // A lone service is auto-selected so its step can be skipped, the same
         // way a lone location/employee is handled in _loadServiceData(). Event
@@ -166,6 +169,9 @@ export class Wizard {
       // The cursor was seeded before any of the above resolved, so it can still
       // sit on a step the loaded selections just made invisible.
       this._flow.reset();
+
+      // Deep links: an integrator may prefill location/date/time via config.
+      await this._applyDeepLinks();
 
       // Waitlist conversion: a "your slot is open" link prefills who/what.
       const conversionToken = this._options.conversionToken;
@@ -215,6 +221,48 @@ export class Wizard {
     this._flow.setContext(this._ctx);
     this._flow.goTo('datetime');
     this._emitter.emit('conversion:loaded', { entry });
+  }
+
+  /**
+   * Apply integrator deep-link prefills (config). A preselected location scopes
+   * the employees and skips the location step; a preselected date opens the
+   * calendar on that day (the customer still confirms the slot, which acquires
+   * the lock — a link never carries a lock in). Only booking-flow selections a
+   * loaded service actually offers are honored.
+   */
+  async _applyDeepLinks() {
+    const opts = this._options;
+    if (this._flow.id !== 'booking') return;
+
+    const locationId = opts.locationId != null ? Number(opts.locationId) : null;
+    if (locationId != null && this._ctx.locations.some((l) => l.id === locationId)) {
+      await this.selectLocation(locationId);
+      this._ctx.locationPreselected = true;
+    }
+
+    const employeeId = opts.employeeId != null ? Number(opts.employeeId) : null;
+    if (employeeId != null && this._ctx.employees.some((e) => e.id === employeeId)) {
+      this._ctx.employeeId = employeeId;
+      this._ctx.selectedEmployee = this._ctx.employees.find((e) => e.id === employeeId) ?? null;
+    }
+
+    if (opts.date) {
+      this._ctx.date = String(opts.date);
+      if (opts.time) this._ctx.time = String(opts.time);
+    }
+    this._flow.setContext(this._ctx);
+
+    if (opts.date) {
+      this._flow.goTo('datetime');
+    } else if (locationId != null || employeeId != null) {
+      // Prefills may have hidden the step the cursor was seated on by the earlier
+      // reset() (which runs before deep links); re-seat it on the first visible step.
+      this._flow.reset();
+    }
+
+    if (locationId != null || employeeId != null || opts.date) {
+      this._emitter.emit('deeplink:loaded', { locationId, employeeId, date: this._ctx.date, time: this._ctx.time });
+    }
   }
 
   _applyCommerce(payload) {
@@ -287,9 +335,33 @@ export class Wizard {
     return this.getState();
   }
 
-  selectLocation(id) {
+  async selectLocation(id) {
     this._ctx.locationId = id;
     this._ctx.selectedLocation = this._ctx.locations.find((l) => l.id === id) ?? null;
+
+    // Re-fetch employees scoped to the chosen location. Staff who can't work
+    // this location must drop off the employee step — otherwise the customer can
+    // pick one and land on an all-disabled calendar with no error. The backend
+    // already supports the location filter.
+    if (this._ctx.serviceId != null) {
+      let employees;
+      try {
+        employees = await this._api.employees(this._ctx.serviceId, { locationId: id });
+      } catch (err) {
+        if (!(err && err.aborted)) this._toError(err);
+        return this.getState();
+      }
+      this._ctx.employees = list(employees, 'employees');
+      // A prior pick may not serve this location; reset, then auto-select a lone option.
+      this._ctx.employeeId = null;
+      this._ctx.selectedEmployee = null;
+      if (this._ctx.employees.length === 1) {
+        this._ctx.selectedEmployee = this._ctx.employees[0];
+        this._ctx.employeeId = this._ctx.employees[0].id;
+      }
+      this._flow.setContext(this._ctx);
+      this._emitter.emit('data:loaded', { kind: 'location', items: { employees: this._ctx.employees } });
+    }
     return this.getState();
   }
   selectEmployee(id) {
@@ -677,11 +749,13 @@ export class Wizard {
       }
       this._ctx.lock = null;
       this._lock.destroy();
-      this._machine.transition(STATES.CONFIRMED);
       const reservation = result.reservation;
-      // Keep the reservation on the context so the success step can render its
-      // details (id, status, appointment) after `confirmed`.
+      // Set the reservation on the context BEFORE the CONFIRMED transition: the
+      // renderer shows the success step on `state:change → confirmed`, so the
+      // id/status/appointment must already be in context or the screen renders
+      // with an empty booking id.
       this._ctx.reservation = reservation ?? null;
+      this._machine.transition(STATES.CONFIRMED);
       this._emitter.emit('booking:confirmed', { reservation });
       return { ok: true, confirmed: true, reservation };
     } catch (err) {

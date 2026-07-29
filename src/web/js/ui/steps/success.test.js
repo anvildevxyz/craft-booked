@@ -54,4 +54,27 @@ describe('successStep', () => {
     expect(region.querySelector('[data-booked-summary="appointment"]').textContent).toBe('Aug 1, 2026 10:00');
     expect(region.querySelector('[data-booked-summary="customer-email"]').textContent).toBe('ada@example.com');
   });
+
+  it('has the reservation on context before the confirmed transition fires', async () => {
+    // The renderer shows the success step on `state:change → confirmed`, so the
+    // reservation (id/status/appointment) must already be on the context at that
+    // moment — otherwise the success screen renders with an empty booking id.
+    const wizard = new Wizard({ apiClient: fakeApi(), flow: 'booking' });
+    let reservationAtConfirm = 'unset';
+    wizard.on('state:change', ({ to }) => {
+      if (to === 'confirmed') reservationAtConfirm = wizard.getState().context.reservation;
+    });
+
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext();
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    wizard.goNext();
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext();
+    await wizard.submit();
+
+    expect(reservationAtConfirm).toBeTruthy();
+    expect(reservationAtConfirm.id).toBe(999);
+  });
 });

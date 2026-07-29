@@ -107,10 +107,24 @@
                 <span class="booked-card__meta" data-booked-field="date"></span>
                 <span class="booked-card__meta" data-booked-field="time"></span>
                 <span class="booked-card__price" data-booked-field="price"></span>
+                <span class="booked-card__waitlist" data-booked-waitlist-hint hidden>{{ 'wizard.waitlistBtnJoin'|t('booked') }}</span>
             </button>
         </template>
         <div class="booked-cards" data-booked-list="events"></div>
         <p data-booked-events-empty hidden>{{ 'wizard.noEvents'|t('booked') }}</p>
+
+        {# Sold-out events open this waitlist form instead of being a dead end. #}
+        <div class="booked-waitlist" data-booked-waitlist hidden>
+            <p class="booked-waitlist__event" data-booked-waitlist-event></p>
+            <div data-booked-waitlist-form>
+                <p>{{ 'wizard.waitlistDesc'|t('booked') }}</p>
+                <label>{{ labels.name }}<input type="text" data-booked-field="name" autocomplete="name"></label>
+                <label>{{ labels.email }}<input type="email" data-booked-field="email" autocomplete="email"></label>
+                <label>{{ labels.phone }}<input type="tel" data-booked-field="phone" autocomplete="tel"></label>
+                <button type="button" data-booked-action="join-waitlist">{{ 'wizard.waitlistBtnJoin'|t('booked') }}</button>
+            </div>
+            <p class="booked-waitlist__success" data-booked-waitlist-success role="status" hidden>{{ 'wizard.waitlistSuccess'|t('booked') }}</p>
+        </div>
         <div class="booked-quantity" data-booked-event-quantity hidden>
             <span id="booked-event-qty-label">{{ 'wizard.summaryQuantity'|t('booked') }}</span>
             <button type="button" data-booked-action="qty-decrement" aria-describedby="booked-event-qty-label" aria-label="{{ 'wizard.ariaDecreaseQuantity'|t('booked') }}">−</button>
@@ -140,7 +154,7 @@
     <section data-booked-step="review" hidden>
         <h2 data-booked-step-heading>{{ labels.confirmBooking }}</h2>
         <dl class="booked-summary">
-            <dt>{{ labels.selectEvent }}</dt><dd data-booked-summary="service"></dd>
+            <dt>{{ 'labels.event'|t('booked') }}</dt><dd data-booked-summary="service"></dd>
             <dt>{{ 'labels.date'|t('booked') }}</dt><dd data-booked-summary="date"></dd>
             <dt>{{ 'labels.time'|t('booked') }}</dt><dd data-booked-summary="time"></dd>
             <dt>{{ 'wizard.summaryQuantity'|t('booked') }}</dt><dd data-booked-summary="quantity"></dd>
