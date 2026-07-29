@@ -513,6 +513,7 @@ class SlotController extends Controller
         }
 
         $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
+        $quantity = max(1, (int)(Craft::$app->request->getBodyParam('quantity') ?? 1));
 
         $token = Booked::getInstance()->getSoftLock()->createLock([
             'date' => $eventDate->eventDate,
@@ -521,6 +522,8 @@ class SlotController extends Controller
             'serviceId' => 0,
             'employeeId' => null,
             'locationId' => $eventDate->locationId,
+            'quantity' => $quantity,
+            'capacity' => $eventDate->capacity,
         ], $durationMinutes);
 
         if ($token === false) {
