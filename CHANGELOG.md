@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.5 - 2026-07-29
+
+### Fixed
+- **Event holds now count against remaining seats, not total capacity.** Existing confirmed bookings were invisible to the hold ledger, so a nearly-full event could still hand out holds for seats that were already taken (e.g. a 2-seats-left event granting a 5-seat hold). Holds are now capped at the remaining capacity. The booking-time capacity re-check already prevented any actual oversell; this tightens the holds themselves.
+- **The "quantity exceeds capacity" message now shows the requested quantity.** The `{quantity}` placeholder was never filled in, so the message read "The requested quantity () exceeds the remaining capacity (2)."
+
 ## 1.4.4 - 2026-07-29
 
 ### Fixed
