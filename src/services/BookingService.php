@@ -632,7 +632,7 @@ class BookingService extends Component
         }
 
         if ($remainingCapacity !== null && $quantity > $remainingCapacity) {
-            throw new BookingValidationException(Craft::t('booked', 'booking.quantityExceedsCapacity', ['capacity' => $remainingCapacity]));
+            throw new BookingValidationException(Craft::t('booked', 'booking.quantityExceedsCapacity', ['quantity' => $quantity, 'capacity' => $remainingCapacity]));
         }
     }
 
