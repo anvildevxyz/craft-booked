@@ -19,11 +19,13 @@ class AccountController extends Controller
     use JsonResponseTrait;
     use BookingHelpersTrait;
 
-    protected array|bool|int $allowAnonymous = [];
+    protected array|bool|int $allowAnonymous = ['current-user'];
 
     public function beforeAction($action): bool
     {
-        $this->requireLogin();
+        if ($action->id !== 'current-user') {
+            $this->requireLogin();
+        }
         return parent::beforeAction($action);
     }
 

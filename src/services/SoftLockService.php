@@ -24,7 +24,7 @@ class SoftLockService extends Component
     /** @return string|false Token if successful */
     public function createLock(array $data, int $durationMinutes = 5): string|false
     {
-        if (empty($data['date']) || (empty($data['startTime']) && empty($data['endDate'])) || empty($data['serviceId'])) {
+        if (empty($data['date']) || (empty($data['startTime']) && empty($data['endDate'])) || !isset($data['serviceId'])) {
             return false;
         }
 
