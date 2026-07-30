@@ -59,13 +59,16 @@ if (!$service) {
     exit(1);
 }
 
+// Only the capacity-mutating commands need a service-level schedule. `pick-date`
+// is also used against employee-backed services, which have none — their staff
+// carry their own schedules.
 $scheduleId = (int)$db->createCommand(
     'SELECT scheduleId FROM {{%booked_service_schedule_assignments}} WHERE serviceId = :s ORDER BY sortOrder LIMIT 1',
     [':s' => $serviceId],
 )->queryScalar();
 
-if (!$scheduleId) {
-    fwrite(STDERR, "Service {$serviceId} has no assigned schedule\n");
+if (!$scheduleId && in_array($command, ['capacity', 'reset'], true)) {
+    fwrite(STDERR, "Service {$serviceId} has no assigned schedule to set a capacity on\n");
     exit(1);
 }
 
@@ -117,7 +120,20 @@ switch ($command) {
             }
 
             $plugin->getAvailability()->clearSlotCache();
-            foreach ($plugin->getAvailability()->getAvailableSlots($candidate, null, null, $serviceId) as $slot) {
+            $candidateSlots = $plugin->getAvailability()->getAvailableSlots($candidate, null, null, $serviceId);
+
+            // `--time=any` just wants a day that has availability at all, which is
+            // what employee-backed services need — they keep their own shifts and
+            // may never open at the group service's probe time.
+            if ($slotTime === 'any') {
+                if (!empty($candidateSlots)) {
+                    echo $candidate;
+                    exit(0);
+                }
+                continue;
+            }
+
+            foreach ($candidateSlots as $slot) {
                 if (($slot['time'] ?? '') !== $slotTime) {
                     continue;
                 }

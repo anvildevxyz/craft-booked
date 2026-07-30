@@ -300,6 +300,33 @@ class AvailabilityCapacityTest extends TestCase
         $this->assertSame('09:45', $this->invoke('shiftWithinDay', ['09:00', 45]));
     }
 
+    // =====================================================
+    // Seat accounting agrees with the window subtraction
+    // =====================================================
+
+    public function testSeatAccountingCountsEveryStatusThatHoldsASlot(): void
+    {
+        $statuses = (new \ReflectionClass(\anvildev\booked\services\CapacityService::class))
+            ->getConstant('SEAT_HOLDING_STATUSES');
+
+        // AvailabilityService subtracts everything but cancelled from the working
+        // window. Counting fewer statuses here would report seats that are taken.
+        $this->assertContains('confirmed', $statuses);
+        $this->assertContains('pending', $statuses);
+        $this->assertContains('no_show', $statuses, 'A no-show keeps its slot rather than releasing the seat');
+        $this->assertNotContains('cancelled', $statuses);
+    }
+
+    public function testCapacityEnrichmentCanExcludeTheBookingBeingRescheduled(): void
+    {
+        $parameters = (new \ReflectionMethod(\anvildev\booked\services\CapacityService::class, 'enrichSlotsWithCapacity'))
+            ->getParameters();
+
+        $last = end($parameters);
+        $this->assertSame('excludeReservationId', $last->getName());
+        $this->assertTrue($last->isOptional(), 'Callers that are not rescheduling must be able to omit it');
+    }
+
     public function testBuildOccupancyIntervalsPadsWithBuffers(): void
     {
         $intervals = $this->invoke('buildOccupancyIntervals', [

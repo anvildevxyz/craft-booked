@@ -107,12 +107,10 @@ class AvailabilityService extends Component
         $locationId = $beforeCheckEvent->locationId;
         $requestedQuantity = $beforeCheckEvent->quantity;
 
-        // Per-request slot cache — avoids redundant getAvailableSlots calls within the
-        // same request (e.g., isSlotAvailable during booking creation). Keyed by all
-        // parameters that affect slot generation.
         $slotCacheKey = "{$date}-" . ($employeeId ?? 'null') . '-' . ($locationId ?? 'null') . '-' . ($serviceId ?? 'null')
             . "-q{$requestedQuantity}-tz" . ($userTimezone ?? 'null') . '-sl' . ($softLockToken ?? 'null')
-            . "-ed{$extrasDuration}-tt" . ($targetTime ?? 'null');
+            . "-ed{$extrasDuration}-tt" . ($targetTime ?? 'null')
+            . '-ex' . ($excludeReservationId ?? 'null');
         if (isset($this->slotCache[$slotCacheKey])) {
             return $this->slotCache[$slotCacheKey];
         }
@@ -145,7 +143,7 @@ class AvailabilityService extends Component
 
         if (empty($schedules) && $service?->hasAvailabilitySchedule()) {
             Craft::debug("Using service-level availability schedule for service {$serviceId}" . ($employeeId ? ", filtering for employee {$employeeId}" : ""), __METHOD__);
-            return $this->getSlotsFromServiceSchedule($service, $date, $dayOfWeek, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration);
+            return $this->getSlotsFromServiceSchedule($service, $date, $dayOfWeek, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId);
         }
 
         if (empty($schedules)) {
@@ -154,7 +152,7 @@ class AvailabilityService extends Component
         }
 
         $allSlots = $this->processEmployeeSlots($schedules, $date, $service, $serviceId, $locationId, $softLockToken, $duration, $excludeReservationId);
-        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $serviceId);
+        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $serviceId, $excludeReservationId);
         $allSlots = $this->filterByCapacity($allSlots);
         $slotTimezone = !empty($allSlots) ? ($allSlots[array_key_first($allSlots)]['timezone'] ?? null) : null;
         $allSlots = $this->filterPastSlots($allSlots, $date, $serviceId, $service, $slotTimezone);
@@ -469,6 +467,7 @@ class AvailabilityService extends Component
         ?string $softLockToken = null,
         ?int $employeeId = null,
         int $extrasDuration = 0,
+        ?int $excludeReservationId = null,
     ): array {
         $availability = $this->scheduleResolverService->getServiceAvailability($service, $date, $dayOfWeek);
         if ($availability === null) {
@@ -496,7 +495,7 @@ class AvailabilityService extends Component
 
         if (!empty($employees)) {
             Craft::debug("Service {$service->id} has " . count($employees) . " employees, generating employee-based slots from service schedule" . ($employeeId ? " (filtered for employee {$employeeId})" : ""), __METHOD__);
-            return $this->getSlotsFromServiceScheduleWithEmployees($service, $date, $timeWindows, $employees, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration);
+            return $this->getSlotsFromServiceScheduleWithEmployees($service, $date, $timeWindows, $employees, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId);
         }
 
         Craft::debug("Service {$service->id} has no employees, using service schedule for employee-less booking", __METHOD__);
@@ -505,7 +504,11 @@ class AvailabilityService extends Component
         // so overlapping slots and buffer periods are properly blocked — but only
         // once they have used up the day's capacity, so group slots stay bookable.
         $existingBookings = $this->getReservationsForDate($date, null, $service->id);
-        $employeelessBookings = array_filter($existingBookings, fn($r) => $r->employeeId === null);
+        $employeelessBookings = array_filter(
+            $existingBookings,
+            // When rescheduling, the booking being moved must not block its own slot.
+            fn($r) => $r->employeeId === null && ($excludeReservationId === null || $r->id !== $excludeReservationId),
+        );
         $scheduleCapacity = Booked::getInstance()->getScheduleAssignment()
             ->getActiveScheduleForServiceOnDate($service->id, $date)
             ?->getCapacityForDay($dayOfWeek === 0 ? 7 : $dayOfWeek);
@@ -518,7 +521,7 @@ class AvailabilityService extends Component
             'timezone' => Craft::$app->getTimeZone(),
         ]);
 
-        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $service->id);
+        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $service->id, $excludeReservationId);
         $allSlots = $this->filterByCapacity($allSlots);
         $serviceTimezone = !empty($allSlots) ? ($allSlots[array_key_first($allSlots)]['timezone'] ?? null) : null;
         $allSlots = $this->filterPastSlots($allSlots, $date, $service->id, $service, $serviceTimezone);
@@ -542,6 +545,7 @@ class AvailabilityService extends Component
         ?string $softLockToken = null,
         ?int $selectedEmployeeId = null,
         int $extrasDuration = 0,
+        ?int $excludeReservationId = null,
     ): array {
         $duration = ($service->duration ?? 60) + max(0, $extrasDuration);
         $slotInterval = $this->slotGeneratorService->getSlotInterval($service, $duration);
@@ -549,6 +553,11 @@ class AvailabilityService extends Component
         // Fetch ALL reservations on this date (regardless of service)
         // so that cross-service bookings block employee time correctly.
         $allReservations = $this->getReservationsForDate($date);
+
+        // When rescheduling, the booking being moved must not block its own slot.
+        if ($excludeReservationId !== null) {
+            $allReservations = array_values(array_filter($allReservations, fn($r) => $r->id !== $excludeReservationId));
+        }
         $reservationsByEmployee = [];
         $unassignedBookings = [];
         foreach ($allReservations as $res) {
@@ -595,7 +604,7 @@ class AvailabilityService extends Component
             $allSlots = array_merge($allSlots, $this->slotGeneratorService->addEmployeeInfo($empSlots, $employee->id, $employee->title ?? "Unknown", $empTimezone));
         }
 
-        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $service->id);
+        $allSlots = $this->capacityService->enrichSlotsWithCapacity($allSlots, $date, $service->id, $excludeReservationId);
         $allSlots = $this->filterByCapacity($allSlots);
         $empTimezone = !empty($allSlots) ? ($allSlots[array_key_first($allSlots)]['timezone'] ?? null) : null;
         $allSlots = $this->filterPastSlots($allSlots, $date, $service->id, $service, $empTimezone);
