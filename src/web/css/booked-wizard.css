@@ -351,6 +351,14 @@
   cursor: default;
 }
 
+/* Remaining seats on a group slot, stacked under the time it belongs to. */
+.booked-slot__seats {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
 /* --- Waitlist branch ---------------------------------------------------- */
 
 .booked-waitlist {

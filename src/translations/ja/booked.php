@@ -1873,6 +1873,7 @@ return [
     'lock.expired' => '予約していた時間の有効期限が切れました。もう一度時間を選択してください。',
     'calendar.prevMonth' => '前の月',
     'calendar.nextMonth' => '次の月',
+    'slot.seatsAvailable' => '残り{count}枠',
     'error.generic' => '問題が発生しました。もう一度お試しください。',
     'error.booking' => 'ご予約を完了できませんでした。',
     'error.slotReserved' => 'その時間は今しがた埋まりました。別の時間をお選びください。',

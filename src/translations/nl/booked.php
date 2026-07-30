@@ -1873,6 +1873,7 @@ return [
     'lock.expired' => 'Uw gereserveerde tijd is verlopen. Kies opnieuw een tijdstip.',
     'calendar.prevMonth' => 'Vorige maand',
     'calendar.nextMonth' => 'Volgende maand',
+    'slot.seatsAvailable' => '{count} beschikbaar',
     'error.generic' => 'Er is iets misgegaan. Probeer het opnieuw.',
     'error.booking' => 'Uw boeking kon niet worden voltooid.',
     'error.slotReserved' => 'Dat tijdstip is zojuist ingenomen. Kies een ander tijdstip.',

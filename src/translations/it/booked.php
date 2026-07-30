@@ -1873,6 +1873,7 @@ return [
     'lock.expired' => 'L\'orario riservato è scaduto. Scelga di nuovo un orario.',
     'calendar.prevMonth' => 'Mese precedente',
     'calendar.nextMonth' => 'Mese successivo',
+    'slot.seatsAvailable' => '{count} disponibili',
     'error.generic' => 'Si è verificato un errore. Riprovi.',
     'error.booking' => 'Non è stato possibile completare la prenotazione.',
     'error.slotReserved' => 'Quell\'orario è appena stato preso. Scelga un altro orario.',

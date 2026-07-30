@@ -1873,6 +1873,7 @@ return [
     'lock.expired' => 'Su horario reservado ha expirado. Por favor, elija un horario de nuevo.',
     'calendar.prevMonth' => 'Mes anterior',
     'calendar.nextMonth' => 'Mes siguiente',
+    'slot.seatsAvailable' => '{count} disponibles',
     'error.generic' => 'Se ha producido un error. Por favor, inténtelo de nuevo.',
     'error.booking' => 'Su reserva no se pudo completar.',
     'error.slotReserved' => 'Ese horario acaba de ser ocupado. Por favor, elija otro.',

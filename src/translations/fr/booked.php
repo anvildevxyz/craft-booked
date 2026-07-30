@@ -1873,6 +1873,7 @@ return [
     'lock.expired' => 'Votre créneau réservé a expiré. Veuillez choisir à nouveau un horaire.',
     'calendar.prevMonth' => 'Mois précédent',
     'calendar.nextMonth' => 'Mois suivant',
+    'slot.seatsAvailable' => '{count} disponibles',
     'error.generic' => 'Une erreur est survenue. Veuillez réessayer.',
     'error.booking' => 'Votre réservation n\'a pas pu être finalisée.',
     'error.slotReserved' => 'Cet horaire vient d\'être pris. Veuillez en choisir un autre.',

@@ -1898,6 +1898,7 @@ return [
     'lock.expired' => 'Ihre reservierte Zeit ist abgelaufen. Bitte wählen Sie erneut eine Zeit.',
     'calendar.prevMonth' => 'Vorheriger Monat',
     'calendar.nextMonth' => 'Nächster Monat',
+    'slot.seatsAvailable' => '{count} verfügbar',
     'error.generic' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
     'error.booking' => 'Ihre Buchung konnte nicht abgeschlossen werden.',
     'error.slotReserved' => 'Diese Zeit wurde gerade vergeben. Bitte wählen Sie eine andere.',

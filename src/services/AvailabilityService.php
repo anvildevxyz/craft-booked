@@ -291,8 +291,8 @@ class AvailabilityService extends Component
                 continue;
             }
             $bookingService = $booking->serviceId ? ($servicesById[$booking->serviceId] ?? null) : null;
-            $blockedStart = $this->timeWindowService->addMinutes($booking->startTime, -($bookingService?->bufferBefore ?? 0));
-            $blockedEnd = $this->timeWindowService->addMinutes($booking->endTime, $bookingService?->bufferAfter ?? 0);
+            $blockedStart = $this->shiftWithinDay($booking->startTime, -($bookingService?->bufferBefore ?? 0));
+            $blockedEnd = $this->shiftWithinDay($booking->endTime, $bookingService?->bufferAfter ?? 0);
             $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
         }
 
@@ -301,12 +301,36 @@ class AvailabilityService extends Component
 
     /**
      * Subtract existing bookings (with buffer expansion) from time windows for employee-less services.
-     * Each booking blocks its duration plus bufferBefore/bufferAfter from the service.
+     *
+     * Each booking occupies its duration plus bufferBefore/bufferAfter and consumes
+     * `quantity` seats of the day's capacity. A range is only cut out of the windows
+     * once the bookings overlapping it have taken every seat, so a group slot stays
+     * bookable until it is genuinely full.
+     *
+     * @param int|null $capacity Seats per slot from the Schedule's per-day capacity. Null = one booking per slot.
      */
-    private function subtractBookingsFromWindows(array $timeWindows, array $bookings, Service $service): array
+    private function subtractBookingsFromWindows(array $timeWindows, array $bookings, Service $service, ?int $capacity = null): array
     {
-        $bufferBefore = $service->bufferBefore ?? 0;
-        $bufferAfter = $service->bufferAfter ?? 0;
+        $occupancy = $this->buildOccupancyIntervals($bookings, $service->bufferBefore ?? 0, $service->bufferAfter ?? 0);
+        if (empty($occupancy)) {
+            return $timeWindows;
+        }
+
+        foreach ($this->findSaturatedRanges($occupancy, max(1, $capacity ?? 1)) as [$blockedStart, $blockedEnd]) {
+            $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
+        }
+
+        return $timeWindows;
+    }
+
+    /**
+     * Expand bookings into buffer-padded occupancy intervals.
+     *
+     * @return array<array{start: string, end: string, seats: int}>
+     */
+    private function buildOccupancyIntervals(array $bookings, int $bufferBefore, int $bufferAfter): array
+    {
+        $intervals = [];
 
         foreach ($bookings as $booking) {
             // Timeless bookings (whole-day/flexible-day services) don't block a
@@ -314,12 +338,69 @@ class AvailabilityService extends Component
             if ($booking->startTime === null || $booking->endTime === null) {
                 continue;
             }
-            $blockedStart = $this->timeWindowService->addMinutes($booking->startTime, -$bufferBefore);
-            $blockedEnd = $this->timeWindowService->addMinutes($booking->endTime, $bufferAfter);
-            $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
+
+            $intervals[] = [
+                'start' => $this->shiftWithinDay($booking->startTime, -$bufferBefore),
+                'end' => $this->shiftWithinDay($booking->endTime, $bufferAfter),
+                'seats' => max(1, (int)($booking->quantity ?? 1)),
+            ];
         }
 
-        return $timeWindows;
+        return $intervals;
+    }
+
+    /**
+     * Find the ranges where overlapping bookings have taken every seat.
+     *
+     * Sweeps the interval boundaries: seat usage is constant between two consecutive
+     * boundaries, so each segment is either saturated or not. Touching segments are
+     * merged so subtractWindow sees contiguous blocks rather than adjacent slivers.
+     *
+     * @param array<array{start: string, end: string, seats: int}> $intervals
+     * @return array<array{0: string, 1: string}> Saturated ranges as [start, end] pairs
+     */
+    private function findSaturatedRanges(array $intervals, int $capacity): array
+    {
+        $boundaries = [];
+        foreach ($intervals as $interval) {
+            $boundaries[$this->timeWindowService->timeToMinutes($interval['start'])] = $interval['start'];
+            $boundaries[$this->timeWindowService->timeToMinutes($interval['end'])] = $interval['end'];
+        }
+        ksort($boundaries);
+        $boundaries = array_values($boundaries);
+
+        $saturated = [];
+        for ($i = 0, $len = count($boundaries) - 1; $i < $len; $i++) {
+            [$segmentStart, $segmentEnd] = [$boundaries[$i], $boundaries[$i + 1]];
+
+            $used = 0;
+            foreach ($intervals as $interval) {
+                if ($interval['start'] < $segmentEnd && $interval['end'] > $segmentStart) {
+                    $used += $interval['seats'];
+                }
+            }
+
+            if ($used < $capacity) {
+                continue;
+            }
+
+            $last = array_key_last($saturated);
+            if ($last !== null && $saturated[$last][1] === $segmentStart) {
+                $saturated[$last][1] = $segmentEnd;
+                continue;
+            }
+
+            $saturated[] = [$segmentStart, $segmentEnd];
+        }
+
+        return $saturated;
+    }
+
+    /** Shift a time by minutes, clamped to 00:00–24:00 so buffers can't run off the end of the day. */
+    private function shiftWithinDay(string $time, int $minutes): string
+    {
+        $shifted = $this->timeWindowService->timeToMinutes($time) + $minutes;
+        return $this->timeWindowService->minutesToTime(max(0, min(1440, $shifted)));
     }
 
     public function isSlotAvailable(
@@ -421,10 +502,14 @@ class AvailabilityService extends Component
         Craft::debug("Service {$service->id} has no employees, using service schedule for employee-less booking", __METHOD__);
 
         // Subtract existing bookings (with buffer expansion) from time windows
-        // so overlapping slots and buffer periods are properly blocked.
+        // so overlapping slots and buffer periods are properly blocked — but only
+        // once they have used up the day's capacity, so group slots stay bookable.
         $existingBookings = $this->getReservationsForDate($date, null, $service->id);
         $employeelessBookings = array_filter($existingBookings, fn($r) => $r->employeeId === null);
-        $timeWindows = $this->subtractBookingsFromWindows($timeWindows, $employeelessBookings, $service);
+        $scheduleCapacity = Booked::getInstance()->getScheduleAssignment()
+            ->getActiveScheduleForServiceOnDate($service->id, $date)
+            ?->getCapacityForDay($dayOfWeek === 0 ? 7 : $dayOfWeek);
+        $timeWindows = $this->subtractBookingsFromWindows($timeWindows, $employeelessBookings, $service, $scheduleCapacity);
 
         $allSlots = $this->slotGeneratorService->generateSlots($timeWindows, $duration, $slotInterval, [
             'serviceId' => $service->id,
