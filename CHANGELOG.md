@@ -2,6 +2,9 @@
 
 ## 1.4.6 - 2026-07-30
 
+### Changed
+- **The Capacity field on a schedule now describes what it actually does.** It said an empty value meant unlimited, and offered an "∞" placeholder, when an empty value has always meant one booking per time slot. It also now states that capacity is counted **per service** — several services sharing one schedule each get their own seats rather than drawing on a common pool, so a shared room can take more bookings than the number set here — and that a service's buffers can shift the start times offered later in the day once a slot fills.
+
 ### Fixed
 - **A Schedule's per-day capacity is honored again when generating slots.** A single booking withdrew the time slot outright, however many seats the schedule granted, so group bookings on an employee-less service were impossible — the remaining seats were unreachable rather than merely unlisted, because booking creation validates against the same slot list. Bookings now consume seats, and a slot only leaves the working hours once every seat is taken (#85).
 - **The booking wizard shows how many seats a group slot has left.** The count was carried in the markup but never displayed, so a customer could not tell a nearly-full slot from an empty one. Slots with a single seat, and unlimited slots, stay unannotated as before.

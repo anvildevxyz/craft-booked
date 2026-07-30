@@ -145,14 +145,18 @@
                                     type: 'number',
                                     min: 1,
                                     size: 5,
-                                    placeholder: '∞'
+                                    placeholder: '1'
                                 }) }}
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <p class="light" style="margin-top: 8px;">{{ 'schedule.capacityInstructions'|t('booked') }}</p>
+            <ul class="light" style="margin-top: 8px;">
+                <li>{{ 'schedule.capacityInstructions'|t('booked') }}</li>
+                <li>{{ 'schedule.capacityPerService'|t('booked') }}</li>
+                <li>{{ 'schedule.capacityBuffers'|t('booked') }}</li>
+            </ul>
         </div>
 
         {% if schedule.id %}
