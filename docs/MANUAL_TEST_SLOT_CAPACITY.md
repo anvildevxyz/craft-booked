@@ -70,6 +70,11 @@ Capacity on a schedule only governs services that have **no employees** attached
 > today** and caches each day's bookability for **5 minutes**. Pick a nearer date,
 > and after any change made outside the wizard give it a moment or clear caches.
 
+> If a booking is refused with *"Please wait a moment before submitting another
+> booking"*, that is the anti-bot throttle, not a capacity failure. Settings →
+> `minimumSubmissionTime` allows one submission per IP every **3 seconds**, so
+> booking several seats back to back — by hand or from a script — needs pacing.
+
 ---
 
 ## 4. The bug — one booking must not remove the slot
@@ -131,6 +136,14 @@ Book a third time:
 - [ ] `09:00` is gone.
 - [ ] `10:00` is **also gone** — with the slot full, the 15-minute buffer after
       the 09:00–10:00 session now genuinely blocks a 10:00 start.
+- [ ] The rest of the morning has **shifted**, not just lost a slot: `10:15`
+      appears and `11:00` disappears.
+
+> The shift is expected. Availability is subtractive — the full booking plus its
+> buffers removes 08:45–10:15 from the working window, and slots are then laid
+> out from wherever the remaining window starts. So the grid re-anchors to 10:15
+> rather than keeping the original o'clock rhythm. Only slots after a *saturated*
+> booking move; a partly filled group slot leaves the grid alone.
 
 4. Set both buffers back to `0` when done.
 

@@ -807,7 +807,9 @@ class AvailabilityService extends Component
 
         $locks = Booked::getInstance()->getSoftLock()->getActiveSoftLocksForDate($date, $serviceId, $softLockToken);
 
-        $reservations = $preloadedReservations ?? $this->getReservationsForDate($date, null, $serviceId);
+        // Deliberately unfiltered by service: an employee booked on *any* service is
+        // busy, so their bookings elsewhere must still count against this one.
+        $reservations = $preloadedReservations ?? $this->getReservationsForDate($date);
         $reservationsByEmployee = [];
         foreach ($reservations as $reservation) {
             // Timeless bookings (whole-day services, events) can't overlap a timed
@@ -816,6 +818,14 @@ class AvailabilityService extends Component
             if ($reservation->startTime === null || $reservation->endTime === null) {
                 continue;
             }
+
+            // Unassigned bookings are the exception: one belongs to the capacity of
+            // the service it was made against, so another service's employee-less
+            // bookings must not eat into this service's pool of free employees.
+            if ($reservation->employeeId === null && (int)$reservation->serviceId !== $serviceId) {
+                continue;
+            }
+
             $reservationsByEmployee[$reservation->employeeId][] = [
                 'start' => $reservation->startTime,
                 'end' => $reservation->endTime,

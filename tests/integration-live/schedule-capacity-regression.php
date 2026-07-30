@@ -412,6 +412,60 @@ try {
     $expect($at($slots(), $time), null, 'the slot is full');
     $expect($resolver->hasScheduleForDay($serviceId, null, $date, $dayOfWeek), true, 'the day still counts as scheduled, so a waitlist can be offered');
     $expect($resolver->getCapacityForDay($serviceId, null, $date, $dayOfWeek), 1, 'day capacity still resolves');
+
+    // -----------------------------------------------------------------------
+    $section('W. "Any available" counts only this service\'s unassigned bookings');
+    $clear();
+    $setCapacity(10);
+
+    $employees = Employee::find()->siteId('*')->serviceId($employeeServiceId)->all();
+    if (empty($employees)) {
+        echo "  (skipped — service {$employeeServiceId} has no employees)\n";
+    } else {
+        $empService = Service::find()->siteId('*')->id($employeeServiceId)->status(null)->one();
+        $empDuration = (int)($empService->duration ?? 60);
+        $anyTimes = array_column($slots($employeeServiceId), 'time');
+        $probe = $anyTimes[0] ?? null;
+
+        if ($probe === null) {
+            $bad("service {$employeeServiceId} offers no slots to probe");
+        } else {
+            $probeEnd = date('H:i:s', strtotime($probe) + $empDuration * 60);
+            $staffCount = count($employees);
+
+            // Employee-less bookings on an unrelated service consume that service's
+            // seats, not this service's staff.
+            for ($i = 0; $i < $staffCount; $i++) {
+                $seed($probe . ':00', $probeEnd, 1, ReservationRecord::STATUS_CONFIRMED, null, $serviceId);
+            }
+            $expect(
+                in_array($probe, array_column($slots($employeeServiceId), 'time'), true),
+                true,
+                "{$staffCount} bookings on service {$serviceId} leave service {$employeeServiceId} alone",
+            );
+
+            // The same bookings against this service still consume its staff.
+            $clear();
+            for ($i = 0; $i < $staffCount; $i++) {
+                $seed($probe . ':00', $probeEnd, 1, ReservationRecord::STATUS_CONFIRMED, null, $employeeServiceId);
+            }
+            $expect(
+                in_array($probe, array_column($slots($employeeServiceId), 'time'), true),
+                false,
+                "{$staffCount} unassigned bookings on its own service do close {$probe}",
+            );
+
+            // An employee booked on another service is still unavailable here.
+            $clear();
+            $employee = $employees[0];
+            $seed($probe . ':00', $probeEnd, 1, ReservationRecord::STATUS_CONFIRMED, $employee->id, $serviceId);
+            $expect(
+                in_array($probe, array_column($slots($employeeServiceId, $employee->id), 'time'), true),
+                false,
+                "an employee booked on service {$serviceId} is busy for service {$employeeServiceId} too",
+            );
+        }
+    }
 } finally {
     $clear();
     $db->createCommand()->update('{{%booked_schedules}}', ['workingHours' => $originalHours], ['id' => $scheduleId])->execute();
