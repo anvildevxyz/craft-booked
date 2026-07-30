@@ -17,6 +17,14 @@ use DateTime;
  */
 class CapacityService extends Component
 {
+    /**
+     * Statuses that occupy a seat. Mirrors the "everything but cancelled" rule the
+     * availability window subtraction uses — a no-show keeps its slot rather than
+     * releasing it, so counting only confirmed and pending would over-report the
+     * seats left on a group slot.
+     */
+    private const SEAT_HOLDING_STATUSES = ['confirmed', 'pending', 'no_show'];
+
     private ?TimeWindowService $timeWindowService = null;
 
     public function setTimeWindowService(TimeWindowService $service): void
@@ -164,7 +172,7 @@ class CapacityService extends Component
         $query = ReservationFactory::find()
             ->siteId('*')
             ->bookingDate($date)
-            ->status(['confirmed', 'pending']);
+            ->status(self::SEAT_HOLDING_STATUSES);
 
         $employeeId !== null ? $query->employeeId($employeeId) : $query->andWhere(['employeeId' => null]);
         if ($serviceId !== null) {
@@ -184,13 +192,17 @@ class CapacityService extends Component
         return (int) $query->sum('[[booked_reservations.quantity]]');
     }
 
-    public function enrichSlotsWithCapacity(array $slots, string $date, ?int $serviceId): array
+    /**
+     * @param int|null $excludeReservationId Booking being rescheduled — it must not
+     *                                       count against the seats on its own slot.
+     */
+    public function enrichSlotsWithCapacity(array $slots, string $date, ?int $serviceId, ?int $excludeReservationId = null): array
     {
         if (empty($slots)) {
             return $slots;
         }
 
-        $data = $this->loadBatchCapacityData($slots, $date, $serviceId);
+        $data = $this->loadBatchCapacityData($slots, $date, $serviceId, $excludeReservationId);
 
         foreach ($slots as &$slot) {
             unset($slot['_scheduleCapacity']);
@@ -237,7 +249,7 @@ class CapacityService extends Component
      *
      * @return array{employees: array, schedulesByEmployee: array, serviceSchedule: ?Schedule, reservationRecords: array, dayOfWeek: int}
      */
-    protected function loadBatchCapacityData(array $slots, string $date, ?int $serviceId): array
+    protected function loadBatchCapacityData(array $slots, string $date, ?int $serviceId, ?int $excludeReservationId = null): array
     {
         $employeeIds = array_values(array_unique(array_filter(array_map(fn($s) => $s['employeeId'] ?? null, $slots))));
 
@@ -255,9 +267,12 @@ class CapacityService extends Component
             : null;
 
         // Batch-load reservations with time range data for overlap checking
-        $reservationQuery = ReservationFactory::find()->siteId('*')->bookingDate($date)->status(['confirmed', 'pending']);
+        $reservationQuery = ReservationFactory::find()->siteId('*')->bookingDate($date)->status(self::SEAT_HOLDING_STATUSES);
         if ($serviceId !== null) {
             $reservationQuery->serviceId($serviceId);
+        }
+        if ($excludeReservationId !== null) {
+            $reservationQuery->andWhere(['!=', 'booked_reservations.id', $excludeReservationId]);
         }
         $reservations = $reservationQuery->all();
 

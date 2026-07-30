@@ -9,6 +9,10 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
+  // Every spec drives the one DDEV database and mutates shared fixtures
+  // (schedules, services, reservations). Parallel workers would run those
+  // mutations against each other, so the suite is single-threaded by design.
+  workers: 1,
   retries: 0,
   reporter: 'list',
   use: {

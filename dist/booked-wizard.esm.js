@@ -847,6 +847,7 @@ var DEFAULTS = Object.freeze({
   "lock.expired": "Your reserved time has expired. Please choose a time again.",
   "calendar.prevMonth": "Previous month",
   "calendar.nextMonth": "Next month",
+  "slot.seatsAvailable": "{count} available",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -2851,6 +2852,13 @@ var datetimeStep = {
       opt.setAttribute("aria-selected", slot.time === selectedTime ? "true" : "false");
       if (unavailable) opt.setAttribute("aria-disabled", "true");
       opt.textContent = slot.time;
+      if (cap != null && cap > 1) {
+        const seats = document.createElement("span");
+        seats.className = "booked-slot__seats";
+        seats.setAttribute("data-booked-slot-seats", "");
+        seats.textContent = wizard.t("slot.seatsAvailable", { count: cap });
+        opt.appendChild(seats);
+      }
       list2.appendChild(opt);
     }
     const waitlist = qs("[data-booked-waitlist]", region);

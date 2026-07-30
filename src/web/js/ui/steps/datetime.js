@@ -287,6 +287,18 @@ export const datetimeStep = {
       opt.setAttribute('aria-selected', slot.time === selectedTime ? 'true' : 'false');
       if (unavailable) opt.setAttribute('aria-disabled', 'true');
       opt.textContent = slot.time;
+
+      // Group slots carry several seats, so say how many are left. One seat is
+      // the ordinary one-on-one case and needs no annotation; unlimited slots
+      // (null capacity) have no number to show.
+      if (cap != null && cap > 1) {
+        const seats = document.createElement('span');
+        seats.className = 'booked-slot__seats';
+        seats.setAttribute('data-booked-slot-seats', '');
+        seats.textContent = wizard.t('slot.seatsAvailable', { count: cap });
+        opt.appendChild(seats);
+      }
+
       list.appendChild(opt);
     }
 

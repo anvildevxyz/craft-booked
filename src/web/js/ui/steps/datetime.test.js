@@ -106,6 +106,29 @@ describe('datetimeStep — slots', () => {
     expect(wizard.getState().context.lock.token).toBe('lock-1');
   });
 
+  it('labels a group slot with the seats still available', async () => {
+    const { region } = await setup();
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull()); // capacity 2
+
+    expect(slot(region, '10:00').querySelector('[data-booked-slot-seats]').textContent).toBe('2 available');
+  });
+
+  it('leaves single-seat and unlimited slots unlabelled', async () => {
+    const { region } = await setup({
+      slots: vi.fn(async () => ({
+        slots: [{ time: '09:00', availableCapacity: 1 }, { time: '10:00', availableCapacity: null }],
+      })),
+    });
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '09:00')).not.toBeNull());
+
+    expect(slot(region, '09:00').querySelector('[data-booked-slot-seats]')).toBeNull();
+    expect(slot(region, '10:00').querySelector('[data-booked-slot-seats]')).toBeNull();
+  });
+
   it('does not select a zero-capacity slot', async () => {
     const { region, wizard } = await setup();
     await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));

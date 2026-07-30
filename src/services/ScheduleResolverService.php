@@ -218,7 +218,8 @@ class ScheduleResolverService extends Component
         $total = 0;
         $anyFound = false;
         foreach ($schedulesByEmployee as $sched) {
-            if ($sched->getWorkingHoursForDay($dayOfWeek) === null) {
+            // Employees without an active schedule on this date come back as null.
+            if ($sched === null || $sched->getWorkingHoursForDay($dayOfWeek) === null) {
                 continue;
             }
             $anyFound = true;
@@ -261,7 +262,8 @@ class ScheduleResolverService extends Component
         if (!empty($employeeIds)) {
             $schedulesByEmployee = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
             foreach ($schedulesByEmployee as $activeSchedule) {
-                if (!empty($activeSchedule->getWorkingSlotsForDay($dayOfWeek))) {
+                // Employees without an active schedule on this date come back as null.
+                if ($activeSchedule !== null && !empty($activeSchedule->getWorkingSlotsForDay($dayOfWeek))) {
                     return true;
                 }
             }

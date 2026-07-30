@@ -20,6 +20,8 @@ export const DEFAULTS = Object.freeze({
   'calendar.prevMonth': 'Previous month',
   'calendar.nextMonth': 'Next month',
 
+  'slot.seatsAvailable': '{count} available',
+
   'error.generic': 'Something went wrong. Please try again.',
   'error.booking': 'Your booking could not be completed.',
   'error.slotReserved': 'That time was just taken. Please choose another.',
