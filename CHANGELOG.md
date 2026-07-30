@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.6 - 2026-07-30
+
+### Fixed
+- **A Schedule's per-day capacity is honored again when generating slots.** A single booking withdrew the time slot outright, however many seats the schedule granted, so group bookings on an employee-less service were impossible — the remaining seats were unreachable rather than merely unlisted, because booking creation validates against the same slot list. Bookings now consume seats, and a slot only leaves the working hours once every seat is taken (#85).
+- **The booking wizard shows how many seats a group slot has left.** The count was carried in the markup but never displayed, so a customer could not tell a nearly-full slot from an empty one. Slots with a single seat, and unlimited slots, stay unannotated as before.
+- **A no-show no longer frees a seat on a group slot.** Availability treats a no-show as still occupying its slot, but the seat count did not, so a slot with a no-show advertised a seat that was already taken. Both now agree: everything but a cancellation holds its seat.
+- **Rescheduling a booking to its own time works again.** The booking being moved was excluded from availability for staff-based services but not for employee-less ones, and never from the seat count, so moving a booking onto the slot it already occupied was refused as a conflict. The per-request slot cache also ignored the exclusion, so a reschedule check could be answered from a non-reschedule result.
+- **One service's group bookings no longer close another service's staff slots.** Employee-less bookings were counted against every service on the day rather than the one they were made against, so an "any available" slot with free staff behind it disappeared whenever an unrelated group booking overlapped it.
+- **A booking near midnight no longer breaks availability.** Applying a buffer that ran before 00:00 or past 24:00 threw instead of clamping to the day.
+- **Day-capacity and waitlist-eligibility lookups no longer fail** for services whose staff have no active schedule on the requested date.
+
 ## 1.4.5 - 2026-07-29
 
 ### Fixed

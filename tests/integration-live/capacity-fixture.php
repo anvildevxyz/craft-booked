@@ -183,6 +183,27 @@ switch ($command) {
         echo "seeded {$count} booking(s) at {$startTime} on {$date}\n";
         break;
 
+    case 'throttle':
+        // The anti-bot rule allows one booking per IP every few seconds. A browser
+        // suite books repeatedly from one address, so the throttle refuses bookings
+        // for reasons that have nothing to do with capacity. Toggled off for a run
+        // and back on afterwards.
+        $enabled = $argument !== 'off';
+        $db->createCommand()->update('{{%booked_settings}}', ['enableTimeBasedLimits' => $enabled ? 1 : 0], ['id' => 1])->execute();
+        $flushCaches();
+        echo 'time-based booking limits ' . ($enabled ? 'enabled' : 'disabled') . "\n";
+        break;
+
+    case 'count':
+        // Live bookings on the probe slot, however they were made — the browser
+        // suite uses this to assert an invariant rather than infer one from the UI.
+        echo (int)$db->createCommand(
+            'SELECT COALESCE(SUM(quantity), 0) FROM {{%booked_reservations}}'
+            . ' WHERE bookingDate = :d AND startTime = :t AND serviceId = :s AND status <> :c',
+            [':d' => $date, ':t' => $slotTime . ':00', ':s' => $serviceId, ':c' => 'cancelled'],
+        )->queryScalar();
+        break;
+
     case 'clear':
         echo 'cleared ' . $clearBookings() . " booking(s)\n";
         break;
