@@ -36,4 +36,5 @@ class BlackoutDateRecordTest extends TestCase
     {
         $this->assertEquals('{{%booked_blackout_dates}}', BlackoutDateRecord::tableName());
     }
+
 }

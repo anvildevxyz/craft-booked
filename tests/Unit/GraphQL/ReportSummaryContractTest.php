@@ -6,10 +6,10 @@ namespace anvildev\booked\tests\Unit\GraphQL;
 
 use anvildev\booked\gql\queries\ReportSummaryQuery;
 use anvildev\booked\gql\types\ReportSummaryType;
-use anvildev\booked\tests\Support\TestCase;
 use GraphQL\Type\Definition\FloatType;
 use GraphQL\Type\Definition\IntType;
 use GraphQL\Type\Definition\StringType;
+use anvildev\booked\tests\Support\TestCase;
 
 /**
  * Contract tests for the ReportSummary GraphQL layer.
@@ -54,16 +54,16 @@ class ReportSummaryContractTest extends TestCase
     public function expectedFieldProvider(): array
     {
         return [
-            'totalBookings' => ['totalBookings'],
-            'confirmedBookings' => ['confirmedBookings'],
-            'cancelledBookings' => ['cancelledBookings'],
-            'cancellationRate' => ['cancellationRate'],
-            'totalRevenue' => ['totalRevenue'],
+            'totalBookings'       => ['totalBookings'],
+            'confirmedBookings'   => ['confirmedBookings'],
+            'cancelledBookings'   => ['cancelledBookings'],
+            'cancellationRate'    => ['cancellationRate'],
+            'totalRevenue'        => ['totalRevenue'],
             'averageBookingValue' => ['averageBookingValue'],
-            'newCustomers' => ['newCustomers'],
-            'returningCustomers' => ['returningCustomers'],
-            'startDate' => ['startDate'],
-            'endDate' => ['endDate'],
+            'newCustomers'        => ['newCustomers'],
+            'returningCustomers'  => ['returningCustomers'],
+            'startDate'           => ['startDate'],
+            'endDate'             => ['endDate'],
         ];
     }
 
@@ -113,10 +113,10 @@ class ReportSummaryContractTest extends TestCase
     public function intFieldProvider(): array
     {
         return [
-            'totalBookings' => ['totalBookings'],
+            'totalBookings'     => ['totalBookings'],
             'confirmedBookings' => ['confirmedBookings'],
             'cancelledBookings' => ['cancelledBookings'],
-            'newCustomers' => ['newCustomers'],
+            'newCustomers'      => ['newCustomers'],
             'returningCustomers' => ['returningCustomers'],
         ];
     }
@@ -138,8 +138,8 @@ class ReportSummaryContractTest extends TestCase
     public function floatFieldProvider(): array
     {
         return [
-            'cancellationRate' => ['cancellationRate'],
-            'totalRevenue' => ['totalRevenue'],
+            'cancellationRate'    => ['cancellationRate'],
+            'totalRevenue'        => ['totalRevenue'],
             'averageBookingValue' => ['averageBookingValue'],
         ];
     }
@@ -162,7 +162,7 @@ class ReportSummaryContractTest extends TestCase
     {
         return [
             'startDate' => ['startDate'],
-            'endDate' => ['endDate'],
+            'endDate'   => ['endDate'],
         ];
     }
 

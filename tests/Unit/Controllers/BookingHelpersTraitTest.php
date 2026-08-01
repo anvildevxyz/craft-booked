@@ -12,7 +12,7 @@ class BookingHelpersTraitTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->helper = new class() {
+        $this->helper = new class {
             use BookingHelpersTrait;
 
             public function testValidateDate(string $date): bool

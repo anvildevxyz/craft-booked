@@ -75,4 +75,5 @@ class ReservationRecordTest extends TestCase
         $attrs = $ref->getValue($record);
         $this->assertEquals('Patient reported improvement', $attrs['sessionNotes']);
     }
+
 }

@@ -96,7 +96,7 @@ class HandlesExceptionsTraitTest extends TestCase
 
     public function testHandleExceptionMethodSignature(): void
     {
-        $ref = new ReflectionClass(new class() {
+        $ref = new ReflectionClass(new class {
             use HandlesExceptionsTrait;
 
             // Stubs for required methods

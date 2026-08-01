@@ -185,7 +185,7 @@ class CaptchaServiceTest extends TestCase
             ->once()
             ->with(
                 'https://www.google.com/recaptcha/api/siteverify',
-                Mockery::on(function($data) {
+                Mockery::on(function ($data) {
                     return $data['secret'] === 'secret-key'
                         && $data['response'] === 'test-token'
                         && $data['remoteip'] === '1.2.3.4';

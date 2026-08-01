@@ -44,4 +44,5 @@ class CalendarSyncStatusRecordTest extends TestCase
         $this->assertEquals('syncing', CalendarSyncStatusRecord::STATUS_SYNCING);
         $this->assertEquals('error', CalendarSyncStatusRecord::STATUS_ERROR);
     }
+
 }

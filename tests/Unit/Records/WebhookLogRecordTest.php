@@ -92,4 +92,5 @@ class WebhookLogRecordTest extends TestCase
         $record = $this->makeRecord(['success' => false, 'responseCode' => null]);
         $this->assertEquals('Failed', $record->getStatusLabel());
     }
+
 }

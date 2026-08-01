@@ -26,4 +26,5 @@ class RefundServiceTest extends TestCase
         $this->assertObjectHasProperty('refundAmount', $event);
         $this->assertObjectHasProperty('error', $event);
     }
+
 }
