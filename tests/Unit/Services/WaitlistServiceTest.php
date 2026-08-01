@@ -5,8 +5,6 @@ namespace anvildev\booked\tests\Unit\Services;
 use anvildev\booked\records\WaitlistRecord;
 use anvildev\booked\services\WaitlistService;
 use anvildev\booked\tests\Support\TestCase;
-use Mockery;
-use Mockery\MockInterface;
 
 /**
  * WaitlistService Test

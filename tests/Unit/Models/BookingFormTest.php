@@ -579,15 +579,7 @@ class BookingFormTest extends TestCase
 
     public function testExtrasFromWrongServiceAreRejected(): void
     {
-        $form = new class([
-            'userName' => 'John Doe',
-            'userEmail' => 'john@example.com',
-            'bookingDate' => '2025-06-15',
-            'startTime' => '14:00',
-            'endTime' => '15:00',
-            'serviceId' => 1,
-            'extras' => [10 => 1, 99 => 2],
-        ]) extends BookingForm {
+        $form = new class([ 'userName' => 'John Doe', 'userEmail' => 'john@example.com', 'bookingDate' => '2025-06-15', 'startTime' => '14:00', 'endTime' => '15:00', 'serviceId' => 1, 'extras' => [10 => 1, 99 => 2], ]) extends BookingForm {
             protected function getValidExtraIdsForService(int $serviceId): array
             {
                 // Service 1 only has extras 10 and 20
@@ -601,15 +593,7 @@ class BookingFormTest extends TestCase
 
     public function testExtrasMatchingServicePassValidation(): void
     {
-        $form = new class([
-            'userName' => 'John Doe',
-            'userEmail' => 'john@example.com',
-            'bookingDate' => '2025-06-15',
-            'startTime' => '14:00',
-            'endTime' => '15:00',
-            'serviceId' => 1,
-            'extras' => [10 => 1, 20 => 2],
-        ]) extends BookingForm {
+        $form = new class([ 'userName' => 'John Doe', 'userEmail' => 'john@example.com', 'bookingDate' => '2025-06-15', 'startTime' => '14:00', 'endTime' => '15:00', 'serviceId' => 1, 'extras' => [10 => 1, 20 => 2], ]) extends BookingForm {
             protected function getValidExtraIdsForService(int $serviceId): array
             {
                 return [10, 20, 30];

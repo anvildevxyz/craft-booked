@@ -32,5 +32,4 @@ class ElementQueryHelperTest extends TestCase
     {
         $this->assertTrue(method_exists(ElementQueryHelper::class, 'forAllSites'));
     }
-
 }

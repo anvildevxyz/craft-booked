@@ -2,7 +2,6 @@
 
 namespace anvildev\booked\tests\Unit\Services;
 
-use anvildev\booked\services\BookingService;
 use anvildev\booked\tests\Support\TestCase;
 
 class BookingServiceCancelMutexTest extends TestCase

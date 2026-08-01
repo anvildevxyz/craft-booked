@@ -41,11 +41,11 @@ class ReportsServiceTest extends TestCase
     public function cancellationRateProvider(): array
     {
         return [
-            'no bookings'        => [0, 0, 0.0],
-            '2 of 10 cancelled'  => [10, 2, 20.0],
+            'no bookings' => [0, 0, 0.0],
+            '2 of 10 cancelled' => [10, 2, 20.0],
             '0 of 100 cancelled' => [100, 0, 0.0],
-            '1 of 4 cancelled'   => [4, 1, 25.0],
-            'all cancelled'      => [5, 5, 100.0],
+            '1 of 4 cancelled' => [4, 1, 25.0],
+            'all cancelled' => [5, 5, 100.0],
         ];
     }
 
@@ -69,11 +69,11 @@ class ReportsServiceTest extends TestCase
     public function percentageOfTotalProvider(): array
     {
         return [
-            '5 of 20'  => [5, 20, 25.0],
-            '0 of 20'  => [0, 20, 0.0],
+            '5 of 20' => [5, 20, 25.0],
+            '0 of 20' => [0, 20, 0.0],
             '20 of 20' => [20, 20, 100.0],
-            '1 of 3'   => [1, 3, 33.33],
-            '0 of 0'   => [0, 0, 0.0],
+            '1 of 3' => [1, 3, 33.33],
+            '0 of 0' => [0, 0, 0.0],
         ];
     }
 
@@ -121,11 +121,11 @@ class ReportsServiceTest extends TestCase
     public function utilizationProvider(): array
     {
         return [
-            'partial fill'       => [5, 3, 60.0],
-            'exactly full'       => [5, 5, 100.0],
+            'partial fill' => [5, 3, 60.0],
+            'exactly full' => [5, 5, 100.0],
             'overbooking capped' => [5, 7, 100.0],
-            'nothing available'  => [0, 0, 0.0],
-            'empty slots'        => [10, 0, 0.0],
+            'nothing available' => [0, 0, 0.0],
+            'empty slots' => [10, 0, 0.0],
         ];
     }
 
@@ -176,10 +176,10 @@ class ReportsServiceTest extends TestCase
     {
         return [
             'morning half-hour' => ['09:30', 9],
-            'afternoon exact'   => ['14:00', 14],
-            'midnight quarter'  => ['00:15', 0],
-            'end of day'        => ['23:45', 23],
-            'noon'              => ['12:00', 12],
+            'afternoon exact' => ['14:00', 14],
+            'midnight quarter' => ['00:15', 0],
+            'end of day' => ['23:45', 23],
+            'noon' => ['12:00', 12],
         ];
     }
 

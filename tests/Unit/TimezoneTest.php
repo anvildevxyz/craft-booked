@@ -5,9 +5,9 @@ namespace anvildev\booked\tests\Unit;
 use anvildev\booked\helpers\DateHelper;
 use anvildev\booked\helpers\IcsHelper;
 use anvildev\booked\models\ReservationModel;
-use anvildev\booked\services\CalendarSyncService;
 use anvildev\booked\services\calendar\GoogleCalendarProvider;
 use anvildev\booked\services\calendar\OutlookCalendarProvider;
+use anvildev\booked\services\CalendarSyncService;
 use anvildev\booked\tests\Support\TestCase;
 use Mockery;
 

@@ -214,3 +214,30 @@ php craft booked/test/security           # Run automated security and validation
 ```
 
 The `security` command tests IDOR prevention, confirmation token strength, input sanitization (XSS/SQL injection), CSRF protection, booking model validation, advance booking limits, cancel policy enforcement, rate limiting, and email template rendering.
+
+## Import
+
+```bash
+php craft booked/import/from-slots              # Import everything from the Slots plugin
+php craft booked/import/from-slots --dry-run    # Report what would be imported, without writing
+php craft booked/import/from-slots --append     # Import even though Booked already holds data
+php craft booked/import/from-slots --prefix=x_  # Slots installed under a non-default table prefix
+```
+
+Moves services, staff, locations, schedules, blackout dates, bookings and payments out of
+[Slots](https://github.com/anvildevxyz/craft-slots) — Booked's smaller sibling — and into Booked. Both
+plugins install into the same Craft project under different table prefixes, so the command reads Slots'
+tables directly; Slots does not need to be uninstalled first.
+
+The whole import runs in one transaction and rolls back on any failure. It refuses to run when Booked
+already holds services, staff, locations or bookings, so it cannot silently interleave two data sets —
+pass `--append` if that is genuinely what you want.
+
+Two things to know before running it:
+
+- Elements are recreated, so **IDs change**. Anything referencing a Slots service by ID (hard-coded Twig,
+  an entry relation) needs re-pointing afterwards.
+- Per-site **title overrides are not carried over**. Each element is imported with its primary-site title.
+  Review localized content before going live.
+
+The upgrade is one-directional. There is no Booked → Slots path.

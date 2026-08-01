@@ -25,7 +25,7 @@ class JsonResponseTraitTest extends TestCase
 
         // Mock Yii::$app->getResponse() for setStatusCode calls in jsonError
         $mockWebResponse = \Mockery::mock();
-        $mockWebResponse->shouldReceive('setStatusCode')->andReturnUsing(function (int $code) use ($test) {
+        $mockWebResponse->shouldReceive('setStatusCode')->andReturnUsing(function(int $code) use ($test) {
             $test->lastStatusCode = $code;
         });
         $mockApp = \Mockery::mock();
