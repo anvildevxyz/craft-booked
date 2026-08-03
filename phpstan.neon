@@ -10,10 +10,29 @@ parameters:
     tmpDir: .phpstan
     treatPhpDocTypesAsCertain: false
     bootstrapFiles:
-        - ../../vendor/autoload.php
-        - ../../vendor/craftcms/cms/bootstrap/console.php
+        - vendor/autoload.php
+        - vendor/craftcms/cms/bootstrap/console.php
         - stubs/phpstan-bootstrap.php
+    # Craft Commerce and stimmt/craft-mcp are optional at runtime and cannot be
+    # dev dependencies either: craft-mcp requires PHP ^8.3, and installing
+    # Commerce drags craftcms/cms to a release whose transitive zipstream needs
+    # ^8.3 as well. Both would drop this plugin's own ^8.2 floor.
+    #
+    # That makes the reported error set depend on what happens to be installed,
+    # so an ignore pattern for those classes matches in one environment and not
+    # another. Reporting unmatched ignores on top of that fails the run for
+    # reasons that have nothing to do with the code — which is precisely how
+    # this gate ended up red on the default branch.
+    reportUnmatchedIgnoredErrors: false
+
     ignoreErrors:
+        # The optional integrations above. Guarded by class_exists()/soft
+        # registration, so they never load when the package is absent.
+        - '#unknown class craft\\commerce\\#'
+        - '#unknown class stimmt\\craft\\Mcp\\#'
+        - '#Attribute class Mcp\\Capability\\Attribute\\\w+ does not exist#'
+        - '#Attribute class stimmt\\craft\\Mcp\\attributes\\McpToolMeta does not exist#'
+        - '#(craft\\commerce|stimmt\\craft\\Mcp)\\#'
         # Common patterns for Craft CMS plugins
         - '#Cannot access offset .+ on mixed#'
         - '#Cannot cast mixed to#'
@@ -81,4 +100,4 @@ parameters:
     checkExplicitMixed: true
 
 includes:
-    - ../../vendor/craftcms/phpstan/phpstan.neon
+    - vendor/craftcms/phpstan/phpstan.neon
