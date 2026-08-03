@@ -80,17 +80,20 @@ class ReservationSoftDeleteTest extends TestCase
     }
 
     /**
-     * The element hooks above are only safe because the database removes the row
-     * on a hard delete.
+     * A cascading id -> elements.id constraint looks like the tidy way to make
+     * afterDelete() unnecessary, and was briefly added. It cannot be used here:
+     * a reservation is only a Craft element when Commerce is enabled, so on a
+     * Commerce-free install the row has no `elements` counterpart and the
+     * constraint rejects every insert — no booking can be created at all.
      */
-    public function testInstallDeclaresTheCascadingElementForeignKey(): void
+    public function testInstallDoesNotConstrainReservationsToElements(): void
     {
         $install = file_get_contents(dirname(__DIR__, 3) . '/src/migrations/Install.php');
 
-        $this->assertStringContainsString(
-            "addForeignKey(null, '{{%booked_reservations}}', 'id', '{{%elements}}', 'id', 'CASCADE', null)",
+        $this->assertStringNotContainsString(
+            "addForeignKey(null, '{{%booked_reservations}}', 'id', '{{%elements}}'",
             $install,
-            'booked_reservations.id must cascade from elements.id, or a hard delete orphans the row',
+            'Reservations must not be constrained to elements — they are plain records without Commerce',
         );
     }
 }

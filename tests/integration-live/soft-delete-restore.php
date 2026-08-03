@@ -17,7 +17,7 @@
  *   3. Restoring brings the data back intact and reclaims the slot.
  *   4. A booking whose slot was taken while it was trashed still restores — it
  *      simply comes back without that slot, rather than failing or stealing it.
- *   5. A hard delete still removes the row, now via ON DELETE CASCADE.
+ *   5. A hard delete still removes the row — afterDelete() does it explicitly.
  *
  * Usage (from the project root):
  *   ddev exec php plugins/craft-booked/tests/integration-live/soft-delete-restore.php
@@ -186,8 +186,55 @@ $doomed = book('c', $date, $service, $employee, '16:00');
 $doomedId = (int) $doomed->id;
 $elements->deleteElement($doomed, true);   // hard
 $doomedRow = row($doomedId);
-check('the row is gone via ON DELETE CASCADE', $doomedRow === null, $doomedRow === null ? 'row deleted with the element' : 'ROW STILL PRESENT — the cascade did not fire');
+check('the row is gone', $doomedRow === null, $doomedRow === null ? 'afterDelete removed it' : 'ROW STILL PRESENT');
 check('…and so is the element', !(new Query())->from('{{%elements}}')->where(['id' => $doomedId])->exists());
+
+// ------------------------- a reservation is not always a Craft element
+// ReservationFactory returns a plain ActiveRecord when Commerce is absent, and
+// that row has nothing in `elements`. A cascading id -> elements.id constraint
+// was briefly added here and made every one of those inserts fail, so no
+// booking could be created at all on a Commerce-free install. This is the
+// check that catches it.
+echo "\nBookings without Commerce (plain records)\n";
+
+$viaFactory = \anvildev\booked\factories\ReservationFactory::create();
+echo '    factory returns ' . get_class($viaFactory) . ' (element mode: '
+    . (\anvildev\booked\factories\ReservationFactory::isElementMode() ? 'yes' : 'no') . ")\n";
+
+$viaFactory->userName = TAG . ' factory';
+$viaFactory->userEmail = strtolower(TAG) . '-factory@example.test';
+$viaFactory->bookingDate = $date;
+$viaFactory->startTime = '18:00';
+$viaFactory->endTime = '19:00';
+$viaFactory->status = ReservationRecord::STATUS_CONFIRMED;
+$viaFactory->serviceId = $service->id;
+$viaFactory->quantity = 1;
+
+$saveError = null;
+$saved = false;
+try {
+    $saved = $viaFactory->save(false);
+} catch (\Throwable $e) {
+    $saveError = get_class($e) . ': ' . $e->getMessage();
+}
+check(
+    'a booking saves through the factory',
+    $saved && $saveError === null,
+    $saveError !== null ? substr($saveError, 0, 140) : 'id=' . $viaFactory->getId(),
+);
+
+if ($viaFactory->getId()) {
+    $fRow = row((int) $viaFactory->getId());
+    check('…and its row is there', $fRow !== null);
+    // A plain record has no element to delete, so the row goes directly. (An
+    // earlier version passed a blank Reservation to deleteElement(), which is
+    // meaningless and threw from Craft's structure behaviour.)
+    if ($viaFactory instanceof Reservation) {
+        $elements->deleteElement($viaFactory, true);
+    } else {
+        Craft::$app->getDb()->createCommand()->delete('{{%booked_reservations}}', ['id' => $viaFactory->getId()])->execute();
+    }
+}
 
 // ------------------------------------------------------------------ teardown
 foreach ($made as $el) {
