@@ -96,4 +96,24 @@ class ReservationSoftDeleteTest extends TestCase
             'Reservations must not be constrained to elements — they are plain records without Commerce',
         );
     }
+
+    /**
+     * No migration may delete reservation rows.
+     *
+     * One did. Adding the elements foreign key meant clearing the rows that
+     * violated it first, and on a Commerce-free install that is every booking on
+     * the site — a destructive upgrade in service of a constraint that was then
+     * reverted. Cheap to guard, catastrophic to repeat.
+     */
+    public function testNoMigrationDeletesReservations(): void
+    {
+        foreach (glob(dirname(__DIR__, 3) . '/src/migrations/*.php') as $file) {
+            $source = file_get_contents($file);
+            $this->assertDoesNotMatchRegularExpression(
+                '/(->delete\(|DELETE\s+FROM)[^;]*booked_reservations/i',
+                $source,
+                basename($file) . ' deletes reservation rows',
+            );
+        }
+    }
 }
