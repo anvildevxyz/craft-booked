@@ -247,6 +247,72 @@ Event::on(
 );
 ```
 
+### `PaymentRefundedEvent`
+
+**Cancelable:** No
+
+Fired after a **direct** (Commerce-free) payment is refunded, in full or in
+part. Commerce-mode refunds are Commerce's own events, not this one.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$reservationId` | int | The reservation the refund belongs to |
+| `$record` | PaymentRecord | The payment row that was refunded |
+| `$amount` | int | This refund, in the currency's minor unit (e.g. cents) |
+| `$totalRefunded` | int | Everything refunded against the payment so far, minor units |
+
+Amounts are integers in the minor unit, not floats — compare `$amount` with
+`$totalRefunded` to tell a partial refund from the one that settles the balance.
+
+```php
+use yii\base\Event;
+use anvildev\booked\events\PaymentRefundedEvent;
+use anvildev\booked\services\PaymentService;
+
+Event::on(
+    PaymentService::class,
+    PaymentService::EVENT_PAYMENT_REFUNDED,
+    function(PaymentRefundedEvent $event) {
+        $fullyRefunded = $event->totalRefunded >= $event->record->amount;
+        Craft::info(sprintf(
+            'Refunded %d (%s) on reservation %d',
+            $event->amount,
+            $fullyRefunded ? 'now fully refunded' : 'partial',
+            $event->reservationId,
+        ), 'booked');
+    }
+);
+```
+
+## Payment Gateway Events
+
+### `RegisterPaymentGatewaysEvent`
+
+**Cancelable:** No
+
+Fired once when the direct-payment gateway registry is first built. Add an
+adapter to serve a gateway other than the bundled Stripe one; adapters are
+resolved by handle.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$gateways` | array | Adapters to register, keyed by handle |
+
+```php
+use yii\base\Event;
+use anvildev\booked\events\RegisterPaymentGatewaysEvent;
+use anvildev\booked\services\PaymentGatewayService;
+
+Event::on(
+    PaymentGatewayService::class,
+    PaymentGatewayService::EVENT_REGISTER_PAYMENT_GATEWAYS,
+    function(RegisterPaymentGatewaysEvent $event) {
+        // Must implement anvildev\booked\contracts\PaymentGatewayInterface
+        $event->gateways['mollie'] = new \my\plugin\MollieGateway();
+    }
+);
+```
+
 ## Availability Events
 
 ### `BeforeAvailabilityCheckEvent`
