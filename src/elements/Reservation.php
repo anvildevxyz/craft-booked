@@ -796,10 +796,62 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
         parent::afterSave($isNew);
     }
 
+    /**
+     * Craft deletes elements softly by default, so this used to destroy the
+     * booking's data while the element sat in the trash — restoring it produced
+     * an empty reservation (#93).
+     *
+     * A hard delete needs no help now: booked_reservations.id is a foreign key
+     * onto elements.id with ON DELETE CASCADE, so the row goes with the element.
+     *
+     * What a soft delete must still do is release the slot. `activeSlotKey`
+     * carries a unique index to prevent double-booking, and a booking sitting in
+     * the trash should not hold a seat against everyone else. Written straight to
+     * the table rather than through the record, so it cannot trip the record's
+     * own beforeSave() recomputation of that key.
+     */
     public function afterDelete(): void
     {
-        $this->getRecord()?->delete();
+        if ($this->hardDelete) {
+            // Redundant once the foreign key is in place, and deliberately so:
+            // between deploying this code and running `craft up` the constraint
+            // may not exist yet, and a hard delete in that window would leave
+            // the row behind. Harmless afterwards — the cascade has already
+            // taken it.
+            $this->getRecord()?->delete();
+        } else {
+            Craft::$app->getDb()->createCommand()
+                ->update(ReservationRecord::tableName(), ['activeSlotKey' => null], ['id' => $this->id])
+                ->execute();
+        }
+
         parent::afterDelete();
+    }
+
+    /**
+     * Reclaim the slot the booking held before it was trashed.
+     *
+     * Re-saving the record recomputes activeSlotKey from the booking's own date,
+     * time and employee. If someone has taken that slot meanwhile the unique
+     * index refuses it — the booking still comes back, just without holding that
+     * slot, which is the honest outcome and visible to whoever restored it.
+     */
+    public function afterRestore(): void
+    {
+        $record = $this->getRecord();
+
+        if ($record) {
+            try {
+                $record->save(false);
+            } catch (\yii\db\IntegrityException $e) {
+                Craft::warning(
+                    "Restored reservation {$this->id} could not reclaim its slot — it is taken: " . $e->getMessage(),
+                    __METHOD__,
+                );
+            }
+        }
+
+        parent::afterRestore();
     }
 
     public static function getStatuses(): array
