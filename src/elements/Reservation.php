@@ -813,11 +813,10 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     public function afterDelete(): void
     {
         if ($this->hardDelete) {
-            // Redundant once the foreign key is in place, and deliberately so:
-            // between deploying this code and running `craft up` the constraint
-            // may not exist yet, and a hard delete in that window would leave
-            // the row behind. Harmless afterwards — the cascade has already
-            // taken it.
+            // Deleting the row is this method's remaining job. A cascading
+            // foreign key was tried instead and reverted: a reservation is only
+            // an element when Commerce is enabled, so the constraint made
+            // bookings impossible to create on every Commerce-free install.
             $this->getRecord()?->delete();
         } else {
             Craft::$app->getDb()->createCommand()
