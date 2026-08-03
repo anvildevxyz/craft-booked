@@ -21,10 +21,20 @@ use craft\enums\Color;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 
-if (interface_exists(\craft\commerce\base\PurchasableInterface::class)) {
-    class_alias(\craft\commerce\base\PurchasableInterface::class, 'anvildev\booked\elements\_ReservationPurchasable');
-} else {
-    class_alias(\anvildev\booked\contracts\PurchasableShim::class, 'anvildev\booked\elements\_ReservationPurchasable');
+// Commerce is optional, so the interface Reservation implements is aliased to
+// the real PurchasableInterface when Commerce is installed and to a local shim
+// when it is not.
+//
+// The guard makes the alias idempotent. class_alias() at file scope throws
+// "Cannot declare interface … because the name is already in use" if this file
+// is evaluated twice in one process — which PHPStan's bootstrap does, and which
+// surfaced as six warnings that only appeared on a cold result cache.
+if (!interface_exists('anvildev\booked\elements\_ReservationPurchasable', false)) {
+    if (interface_exists(\craft\commerce\base\PurchasableInterface::class)) {
+        class_alias(\craft\commerce\base\PurchasableInterface::class, 'anvildev\booked\elements\_ReservationPurchasable');
+    } else {
+        class_alias(\anvildev\booked\contracts\PurchasableShim::class, 'anvildev\booked\elements\_ReservationPurchasable');
+    }
 }
 
 class Reservation extends Element implements _ReservationPurchasable, ReservationInterface

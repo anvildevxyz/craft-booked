@@ -56,11 +56,17 @@ class EventDateSoftDeleteTest extends TestCase
     public function testSoftDeleteSetsValidDateTimeString(): void
     {
         $eventDate = $this->makeEventDate();
-        $before = new \DateTime();
+        // softDelete() stores UTC without a zone marker, per Craft's DB
+        // convention. Parsing that naive string with new DateTime() would read it
+        // in the server's local zone, putting it hours behind $before — which is
+        // why this failed by exactly Zurich's offset and would have passed only
+        // on a UTC machine.
+        $utc = new \DateTimeZone('UTC');
+        $before = new \DateTime('now', $utc);
         $eventDate->softDelete();
-        $after = new \DateTime();
+        $after = new \DateTime('now', $utc);
 
-        $deletedAt = new \DateTime($eventDate->deletedAt);
+        $deletedAt = new \DateTime($eventDate->deletedAt, $utc);
         $this->assertGreaterThanOrEqual($before->getTimestamp(), $deletedAt->getTimestamp());
         $this->assertLessThanOrEqual($after->getTimestamp(), $deletedAt->getTimestamp());
     }

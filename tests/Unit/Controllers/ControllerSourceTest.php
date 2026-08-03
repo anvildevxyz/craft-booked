@@ -132,42 +132,58 @@ class ControllerSourceTest extends TestCase
     {
         $source = $this->controllerSource($controllerFile);
 
-        if (empty($expectedActions)) {
-            $this->assertMatchesRegularExpression(
-                '/\$allowAnonymous\s*=\s*\[\s*\]/',
-                $source,
-                "{$controllerFile} should have empty \$allowAnonymous array"
-            );
-            return;
-        }
+        // Compare the whole declared set, not just "are the expected ones
+        // present". This is the list of actions reachable with no authentication
+        // at all, so an *extra* entry matters as much as a missing one — and the
+        // old containment check would have passed with any number of them.
+        $this->assertSame(
+            1,
+            preg_match('/\$allowAnonymous\s*=\s*(\[[^\]]*\])/', $source, $m),
+            "{$controllerFile} should declare \$allowAnonymous",
+        );
 
-        foreach ($expectedActions as $action) {
-            $this->assertStringContainsString(
-                "'{$action}'",
-                $source,
-                "'{$action}' should be in \$allowAnonymous for {$controllerFile}"
-            );
-        }
+        preg_match_all("/'([a-z0-9\-]+)'/i", $m[1], $found);
+        $declared = $found[1];
+        sort($declared);
+        sort($expectedActions);
+
+        $this->assertSame(
+            $expectedActions,
+            $declared,
+            "{$controllerFile} allows anonymous access to a different set of actions than expected",
+        );
     }
 
     public static function allowAnonymousProvider(): array
     {
         return [
             'BookingController' => ['BookingController.php', ['create-booking']],
+            // Availability and soft-lock endpoints the public booking wizard
+            // calls before anyone has identified themselves.
             'SlotController' => ['SlotController.php', [
-                'get-available-slots', 'get-availability-calendar', 'get-event-dates', 'create-lock', 'release-lock',
+                'get-available-slots', 'get-availability-calendar', 'get-available-dates',
+                'get-valid-end-dates', 'get-event-dates', 'get-range-capacity',
+                'create-lock', 'create-event-lock', 'create-multi-day-lock',
+                'extend-lock', 'release-lock',
             ]],
-            'WaitlistController' => ['WaitlistController.php', ['join-waitlist']],
+            'WaitlistController' => ['WaitlistController.php', ['join-waitlist', 'join-event-waitlist']],
             'BookingDataController' => ['BookingDataController.php', [
                 'get-services', 'get-service-extras', 'get-employees', 'get-commerce-settings',
             ]],
+            // Reached from the link in a confirmation email, so the visitor is
+            // not logged in. Each one authenticates on the reservation's
+            // confirmation token with hash_equals() and audits a failure.
             'BookingManagementController' => ['BookingManagementController.php', [
                 'manage-booking', 'cancel-booking-by-token', 'download-ics',
+                'increase-quantity', 'reduce-quantity',
             ]],
             'CalendarConnectController' => ['CalendarConnectController.php', [
                 'connect', 'callback', 'success', 'error',
             ]],
-            'AccountController empty' => ['AccountController.php', []],
+            // current-user is deliberately anonymous: it answers
+            // {loggedIn: false} for a guest and only ever returns the requesting
+            // user's own record, so the wizard can prefill without a 403.
+            'AccountController' => ['AccountController.php', ['current-user']],
         ];
     }
 
