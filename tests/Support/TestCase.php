@@ -30,6 +30,31 @@ abstract class TestCase extends BaseTestCase
     /**
      * Tear down after each test
      */
+    /**
+     * The exact source of one method, bounded by its real start and end lines.
+     *
+     * Five suites here already had a private copy of this; sharing it saves the
+     * sixth. Reflection rather than a fixed slice of the file, so a contract
+     * assertion cannot silently stop covering the method as it grows.
+     *
+     * @param class-string $class
+     */
+    protected function sourceOfMethod(string $class, string $method): string
+    {
+        $reflection = new \ReflectionMethod($class, $method);
+        $file = $reflection->getFileName();
+        $this->assertNotFalse($file, "{$class} has no source file");
+
+        $lines = file($file);
+        $this->assertNotFalse($lines, "Could not read {$file}");
+
+        return implode('', array_slice(
+            $lines,
+            $reflection->getStartLine() - 1,
+            $reflection->getEndLine() - $reflection->getStartLine() + 1,
+        ));
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

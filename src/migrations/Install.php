@@ -351,6 +351,10 @@ class Install extends Migration
             ]);
 
             // No FK on 'id' to 'elements.id' - Reservations can be Elements (Commerce) or standalone ActiveRecords
+            // The row's lifetime is the element's: a hard delete takes it with
+            // the element, which is what lets afterDelete() leave it alone on a
+            // soft delete instead of destroying the booking's data (#93).
+            $this->addForeignKey(null, '{{%booked_reservations}}', 'id', '{{%elements}}', 'id', 'CASCADE', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'employeeId', '{{%elements}}', 'id', 'SET NULL', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'locationId', '{{%elements}}', 'id', 'SET NULL', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'serviceId', '{{%elements}}', 'id', 'SET NULL', null);

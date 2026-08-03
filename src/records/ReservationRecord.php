@@ -81,14 +81,31 @@ class ReservationRecord extends ActiveRecord
     /**
      * Computes activeSlotKey for the unique double-booking constraint.
      * Active employee bookings get a non-NULL key; cancelled and employee-less bookings get NULL.
+     *
+     * The time is normalized to H:i first, and that is load-bearing. `startTime`
+     * arrives as "14:00" on a booking built from a request and as "14:00:00" on
+     * one read back from the TIME column, so interpolating it raw produced two
+     * different keys for the same slot — and the unique index cannot see a
+     * collision between strings that differ. Two confirmed bookings could
+     * therefore hold the same employee at the same time, one of them simply
+     * having been re-saved (a Control Panel edit is enough).
      */
     public function beforeSave($insert): bool
     {
         $this->activeSlotKey = ($this->status !== self::STATUS_CANCELLED && $this->employeeId !== null)
-            ? $this->bookingDate . '|' . $this->startTime . '|' . $this->employeeId
+            ? $this->bookingDate . '|' . self::normalizeSlotTime($this->startTime) . '|' . $this->employeeId
             : null;
 
         return parent::beforeSave($insert);
+    }
+
+    /**
+     * The canonical H:i form used inside activeSlotKey, so the key is identical
+     * however the reservation reached memory.
+     */
+    public static function normalizeSlotTime(?string $time): string
+    {
+        return substr((string) $time, 0, 5);
     }
 
     /**
