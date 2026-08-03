@@ -1555,6 +1555,12 @@ Query employees, services, locations, and reservations using Craft's element que
     .serviceId(service.id)
     .orderBy('startTime ASC')
     .all() %}
+
+{# Query blackout dates. Blackout dates are not localized, so this query spans
+   every site by default — it does not need, and ignores, a site filter. #}
+{% set closures = craft.booked.blackoutDates()
+    .orderBy('startDate ASC')
+    .all() %}
 ```
 
 ### Availability Methods

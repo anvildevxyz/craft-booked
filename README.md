@@ -17,6 +17,8 @@ A comprehensive booking and reservation management plugin for Craft CMS, designe
 - **Waitlist Management**: Automatic waitlist with conversion when slots become available
 - **Customer Booking Limits**: Configurable limits per service to prevent overbooking
 - **Customer Self-Service Portal**: Logged-in customers can view, manage, and cancel their bookings
+- **Session Notes**: Private post-appointment notes on a booking, separate from the customer's own notes and visible only to the assigned employee and admins
+- **No-Show Tracking**: Mark a booking as a no-show, in the Control Panel or in bulk via `booked/bookings/mark-no-shows`
 - **Multi-Site Support**: Localized services with propagation across multiple sites
 - **Framework-Free Booking Wizard**: A zero-dependency, CSP-safe multi-step booking wizard (no front-end framework required) that auto-selects and skips single-option steps to shorten the path to booking; plus dedicated event-booking and customer self-service flows
 
