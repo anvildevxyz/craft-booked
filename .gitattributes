@@ -1,0 +1,24 @@
+# Keep the distributed package lean: exclude dev-only paths from the
+# Packagist/`composer install --prefer-dist` archive. Source installs and
+# contributors are unaffected — this only governs what an install carries.
+/tests                  export-ignore
+/scripts                export-ignore
+/stubs                  export-ignore
+/.github                export-ignore
+/phpunit.xml            export-ignore
+/phpstan.neon           export-ignore
+/ecs.php                export-ignore
+/rector.php             export-ignore
+/vitest.config.js       export-ignore
+/package.json           export-ignore
+/package-lock.json      export-ignore
+/.gitattributes         export-ignore
+/.gitignore             export-ignore
+
+# Internal documents. Kept in the repository for maintainers — the PRD is cited
+# from src/records/PaymentRecord.php as the design rationale for the payment
+# schema — but not published to the people who install the plugin. The PRD in
+# particular still describes a Lite/Pro edition split that was reversed before
+# 1.4.0 shipped, so shipping it to users is actively misleading.
+/docs/prd               export-ignore
+/docs/MANUAL_TESTING_GUIDE.md  export-ignore
