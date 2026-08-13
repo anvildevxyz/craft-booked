@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "25e3f8b472929c1f105ce338eb70f66a",
+    "content-hash": "abe22209850654c74d28b3710318e6bc",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -849,6 +849,83 @@
             "time": "2025-09-16T12:23:56+00:00"
         },
         {
+            "name": "doctrine/annotations",
+            "version": "2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/doctrine/annotations.git",
+                "reference": "901c2ee5d26eb64ff43c47976e114bf00843acf7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/doctrine/annotations/zipball/901c2ee5d26eb64ff43c47976e114bf00843acf7",
+                "reference": "901c2ee5d26eb64ff43c47976e114bf00843acf7",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/lexer": "^2 || ^3",
+                "ext-tokenizer": "*",
+                "php": "^7.2 || ^8.0",
+                "psr/cache": "^1 || ^2 || ^3"
+            },
+            "require-dev": {
+                "doctrine/cache": "^2.0",
+                "doctrine/coding-standard": "^10",
+                "phpstan/phpstan": "^1.10.28",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "symfony/cache": "^5.4 || ^6.4 || ^7",
+                "vimeo/psalm": "^4.30 || ^5.14"
+            },
+            "suggest": {
+                "php": "PHP 8.0 or higher comes with attributes, a native replacement for annotations"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Doctrine\\Common\\Annotations\\": "lib/Doctrine/Common/Annotations"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Guilherme Blanco",
+                    "email": "guilhermeblanco@gmail.com"
+                },
+                {
+                    "name": "Roman Borschel",
+                    "email": "roman@code-factory.org"
+                },
+                {
+                    "name": "Benjamin Eberlei",
+                    "email": "kontakt@beberlei.de"
+                },
+                {
+                    "name": "Jonathan Wage",
+                    "email": "jonwage@gmail.com"
+                },
+                {
+                    "name": "Johannes Schmitt",
+                    "email": "schmittjoh@gmail.com"
+                }
+            ],
+            "description": "Docblock Annotations Parser",
+            "homepage": "https://www.doctrine-project.org/projects/annotations.html",
+            "keywords": [
+                "annotations",
+                "docblock",
+                "parser"
+            ],
+            "support": {
+                "issues": "https://github.com/doctrine/annotations/issues",
+                "source": "https://github.com/doctrine/annotations/tree/2.0.2"
+            },
+            "abandoned": true,
+            "time": "2024-09-05T10:17:24+00:00"
+        },
+        {
             "name": "doctrine/collections",
             "version": "2.6.0",
             "source": {
@@ -1611,21 +1688,21 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.15.2",
+            "version": "7.15.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "744101956d78b7c1384d0cbf379db13e859167bf"
+                "reference": "ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/744101956d78b7c1384d0cbf379db13e859167bf",
-                "reference": "744101956d78b7c1384d0cbf379db13e859167bf",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc",
+                "reference": "ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/promises": "^2.5.1",
+                "guzzlehttp/promises": "^2.5.2",
                 "guzzlehttp/psr7": "^2.13",
                 "php": "^7.2.5 || ^8.0",
                 "psr/http-client": "^1.0",
@@ -1719,7 +1796,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.15.2"
+                "source": "https://github.com/guzzle/guzzle/tree/7.15.3"
             },
             "funding": [
                 {
@@ -1735,20 +1812,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-26T23:23:20+00:00"
+            "time": "2026-08-05T19:48:21+00:00"
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.5.1",
+            "version": "2.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29"
+                "reference": "2823687acff28b2dbe67b2508a6b300e2c3fa4ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/9ad1e4fc607446a055b95870c7f668e93b5cff29",
-                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/2823687acff28b2dbe67b2508a6b300e2c3fa4ce",
+                "reference": "2823687acff28b2dbe67b2508a6b300e2c3fa4ce",
                 "shasum": ""
             },
             "require": {
@@ -1803,7 +1880,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.5.1"
+                "source": "https://github.com/guzzle/promises/tree/2.5.2"
             },
             "funding": [
                 {
@@ -1819,7 +1896,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-08T15:48:39+00:00"
+            "time": "2026-08-05T19:30:54+00:00"
         },
         {
             "name": "guzzlehttp/psr7",
@@ -2706,36 +2783,366 @@
             "time": "2026-06-23T18:43:15+00:00"
         },
         {
-            "name": "microsoft/microsoft-graph",
-            "version": "1.110.0",
+            "name": "microsoft/kiota-abstractions",
+            "version": "1.5.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/microsoftgraph/msgraph-sdk-php.git",
-                "reference": "da45ea4a5d5dda97549313129748bd10fdb2930c"
+                "url": "https://github.com/microsoft/kiota-abstractions-php.git",
+                "reference": "dd22152c9497b5dedcefcf9025691c6db40c23b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/microsoftgraph/msgraph-sdk-php/zipball/da45ea4a5d5dda97549313129748bd10fdb2930c",
-                "reference": "da45ea4a5d5dda97549313129748bd10fdb2930c",
+                "url": "https://api.github.com/repos/microsoft/kiota-abstractions-php/zipball/dd22152c9497b5dedcefcf9025691c6db40c23b3",
+                "reference": "dd22152c9497b5dedcefcf9025691c6db40c23b3",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/annotations": "^1.13 || ^2.0",
+                "open-telemetry/sdk": "^1.0.0",
+                "php": "^7.4 || ^8.0",
+                "php-http/promise": "~1.2.0",
+                "psr/http-message": "^1.1 || ^2.0",
+                "ramsey/uuid": "^4.2.3",
+                "stduritemplate/stduritemplate": "^0.0.53 || ^0.0.54 || ^0.0.55 || ^0.0.56 || ^0.0.57 || ^0.0.59 || ^1.0.0 || ^2.0.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Abstractions\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Abstractions for Kiota",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-abstractions-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:14:21+00:00"
+        },
+        {
+            "name": "microsoft/kiota-authentication-phpleague",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-authentication-phpleague-php.git",
+                "reference": "7766da482a86ccae8629a947cb0d21d160b6d18b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-authentication-phpleague-php/zipball/7766da482a86ccae8629a947cb0d21d160b6d18b",
+                "reference": "7766da482a86ccae8629a947cb0d21d160b6d18b",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/guzzle": "^6.5.8 || ^7.4.5",
-                "php": "^8.0 || ^7.3",
-                "psr/http-message": "^1.0 || ^2.0"
+                "ext-openssl": "*",
+                "firebase/php-jwt": "^6 || ^7",
+                "league/oauth2-client": "^2.6.1",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0",
+                "ramsey/uuid": "^4.2.3"
             },
             "require-dev": {
-                "guzzlehttp/promises": "^1.0 || ^2.0",
-                "mikey179/vfsstream": "^1.2",
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Authentication\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com"
+                }
+            ],
+            "description": "Authentication provider for Kiota using the PHP League OAuth 2.0 client to authenticate against the Microsoft Identity platform",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-authentication-phpleague-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:55:33+00:00"
+        },
+        {
+            "name": "microsoft/kiota-http-guzzle",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-http-guzzle-php.git",
+                "reference": "52102c4cf6a14bee14b45d43d205c58f9483468e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-http-guzzle-php/zipball/52102c4cf6a14bee14b45d43d205c58f9483468e",
+                "reference": "52102c4cf6a14bee14b45d43d205c58f9483468e",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-zlib": "*",
+                "guzzlehttp/guzzle": "^7.4.5",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Http\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com"
+                }
+            ],
+            "description": "Kiota HTTP Request Adapter implementation",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-http-guzzle-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:49:49+00:00"
+        },
+        {
+            "name": "microsoft/kiota-serialization-form",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-serialization-form-php.git",
+                "reference": "df46de5a4aebfb58f745598a39f0802449a7b727"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-serialization-form-php/zipball/df46de5a4aebfb58f745598a39f0802449a7b727",
+                "reference": "df46de5a4aebfb58f745598a39f0802449a7b727",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/psr7": "^1.6 || ^2",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22",
+                "roave/security-advisories": "dev-latest"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Serialization\\Form\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Form implementation of Kiota abstractions serialization.",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-serialization-form-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:54:15+00:00"
+        },
+        {
+            "name": "microsoft/kiota-serialization-json",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-serialization-json-php.git",
+                "reference": "7682906e67c36eb891282033195ef87921835ed0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-serialization-json-php/zipball/7682906e67c36eb891282033195ef87921835ed0",
+                "reference": "7682906e67c36eb891282033195ef87921835ed0",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/psr7": "^1.6 || ^2",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22",
+                "roave/security-advisories": "dev-latest"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Serialization\\Json\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Implementation of Kiota serialization abstractions using Json.",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-serialization-json-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:45:08+00:00"
+        },
+        {
+            "name": "microsoft/kiota-serialization-multipart",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-serialization-multipart-php.git",
+                "reference": "768ce6464982fc847bd5414580cf92eebd3eab66"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-serialization-multipart-php/zipball/768ce6464982fc847bd5414580cf92eebd3eab66",
+                "reference": "768ce6464982fc847bd5414580cf92eebd3eab66",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/psr7": "^1.6 || ^2",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22",
+                "roave/security-advisories": "dev-latest"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Serialization\\Multipart\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Multipart implementation of Kiota abstractions serialization.",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-serialization-multipart-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:47:07+00:00"
+        },
+        {
+            "name": "microsoft/kiota-serialization-text",
+            "version": "1.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoft/kiota-serialization-text-php.git",
+                "reference": "3289d60f971c96324830c0a99ae5ae335e7d4d63"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoft/kiota-serialization-text-php/zipball/3289d60f971c96324830c0a99ae5ae335e7d4d63",
+                "reference": "3289d60f971c96324830c0a99ae5ae335e7d4d63",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/psr7": "^1.6 || ^2",
+                "microsoft/kiota-abstractions": "^1.5.2",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12.16",
+                "phpunit/phpunit": "^9.6.22"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Kiota\\Serialization\\Text\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com"
+                }
+            ],
+            "description": "Implementation of Serialization Abstractions for text/plain content",
+            "support": {
+                "source": "https://github.com/microsoft/kiota-serialization-text-php/tree/1.5.2"
+            },
+            "time": "2025-12-18T13:56:02+00:00"
+        },
+        {
+            "name": "microsoft/microsoft-graph",
+            "version": "v2.56.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoftgraph/msgraph-sdk-php.git",
+                "reference": "0ebc7925c3b35835fdf983ef129bac68a163465a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoftgraph/msgraph-sdk-php/zipball/0ebc7925c3b35835fdf983ef129bac68a163465a",
+                "reference": "0ebc7925c3b35835fdf983ef129bac68a163465a",
+                "shasum": ""
+            },
+            "require": {
+                "microsoft/microsoft-graph-core": "^2.2.1",
+                "php": "^8.0 || ^7.4"
+            },
+            "require-dev": {
                 "phpstan/phpstan": "^0.12.90 || ^1.0.0",
                 "phpunit/phpunit": "^8.0 || ^9.0"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Microsoft\\Graph\\": "src/",
-                    "Beta\\Microsoft\\Graph\\": "src/Beta/Microsoft/Graph/"
+                    "Microsoft\\Graph\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -2753,9 +3160,63 @@
             "homepage": "https://developer.microsoft.com/en-us/graph",
             "support": {
                 "issues": "https://github.com/microsoftgraph/msgraph-sdk-php/issues",
-                "source": "https://github.com/microsoftgraph/msgraph-sdk-php/tree/1.110.0"
+                "source": "https://github.com/microsoftgraph/msgraph-sdk-php/tree/v2.56.0"
             },
-            "time": "2024-01-15T18:49:30+00:00"
+            "time": "2026-02-05T22:54:13+00:00"
+        },
+        {
+            "name": "microsoft/microsoft-graph-core",
+            "version": "v2.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/microsoftgraph/msgraph-sdk-php-core.git",
+                "reference": "b6fa67e9d6e5b2302742c4355e41528327a5409c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/microsoftgraph/msgraph-sdk-php-core/zipball/b6fa67e9d6e5b2302742c4355e41528327a5409c",
+                "reference": "b6fa67e9d6e5b2302742c4355e41528327a5409c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "microsoft/kiota-authentication-phpleague": "^1.5.0",
+                "microsoft/kiota-http-guzzle": "^1.5.0",
+                "microsoft/kiota-serialization-form": "^1.5.0",
+                "microsoft/kiota-serialization-json": "^1.5.0",
+                "microsoft/kiota-serialization-multipart": "^1.5.0",
+                "microsoft/kiota-serialization-text": "^1.5.0",
+                "php": "^8.0 || ^7.4"
+            },
+            "require-dev": {
+                "mikey179/vfsstream": "^1.2",
+                "phpstan/phpstan": "^0.12.90 || ^1.0.0",
+                "phpunit/phpunit": "^9.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Microsoft\\Graph\\Core\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Microsoft Graph Client Tooling",
+                    "email": "graphtooling@service.microsoft.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "The Microsoft Graph Core SDK for PHP",
+            "homepage": "https://developer.microsoft.com/en-us/graph",
+            "support": {
+                "issues": "https://github.com/microsoftgraph/msgraph-sdk-php-core/issues",
+                "source": "https://github.com/microsoftgraph/msgraph-sdk-php-core/tree/v2.4.0"
+            },
+            "time": "2025-11-26T15:22:35+00:00"
         },
         {
             "name": "mikehaertl/php-shellcommand",
@@ -3104,6 +3565,358 @@
             "time": "2025-01-08T20:10:23+00:00"
         },
         {
+            "name": "nyholm/psr7-server",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Nyholm/psr7-server.git",
+                "reference": "4335801d851f554ca43fa6e7d2602141538854dc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Nyholm/psr7-server/zipball/4335801d851f554ca43fa6e7d2602141538854dc",
+                "reference": "4335801d851f554ca43fa6e7d2602141538854dc",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.0 || ^2.0"
+            },
+            "require-dev": {
+                "nyholm/nsa": "^1.1",
+                "nyholm/psr7": "^1.3",
+                "phpunit/phpunit": "^7.0 || ^8.5 || ^9.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Nyholm\\Psr7Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Tobias Nyholm",
+                    "email": "tobias.nyholm@gmail.com"
+                },
+                {
+                    "name": "Martijn van der Ven",
+                    "email": "martijn@vanderven.se"
+                }
+            ],
+            "description": "Helper classes to handle PSR-7 server requests",
+            "homepage": "http://tnyholm.se",
+            "keywords": [
+                "psr-17",
+                "psr-7"
+            ],
+            "support": {
+                "issues": "https://github.com/Nyholm/psr7-server/issues",
+                "source": "https://github.com/Nyholm/psr7-server/tree/1.1.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/Zegnat",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nyholm",
+                    "type": "github"
+                }
+            ],
+            "time": "2023-11-08T09:30:43+00:00"
+        },
+        {
+            "name": "open-telemetry/api",
+            "version": "1.10.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/api.git",
+                "reference": "7c029c4a6fd457094a20569bf98f93d95e9a7559"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/7c029c4a6fd457094a20569bf98f93d95e9a7559",
+                "reference": "7c029c4a6fd457094a20569bf98f93d95e9a7559",
+                "shasum": ""
+            },
+            "require": {
+                "open-telemetry/context": "^1.4",
+                "php": "^8.1",
+                "psr/log": "^1.1|^2.0|^3.0",
+                "symfony/polyfill-php82": "^1.26"
+            },
+            "conflict": {
+                "open-telemetry/sdk": "<=1.11"
+            },
+            "type": "library",
+            "extra": {
+                "spi": {
+                    "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\HookManagerInterface": [
+                        "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\ExtensionHookManager"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-main": "1.8.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Trace/functions.php"
+                ],
+                "psr-4": {
+                    "OpenTelemetry\\API\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "API for OpenTelemetry PHP.",
+            "keywords": [
+                "Metrics",
+                "api",
+                "apm",
+                "logging",
+                "opentelemetry",
+                "otel",
+                "tracing"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2026-07-06T12:28:04+00:00"
+        },
+        {
+            "name": "open-telemetry/context",
+            "version": "1.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/context.git",
+                "reference": "3c414b246e0dabb7d6145404e6a5e4536ca18d07"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/context/zipball/3c414b246e0dabb7d6145404e6a5e4536ca18d07",
+                "reference": "3c414b246e0dabb7d6145404e6a5e4536ca18d07",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "symfony/polyfill-php82": "^1.26"
+            },
+            "suggest": {
+                "ext-ffi": "To allow context switching in Fibers"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "fiber/initialize_fiber_handler.php"
+                ],
+                "psr-4": {
+                    "OpenTelemetry\\Context\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "Context implementation for OpenTelemetry PHP.",
+            "keywords": [
+                "Context",
+                "opentelemetry",
+                "otel"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2025-10-19T06:44:33+00:00"
+        },
+        {
+            "name": "open-telemetry/sdk",
+            "version": "1.15.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/sdk.git",
+                "reference": "77e1aa73850154abb86937d52a70883edc3b4547"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/sdk/zipball/77e1aa73850154abb86937d52a70883edc3b4547",
+                "reference": "77e1aa73850154abb86937d52a70883edc3b4547",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "nyholm/psr7-server": "^1.1",
+                "open-telemetry/api": "^1.8",
+                "open-telemetry/context": "^1.4",
+                "open-telemetry/sem-conv": "^1.38.0",
+                "php": "^8.1",
+                "php-http/discovery": "^1.14",
+                "psr/http-client": "^1.0",
+                "psr/http-client-implementation": "^1.0",
+                "psr/http-factory-implementation": "^1.0",
+                "psr/http-message": "^1.0.1|^2.0",
+                "psr/log": "^1.1|^2.0|^3.0",
+                "ramsey/uuid": "^3.0 || ^4.0",
+                "symfony/polyfill-mbstring": "^1.23",
+                "symfony/polyfill-php82": "^1.26",
+                "tbachert/spi": "^1.0.5"
+            },
+            "suggest": {
+                "ext-gmp": "To support unlimited number of synchronous metric readers",
+                "ext-mbstring": "To increase performance of string operations",
+                "open-telemetry/sdk-configuration": "File-based OpenTelemetry SDK configuration"
+            },
+            "type": "library",
+            "extra": {
+                "spi": {
+                    "OpenTelemetry\\API\\Configuration\\ConfigEnv\\EnvComponentLoader": [
+                        "OpenTelemetry\\API\\Instrumentation\\Configuration\\General\\ConfigEnv\\EnvComponentLoaderHttpConfig",
+                        "OpenTelemetry\\API\\Instrumentation\\Configuration\\General\\ConfigEnv\\EnvComponentLoaderPeerConfig",
+                        "OpenTelemetry\\SDK\\ConfigEnv\\Trace\\SpanSuppressionStrategySemConv",
+                        "OpenTelemetry\\SDK\\ConfigEnv\\Trace\\SpanSuppressionStrategySpanKind",
+                        "OpenTelemetry\\SDK\\ConfigEnv\\Distribution\\DistributionConfigurationSdk"
+                    ],
+                    "OpenTelemetry\\SDK\\Common\\Configuration\\Resolver\\ResolverInterface": [
+                        "OpenTelemetry\\SDK\\Common\\Configuration\\Resolver\\SdkConfigurationResolver"
+                    ],
+                    "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\HookManagerInterface": [
+                        "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\ExtensionHookManager"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-main": "1.14.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Common/Util/functions.php",
+                    "Logs/Exporter/_register.php",
+                    "Metrics/MetricExporter/_register.php",
+                    "Propagation/_register.php",
+                    "Trace/SpanExporter/_register.php",
+                    "Common/Dev/Compatibility/_load.php",
+                    "_autoload.php"
+                ],
+                "psr-4": {
+                    "OpenTelemetry\\SDK\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "SDK for OpenTelemetry PHP.",
+            "keywords": [
+                "Metrics",
+                "apm",
+                "logging",
+                "opentelemetry",
+                "otel",
+                "sdk",
+                "tracing"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2026-07-14T13:09:54+00:00"
+        },
+        {
+            "name": "open-telemetry/sem-conv",
+            "version": "1.38.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/sem-conv.git",
+                "reference": "e613bc640a407def4991b8a936a9b27edd9a3240"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/sem-conv/zipball/e613bc640a407def4991b8a936a9b27edd9a3240",
+                "reference": "e613bc640a407def4991b8a936a9b27edd9a3240",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "OpenTelemetry\\SemConv\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "Semantic conventions for OpenTelemetry PHP.",
+            "keywords": [
+                "Metrics",
+                "apm",
+                "logging",
+                "opentelemetry",
+                "otel",
+                "semantic conventions",
+                "semconv",
+                "tracing"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2026-01-21T04:14:03+00:00"
+        },
+        {
             "name": "paragonie/constant_time_encoding",
             "version": "v3.1.3",
             "source": {
@@ -3171,6 +3984,137 @@
                 "source": "https://github.com/paragonie/constant_time_encoding"
             },
             "time": "2025-09-24T15:06:41+00:00"
+        },
+        {
+            "name": "php-http/discovery",
+            "version": "1.20.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-http/discovery.git",
+                "reference": "82fe4c73ef3363caed49ff8dd1539ba06044910d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-http/discovery/zipball/82fe4c73ef3363caed49ff8dd1539ba06044910d",
+                "reference": "82fe4c73ef3363caed49ff8dd1539ba06044910d",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0|^2.0",
+                "php": "^7.1 || ^8.0"
+            },
+            "conflict": {
+                "nyholm/psr7": "<1.0",
+                "zendframework/zend-diactoros": "*"
+            },
+            "provide": {
+                "php-http/async-client-implementation": "*",
+                "php-http/client-implementation": "*",
+                "psr/http-client-implementation": "*",
+                "psr/http-factory-implementation": "*",
+                "psr/http-message-implementation": "*"
+            },
+            "require-dev": {
+                "composer/composer": "^1.0.2|^2.0",
+                "graham-campbell/phpspec-skip-example-extension": "^5.0",
+                "php-http/httplug": "^1.0 || ^2.0",
+                "php-http/message-factory": "^1.0",
+                "phpspec/phpspec": "^5.1 || ^6.1 || ^7.3",
+                "sebastian/comparator": "^3.0.5 || ^4.0.8",
+                "symfony/phpunit-bridge": "^6.4.4 || ^7.0.1"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Http\\Discovery\\Composer\\Plugin",
+                "plugin-optional": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Http\\Discovery\\": "src/"
+                },
+                "exclude-from-classmap": [
+                    "src/Composer/Plugin.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Márk Sági-Kazár",
+                    "email": "mark.sagikazar@gmail.com"
+                }
+            ],
+            "description": "Finds and installs PSR-7, PSR-17, PSR-18 and HTTPlug implementations",
+            "homepage": "http://php-http.org",
+            "keywords": [
+                "adapter",
+                "client",
+                "discovery",
+                "factory",
+                "http",
+                "message",
+                "psr17",
+                "psr7"
+            ],
+            "support": {
+                "issues": "https://github.com/php-http/discovery/issues",
+                "source": "https://github.com/php-http/discovery/tree/1.20.0"
+            },
+            "time": "2024-10-02T11:20:13+00:00"
+        },
+        {
+            "name": "php-http/promise",
+            "version": "1.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-http/promise.git",
+                "reference": "b81bdf5a8e82a065fd73eb82919f28e0ac4d2a1b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-http/promise/zipball/b81bdf5a8e82a065fd73eb82919f28e0ac4d2a1b",
+                "reference": "b81bdf5a8e82a065fd73eb82919f28e0ac4d2a1b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "friends-of-phpspec/phpspec-code-coverage": "^4.3.2 || ^6.3",
+                "phpspec/phpspec": "^5.1.2 || ^6.2 || ^7.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Http\\Promise\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Joel Wurtz",
+                    "email": "joel.wurtz@gmail.com"
+                },
+                {
+                    "name": "Márk Sági-Kazár",
+                    "email": "mark.sagikazar@gmail.com"
+                }
+            ],
+            "description": "Promise used for asynchronous HTTP requests",
+            "homepage": "http://httplug.io",
+            "keywords": [
+                "promise"
+            ],
+            "support": {
+                "issues": "https://github.com/php-http/promise/issues",
+                "source": "https://github.com/php-http/promise/tree/1.2.2"
+            },
+            "time": "2025-11-08T15:23:07+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",
@@ -4321,6 +5265,160 @@
             "time": "2019-03-08T08:55:37+00:00"
         },
         {
+            "name": "ramsey/collection",
+            "version": "2.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ramsey/collection.git",
+                "reference": "344572933ad0181accbf4ba763e85a0306a8c5e2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ramsey/collection/zipball/344572933ad0181accbf4ba763e85a0306a8c5e2",
+                "reference": "344572933ad0181accbf4ba763e85a0306a8c5e2",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "captainhook/plugin-composer": "^5.3",
+                "ergebnis/composer-normalize": "^2.45",
+                "fakerphp/faker": "^1.24",
+                "hamcrest/hamcrest-php": "^2.0",
+                "jangregor/phpstan-prophecy": "^2.1",
+                "mockery/mockery": "^1.6",
+                "php-parallel-lint/php-console-highlighter": "^1.0",
+                "php-parallel-lint/php-parallel-lint": "^1.4",
+                "phpspec/prophecy-phpunit": "^2.3",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-mockery": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^10.5",
+                "ramsey/coding-standard": "^2.3",
+                "ramsey/conventional-commits": "^1.6",
+                "roave/security-advisories": "dev-latest"
+            },
+            "type": "library",
+            "extra": {
+                "captainhook": {
+                    "force-install": true
+                },
+                "ramsey/conventional-commits": {
+                    "configFile": "conventional-commits.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Ramsey\\Collection\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ben Ramsey",
+                    "email": "ben@benramsey.com",
+                    "homepage": "https://benramsey.com"
+                }
+            ],
+            "description": "A PHP library for representing and manipulating collections.",
+            "keywords": [
+                "array",
+                "collection",
+                "hash",
+                "map",
+                "queue",
+                "set"
+            ],
+            "support": {
+                "issues": "https://github.com/ramsey/collection/issues",
+                "source": "https://github.com/ramsey/collection/tree/2.1.1"
+            },
+            "time": "2025-03-22T05:38:12+00:00"
+        },
+        {
+            "name": "ramsey/uuid",
+            "version": "4.9.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ramsey/uuid.git",
+                "reference": "1df15849d00943a67d677dc9cfd80795f038c9f8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ramsey/uuid/zipball/1df15849d00943a67d677dc9cfd80795f038c9f8",
+                "reference": "1df15849d00943a67d677dc9cfd80795f038c9f8",
+                "shasum": ""
+            },
+            "require": {
+                "brick/math": ">=0.8.16 <=0.18",
+                "php": "^8.0",
+                "ramsey/collection": "^1.2 || ^2.0"
+            },
+            "replace": {
+                "rhumsaa/uuid": "self.version"
+            },
+            "require-dev": {
+                "captainhook/captainhook": "^5.25",
+                "captainhook/plugin-composer": "^5.3",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+                "ergebnis/composer-normalize": "^2.47",
+                "mockery/mockery": "^1.6",
+                "paragonie/random-lib": "^2",
+                "php-mock/php-mock": "^2.6",
+                "php-mock/php-mock-mockery": "^1.5",
+                "php-parallel-lint/php-parallel-lint": "^1.4.0",
+                "phpbench/phpbench": "^1.2.14",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-mockery": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^9.6",
+                "slevomat/coding-standard": "^8.18",
+                "squizlabs/php_codesniffer": "^3.13"
+            },
+            "suggest": {
+                "ext-bcmath": "Enables faster math with arbitrary-precision integers using BCMath.",
+                "ext-gmp": "Enables faster math with arbitrary-precision integers using GMP.",
+                "ext-uuid": "Enables the use of PeclUuidTimeGenerator and PeclUuidRandomGenerator.",
+                "paragonie/random-lib": "Provides RandomLib for use with the RandomLibAdapter",
+                "ramsey/uuid-doctrine": "Allows the use of Ramsey\\Uuid\\Uuid as Doctrine field type."
+            },
+            "type": "library",
+            "extra": {
+                "captainhook": {
+                    "force-install": true
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
+                "psr-4": {
+                    "Ramsey\\Uuid\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "A PHP library for generating and working with universally unique identifiers (UUIDs).",
+            "keywords": [
+                "guid",
+                "identifier",
+                "uuid"
+            ],
+            "support": {
+                "issues": "https://github.com/ramsey/uuid/issues",
+                "source": "https://github.com/ramsey/uuid/tree/4.9.3"
+            },
+            "time": "2026-06-18T03:57:49+00:00"
+        },
+        {
             "name": "samdark/yii2-psr-log-target",
             "version": "1.1.4",
             "source": {
@@ -4616,6 +5714,45 @@
                 }
             ],
             "time": "2026-07-16T10:28:45+00:00"
+        },
+        {
+            "name": "stduritemplate/stduritemplate",
+            "version": "2.0.12",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/std-uritemplate/std-uritemplate-php.git",
+                "reference": "fd18ebed22ded14a5833ab69d91443b19bd28647"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/std-uritemplate/std-uritemplate-php/zipball/fd18ebed22ded14a5833ab69d91443b19bd28647",
+                "reference": "fd18ebed22ded14a5833ab69d91443b19bd28647",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.4 || ^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "StdUriTemplate\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Andrea Peruffo",
+                    "email": "andrea.peruffo1982@gmail.com"
+                }
+            ],
+            "description": "Std UriTemplate, RFC 6570 implementation",
+            "support": {
+                "source": "https://github.com/std-uritemplate/std-uritemplate-php/tree/2.0.12"
+            },
+            "time": "2026-07-16T11:03:57+00:00"
         },
         {
             "name": "stripe/stripe-php",
@@ -6067,6 +7204,86 @@
             "time": "2026-04-10T16:19:22+00:00"
         },
         {
+            "name": "symfony/polyfill-php82",
+            "version": "v1.38.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-php82.git",
+                "reference": "002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-php82/zipball/002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b",
+                "reference": "002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Php82\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill backporting some PHP 8.2+ features to lower PHP versions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-php82/tree/v1.38.1"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-05-26T12:45:58+00:00"
+        },
+        {
             "name": "symfony/polyfill-php83",
             "version": "v1.41.0",
             "source": {
@@ -7331,6 +8548,58 @@
                 }
             ],
             "time": "2026-07-21T15:13:06+00:00"
+        },
+        {
+            "name": "tbachert/spi",
+            "version": "v1.0.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Nevay/spi.git",
+                "reference": "e7078767866d0a9e0f91d3f9d42a832df5e39002"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Nevay/spi/zipball/e7078767866d0a9e0f91d3f9d42a832df5e39002",
+                "reference": "e7078767866d0a9e0f91d3f9d42a832df5e39002",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "composer/semver": "^1.0 || ^2.0 || ^3.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0",
+                "infection/infection": "^0.27.9",
+                "phpunit/phpunit": "^10.5",
+                "psalm/phar": "^5.18"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Nevay\\SPI\\Composer\\Plugin",
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                },
+                "plugin-optional": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nevay\\SPI\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "Service provider loading facility",
+            "keywords": [
+                "service provider"
+            ],
+            "support": {
+                "issues": "https://github.com/Nevay/spi/issues",
+                "source": "https://github.com/Nevay/spi/tree/v1.0.5"
+            },
+            "time": "2025-06-29T15:42:06+00:00"
         },
         {
             "name": "theiconic/name-parser",
