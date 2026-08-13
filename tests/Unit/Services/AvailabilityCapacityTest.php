@@ -58,7 +58,7 @@ class AvailabilityCapacityTest extends TestCase
     }
 
     /** @param array<array{start: string, end: string}> $bookings */
-    private function subtract(array $windows, array $bookings, ?int $capacity, Service $service = null): array
+    private function subtract(array $windows, array $bookings, ?int $capacity, ?Service $service = null): array
     {
         return $this->invoke('subtractBookingsFromWindows', [
             $windows,

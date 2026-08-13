@@ -32,6 +32,15 @@ $config = [
     'basePath' => CRAFT_BASE_PATH,
     'vendorPath' => CRAFT_VENDOR_PATH,
     'components' => [
+        // Yii defaults silentExitOnException to YII_ENV_TEST, which is true here.
+        // An uncaught throwable then renders and returns, leaving the exit code at
+        // 0 — so a suite that dies while loading its test files reports success and
+        // CI goes green having run nothing. Turned off so the run fails loudly.
+        // See TestErrorHandler for the deprecations that used to kill it.
+        'errorHandler' => [
+            'class' => anvildev\booked\tests\Support\TestErrorHandler::class,
+            'silentExitOnException' => false,
+        ],
         'i18n' => [
             'class' => 'yii\i18n\I18N',
             'translations' => [
