@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Internal
+- **The PHP 8.4 CI job was reporting success while running no tests at all.** An implicit-nullable parameter in `AvailabilityCapacityTest` stopped the file loading on 8.4, which took down the whole run before the first test — and PHPUnit exited 0 anyway, so the job went green. The exit code came from Yii: it defaults `silentExitOnException` to `YII_ENV_TEST`, so an uncaught throwable renders and returns rather than exiting non-zero. The suite now turns that off, and a run that dies while loading its test files fails. Verified both ways: a clean run still exits 0, and a deliberately reintroduced load failure exits 1.
+- The suite's error handler now ignores `E_DEPRECATED` raised from files under `vendor/`. `phpunit.xml` sets `error_reporting` to `-1` and Yii turns anything in that mask into an exception, so on 8.4 every implicit-nullable parameter in a package we do not own became fatal — `craft\console\Controller::output(string $string = null)` is one, still present in Craft 5.10.13.2, and it took down six tests that load a console controller. Deprecations in Booked's own code stay fatal.
+
 ## 1.4.7 - 2026-08-13
 
 ### Added
