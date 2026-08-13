@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.7 - 2026-08-13
+
+### Added
+- **Booking data can be imported from the Slots plugin.** Slots is Booked's smaller sibling — the same availability engine and booking wizard with the integrations stripped out — and a site that outgrows it now has a way in: `php craft booked/import/from-slots [--dry-run] [--append] [--prefix=]`. Both plugins install into the same Craft project under different table prefixes, so the command reads Slots' tables directly; there is no export file, and Slots need not be uninstalled first. It imports services, staff, locations, schedules, blackout dates, their join rows, bookings and payments in one transaction, and refuses to run when Booked already holds data unless `--append` is given (#87).
+
+### Fixed
+- **Booked installs again next to plugins that cap the Stripe SDK lower.** Booked required `stripe/stripe-php` `^21.0`, which no version of Solspace Freeform accepts — Freeform 5 caps the same SDK at `^15`, Formie at `^16`, and Craft Commerce's Stripe gateway at `^13` — so Composer refused the install with "found stripe/stripe-php[v21.0.0, ..., v21.2.0] but these were not loaded, likely because it conflicts with another require". The requirement is now a range, `^13.0` through `^21.0`. Booked only uses Payment Intents create/retrieve, refunds create and webhook signature verification, and those signatures are identical across that range (#105).
+- **A trashed booking keeps its data.** `Reservation::afterDelete()` deleted the `booked_reservations` row outright, so a booking that was only soft-deleted was emptied of its data while its element sat in the trash, and restoring it produced a blank reservation. A soft delete now also releases the slot — a booking in the trash should not hold a seat against everyone else — and restoring reclaims it, or returns the booking without it when the slot has been taken meanwhile (#93).
+- **Two confirmed bookings could hold the same employee at the same time.** `activeSlotKey` interpolated `startTime` raw, which is `"14:00"` on a reservation built from a request and `"14:00:00"` on one read back from the `TIME` column. Two spellings of one slot are two different keys, and the unique index that guards against double-booking cannot see a collision between strings that differ — so the only requirement for a clash was that one of the two bookings had been re-saved, and a Control Panel edit is enough. The key is now normalised to `H:i`, and a migration rewrites existing rows. It leaves any genuine double bookings it uncovers alone and names them, rather than silently deciding which one loses its slot.
+
+### Security
+- **Dependency lock refreshed, clearing 84 advisories across 13 packages**, including two high-severity Craft remote-code-execution advisories, a stored XSS, and CVE-2026-55599 in phpseclib — X.509 validation follows Authority Information Access URLs, so certificate parsing can be steered into making outbound requests on the server's behalf. Nothing about what the plugin requires changed; the lock had simply never moved (#100).
+
+### Changed
+- **The Packagist archive no longer carries the whole repository.** Booked had no `.gitattributes`, so 1.4.6 shipped 180 test files, the CI workflows, the PHPStan/ECS/Rector/vitest configuration, the build script and several documents written for maintainers rather than for the people installing the plugin.
+- Documentation caught up with the code: `EVENT_SYSTEM.md` gained the two payment events it was missing — `EVENT_PAYMENT_REFUNDED`, whose amounts are integers in the currency's minor unit rather than floats, and `EVENT_REGISTER_PAYMENT_GATEWAYS`, the extension point for adding a gateway beyond the bundled Stripe one — and the README's feature list gained Session Notes and No-Show Tracking.
+
+### Internal
+- The repository has a CI workflow for the first time, running ECS, PHPStan and the test suites on PHP 8.2, 8.3 and 8.4. A `stripe-floor` job installs the lowest supported Stripe SDK and re-runs the analysis and the suite against it, because the committed lock pins the ceiling and nothing else would notice the floor breaking.
+- `m260803_000000_reservation_element_fk` is now a no-op. It added a foreign key from `booked_reservations.id` onto `elements.id` and, because a constraint cannot be added while rows violate it, deleted every reservation without a matching element first — on an install without Craft Commerce that is every booking on the site, since reservations are only Craft elements when Commerce is enabled. Neither that migration nor its removal was ever released, so no upgrade from 1.4.6 or earlier was affected, but installs tracking the default branch may have applied it (#102).
+
 ## 1.4.6 - 2026-07-30
 
 ### Changed
