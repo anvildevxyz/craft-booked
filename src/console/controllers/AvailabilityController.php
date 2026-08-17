@@ -137,6 +137,10 @@ class AvailabilityController extends Controller
 
             $this->stdout("  Source: Employee schedules (" . count($byEmployee) . " employee" . (count($byEmployee) !== 1 ? 's' : '') . ")\n", Console::FG_CYAN);
 
+            $scheduleAssignment = Booked::getInstance()->getScheduleAssignment();
+            $employeeSchedules = $scheduleAssignment->getActiveSchedulesForDateBatch(array_keys($byEmployee), $date);
+            $serviceSchedule = $scheduleAssignment->getActiveScheduleForServiceOnDate($this->service, $date);
+
             foreach ($byEmployee as $empId => $empSchedules) {
                 $emp = Employee::find()->siteId('*')->id($empId)->one();
                 $empUser = $emp?->getUser();
@@ -189,12 +193,25 @@ class AvailabilityController extends Controller
                         $this->stdout($line . "\n", Console::FG_RED);
                     }
 
-                    foreach ($bookings as $booking) {
-                        $bService = $booking->serviceId ? ($servicesById[$booking->serviceId] ?? null) : null;
-                        $blockedStart = $timeWindowService->addMinutes($booking->startTime, -($bService->bufferBefore ?? 0));
-                        $blockedEnd = $timeWindowService->addMinutes($booking->endTime, $bService->bufferAfter ?? 0);
-                        $empWindows = $timeWindowService->subtractWindow($empWindows, $blockedStart, $blockedEnd);
+                    // Reuse the real subtraction so this view cannot drift from
+                    // the calculation. Bookings on this service take a seat;
+                    // bookings elsewhere block the whole range.
+                    $empSeats = Booked::getInstance()->getCapacity()->getEmployeeSeatsForDay(
+                        $employeeSchedules[$empId] ?? null,
+                        $serviceSchedule,
+                        $dayOfWeek,
+                    );
+                    if ($empSeats > 1) {
+                        $this->stdout("    Seats per slot: {$empSeats}\n", Console::FG_CYAN);
                     }
+
+                    $empWindows = Booked::getInstance()->getAvailability()->subtractEmployeeBookingsFromList(
+                        $empWindows,
+                        $bookings,
+                        $serviceEl,
+                        $empSeats,
+                        $this->service,
+                    );
                 }
 
                 // Soft Locks
@@ -273,6 +290,10 @@ class AvailabilityController extends Controller
             $bookings = array_values(array_filter($bookings, fn($b) => $b->employeeId === $this->employee || $b->employeeId === null));
         }
 
+        $capacity = Booked::getInstance()->getScheduleAssignment()
+            ->getActiveScheduleForServiceOnDate($this->service, $date)
+            ?->getCapacityForDay($dayOfWeek === 0 ? 7 : $dayOfWeek);
+
         if (empty($bookings)) {
             $this->stdout("  ✓ No bookings\n", Console::FG_GREEN);
         } else {
@@ -288,9 +309,15 @@ class AvailabilityController extends Controller
                     $line .= "  (blocks {$blockedStart}–{$blockedEnd} with buffers)";
                 }
                 $this->stdout($line . "\n", Console::FG_RED);
-
-                $timeWindows = $timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
             }
+
+            if ($capacity !== null && $capacity > 1) {
+                $this->stdout("  Seats per slot: {$capacity} — a range only closes once every seat is taken\n", Console::FG_CYAN);
+            }
+
+            // Reuse the real subtraction so this view cannot drift from the calculation.
+            $timeWindows = Booked::getInstance()->getAvailability()
+                ->subtractBookingsFromWindows($timeWindows, $bookings, $serviceEl, $capacity);
         }
 
         // Soft Locks

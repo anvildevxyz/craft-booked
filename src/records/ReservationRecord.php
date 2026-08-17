@@ -80,7 +80,8 @@ class ReservationRecord extends ActiveRecord
 
     /**
      * Computes activeSlotKey for the unique double-booking constraint.
-     * Active employee bookings get a non-NULL key; cancelled and employee-less bookings get NULL.
+     * Active employee bookings on a single-seat slot get a non-NULL key;
+     * cancelled, employee-less and multi-seat bookings get NULL.
      *
      * The time is normalized to H:i first, and that is load-bearing. `startTime`
      * arrives as "14:00" on a booking built from a request and as "14:00:00" on
@@ -89,14 +90,45 @@ class ReservationRecord extends ActiveRecord
      * collision between strings that differ. Two confirmed bookings could
      * therefore hold the same employee at the same time, one of them simply
      * having been re-saved (a Control Panel edit is enough).
+     *
+     * A slot whose schedule grants several seats has to hold several active
+     * bookings for one employee, so "one row per employee per slot" stops being
+     * the invariant and the key is left NULL. Those slots are guarded the way
+     * employee-less group slots have always been guarded: BookingService takes a
+     * mutex on the slot and re-checks the remaining capacity inside it.
      */
     public function beforeSave($insert): bool
     {
-        $this->activeSlotKey = ($this->status !== self::STATUS_CANCELLED && $this->employeeId !== null)
+        $this->activeSlotKey = ($this->status !== self::STATUS_CANCELLED && $this->employeeId !== null && $this->holdsOneSeat())
             ? $this->bookingDate . '|' . self::normalizeSlotTime($this->startTime) . '|' . $this->employeeId
             : null;
 
         return parent::beforeSave($insert);
+    }
+
+    /**
+     * Whether this booking's slot is limited to a single seat, which is what the
+     * unique index can express. Unknown capacity counts as one seat, so a lookup
+     * that cannot resolve keeps the stricter guard rather than dropping it.
+     */
+    private function holdsOneSeat(): bool
+    {
+        $date = $this->bookingDate instanceof \DateTimeInterface
+            ? $this->bookingDate->format('Y-m-d')
+            : substr((string)$this->bookingDate, 0, 10);
+
+        if ($date === '' || $this->startTime === null) {
+            return true;
+        }
+
+        $capacity = \anvildev\booked\Booked::getInstance()?->getCapacity()->getCapacityForSlot(
+            $date,
+            self::normalizeSlotTime($this->startTime),
+            $this->employeeId,
+            $this->serviceId,
+        );
+
+        return $capacity === null || $capacity <= 1;
     }
 
     /**

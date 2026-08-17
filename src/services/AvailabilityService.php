@@ -248,14 +248,33 @@ class AvailabilityService extends Component
         $duration = $duration ?? ($service?->duration ?? 60);
         $slotInterval = $this->slotGeneratorService->getSlotInterval($service ?? $serviceId, $duration);
 
+        $dayOfWeek = (int)(DateTime::createFromFormat('Y-m-d', $date) ?: new DateTime())->format('N');
+        $scheduleAssignment = Booked::getInstance()->getScheduleAssignment();
+        $employeeSchedules = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
+        $serviceSchedule = $serviceId !== null
+            ? $scheduleAssignment->getActiveScheduleForServiceOnDate($serviceId, $date)
+            : null;
+
         $allSlots = [];
         foreach ($schedulesByEmployee as $empId => $empWindowsRaw) {
             if (isset($blackedOutEmployees[$empId])) {
                 continue;
             }
 
+            $seats = $this->capacityService->getEmployeeSeatsForDay(
+                $employeeSchedules[$empId] ?? null,
+                $serviceSchedule,
+                $dayOfWeek,
+            );
+
             $timeWindows = $this->timeWindowService->mergeWindows($empWindowsRaw);
-            $timeWindows = $this->subtractEmployeeBookingsFromList($timeWindows, $reservationsByEmployee[$empId] ?? [], $service);
+            $timeWindows = $this->subtractEmployeeBookingsFromList(
+                $timeWindows,
+                $reservationsByEmployee[$empId] ?? [],
+                $service,
+                $seats,
+                $serviceId,
+            );
 
             $empLocationId = $locationId ?? ($timeWindows[0]['locationId'] ?? null);
 
@@ -274,13 +293,32 @@ class AvailabilityService extends Component
     }
 
     /**
-     * Subtract bookings from time windows using a pre-loaded list.
+     * Subtract bookings from one employee's time windows using a pre-loaded list.
      * Buffers: blockedStart = booking.startTime - bufferBefore, blockedEnd = booking.endTime + bufferAfter
+     *
+     * Bookings fall into two groups. Bookings for the service being offered take
+     * a seat of the employee's per-slot capacity, so their range is only cut once
+     * every seat is gone. Bookings for any other service block the whole range —
+     * an employee busy elsewhere cannot also host a seat here.
+     *
+     * Public so `booked/availability/check` can show the windows this
+     * calculation really uses, rather than a second implementation of the rule.
+     *
+     * @param int|null $capacity Seats this employee holds per slot. Null or 1 = one booking per slot.
+     * @param int|null $serviceId Service being offered; its bookings consume seats.
      */
-    private function subtractEmployeeBookingsFromList(array $timeWindows, array $bookings, ?Service $service): array
-    {
+    public function subtractEmployeeBookingsFromList(
+        array $timeWindows,
+        array $bookings,
+        ?Service $service,
+        ?int $capacity = null,
+        ?int $serviceId = null,
+    ): array {
         $serviceIds = array_unique(array_filter(array_map(fn($b) => $b->serviceId, $bookings)));
         $servicesById = !empty($serviceIds) ? Service::find()->siteId('*')->id($serviceIds)->indexBy('id')->all() : [];
+
+        $seats = max(1, $capacity ?? 1);
+        $seatBookings = [];
 
         foreach ($bookings as $booking) {
             // Timeless bookings (whole-day/flexible-day services) don't block a
@@ -288,10 +326,25 @@ class AvailabilityService extends Component
             if ($booking->startTime === null || $booking->endTime === null) {
                 continue;
             }
+
+            // Group slots: hold this service's bookings back and settle them
+            // together below, once their combined seat usage is known.
+            if ($seats > 1 && $serviceId !== null && (int)$booking->serviceId === $serviceId) {
+                $seatBookings[] = $booking;
+                continue;
+            }
+
             $bookingService = $booking->serviceId ? ($servicesById[$booking->serviceId] ?? null) : null;
             $blockedStart = $this->shiftWithinDay($booking->startTime, -($bookingService?->bufferBefore ?? 0));
             $blockedEnd = $this->shiftWithinDay($booking->endTime, $bookingService?->bufferAfter ?? 0);
             $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
+        }
+
+        if (!empty($seatBookings)) {
+            $occupancy = $this->buildOccupancyIntervals($seatBookings, $service?->bufferBefore ?? 0, $service?->bufferAfter ?? 0);
+            foreach ($this->findSaturatedRanges($occupancy, $seats) as [$blockedStart, $blockedEnd]) {
+                $timeWindows = $this->timeWindowService->subtractWindow($timeWindows, $blockedStart, $blockedEnd);
+            }
         }
 
         return $timeWindows;
@@ -305,9 +358,12 @@ class AvailabilityService extends Component
      * once the bookings overlapping it have taken every seat, so a group slot stays
      * bookable until it is genuinely full.
      *
+     * Public so `booked/availability/check` can show the windows this
+     * calculation really uses, rather than a second implementation of the rule.
+     *
      * @param int|null $capacity Seats per slot from the Schedule's per-day capacity. Null = one booking per slot.
      */
-    private function subtractBookingsFromWindows(array $timeWindows, array $bookings, Service $service, ?int $capacity = null): array
+    public function subtractBookingsFromWindows(array $timeWindows, array $bookings, Service $service, ?int $capacity = null): array
     {
         $occupancy = $this->buildOccupancyIntervals($bookings, $service->bufferBefore ?? 0, $service->bufferAfter ?? 0);
         if (empty($occupancy)) {
@@ -587,13 +643,32 @@ class AvailabilityService extends Component
         $employeeIds = array_map(fn($e) => $e->id, $employees);
         $blackedOutEmployees = $this->scheduleResolverService->getBlackedOutEmployeeIds($date, $employeeIds, $locationId);
 
+        // Employees reach this path without a schedule of their own, so the
+        // service schedule supplies both their hours and their seats.
+        $dayOfWeek = (int)(DateTime::createFromFormat('Y-m-d', $date) ?: new DateTime())->format('N');
+        $scheduleAssignment = Booked::getInstance()->getScheduleAssignment();
+        $employeeSchedules = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
+        $serviceSchedule = $scheduleAssignment->getActiveScheduleForServiceOnDate($service->id, $date);
+
         $allSlots = [];
         foreach ($employees as $employee) {
             if (isset($blackedOutEmployees[$employee->id])) {
                 continue;
             }
 
-            $empWindows = $this->subtractEmployeeBookingsFromList($timeWindows, $reservationsByEmployee[$employee->id] ?? [], $service);
+            $seats = $this->capacityService->getEmployeeSeatsForDay(
+                $employeeSchedules[$employee->id] ?? null,
+                $serviceSchedule,
+                $dayOfWeek,
+            );
+
+            $empWindows = $this->subtractEmployeeBookingsFromList(
+                $timeWindows,
+                $reservationsByEmployee[$employee->id] ?? [],
+                $service,
+                $seats,
+                $service->id,
+            );
 
             $empSlots = $this->slotGeneratorService->generateSlots($empWindows, $duration, $slotInterval, [
                 'serviceId' => $service->id,
@@ -785,8 +860,14 @@ class AvailabilityService extends Component
 
     /**
      * Post-deduplication soft lock filter for "Any available" employee mode.
-     * Checks whether at least one employee remains available (not soft-locked and not booked)
-     * for each time slot. Unassigned bookings reduce the effective employee count.
+     *
+     * Checks whether any seat remains for each time slot. The merged slot already
+     * carries each employee's remaining seats, with their own bookings and their
+     * per-day capacity accounted for, so this step only has to drop the seats of
+     * soft-locked employees and the seats that unassigned bookings hold.
+     *
+     * Counting seats rather than employees is what lets an employee with a
+     * multi-seat schedule stay bookable after their first booking.
      */
     protected function filterDeduplicatedSoftLocks(
         array $slots,
@@ -800,18 +881,19 @@ class AvailabilityService extends Component
             return $slots;
         }
 
-        $employees = Employee::find()->siteId('*')->serviceId($serviceId)->all();
-        if ($locationId !== null) {
-            $employees = array_filter($employees, fn($e) => $e->locationId === $locationId || $e->locationId === null);
-        }
-
         $locks = Booked::getInstance()->getSoftLock()->getActiveSoftLocksForDate($date, $serviceId, $softLockToken);
 
-        // Deliberately unfiltered by service: an employee booked on *any* service is
-        // busy, so their bookings elsewhere must still count against this one.
+        // Only employee-less bookings are gathered here. Bookings that belong to an
+        // employee have already been taken off that employee's seats upstream —
+        // by the window subtraction for other services, and by the capacity
+        // enrichment for this one — so counting them again would charge twice.
         $reservations = $preloadedReservations ?? $this->getReservationsForDate($date);
-        $reservationsByEmployee = [];
+        $unassignedBookings = [];
         foreach ($reservations as $reservation) {
+            if ($reservation->employeeId !== null) {
+                continue;
+            }
+
             // Timeless bookings (whole-day services, events) can't overlap a timed
             // slot; skip them so the time-overlap math below never receives a null
             // start/end (preloaded reservations may span other services).
@@ -819,29 +901,16 @@ class AvailabilityService extends Component
                 continue;
             }
 
-            // Unassigned bookings are the exception: one belongs to the capacity of
-            // the service it was made against, so another service's employee-less
-            // bookings must not eat into this service's pool of free employees.
-            if ($reservation->employeeId === null && (int)$reservation->serviceId !== $serviceId) {
+            // An employee-less booking belongs to the capacity of the service it was
+            // made against, so another service's must not eat into this one's seats.
+            if ((int)$reservation->serviceId !== $serviceId) {
                 continue;
             }
 
-            $reservationsByEmployee[$reservation->employeeId][] = [
-                'start' => $reservation->startTime,
-                'end' => $reservation->endTime,
-            ];
+            $unassignedBookings[] = ['start' => $reservation->startTime, 'end' => $reservation->endTime];
         }
 
-        $employeeIds = array_map(fn($e) => $e->id, $employees);
-        Craft::debug("filterDeduplicatedSoftLocks: date={$date}, serviceId={$serviceId}, employees=[" . implode(',', $employeeIds) . "], reservations=" . count($reservations), __METHOD__);
-        if (YII_DEBUG) { // @phpstan-ignore-line (YII_DEBUG is false in static analysis but true at runtime in dev)
-            foreach ($reservations as $reservation) {
-                Craft::debug("  Reservation: id={$reservation->id}, employeeId=" . ($reservation->employeeId ?? 'NULL') . ", time={$reservation->startTime}-{$reservation->endTime}", __METHOD__);
-            }
-        }
-
-        $unassignedBookings = $reservationsByEmployee[null] ?? [];
-        Craft::debug("  Unassigned bookings count: " . count($unassignedBookings), __METHOD__);
+        Craft::debug("filterDeduplicatedSoftLocks: date={$date}, serviceId={$serviceId}, reservations=" . count($reservations) . ", unassigned=" . count($unassignedBookings), __METHOD__);
 
         $filteredSlots = [];
         foreach ($slots as $slot) {
@@ -863,27 +932,33 @@ class AvailabilityService extends Component
                 }
             }
 
-            $availableEmployeeCount = 0;
-            foreach ($employees as $employee) {
-                if ($this->isSlotLockedByRecords($locks, $startTime, $endTime, $employee->id, $slotLocationId)) {
+            // Slots that never went through deduplicateByTime carry no seat map;
+            // fall back to one seat per employee behind the slot.
+            $seatsByEmployee = $slot['seatsByEmployee'] ?? null;
+            if (!is_array($seatsByEmployee)) {
+                $seatsByEmployee = array_fill_keys($slot['availableEmployeeIds'] ?? [], 1);
+            }
+
+            $availableSeats = 0;
+            $unlimited = false;
+            foreach ($seatsByEmployee as $seatEmployeeId => $seats) {
+                if ($this->isSlotLockedByRecords($locks, $startTime, $endTime, (int)$seatEmployeeId, $slotLocationId)) {
                     continue;
                 }
 
-                $hasOverlap = false;
-                foreach ($reservationsByEmployee[$employee->id] ?? [] as $booking) {
-                    if ($slotStartMin < $this->timeWindowService->timeToMinutes($booking['end']) && $slotEndMin > $this->timeWindowService->timeToMinutes($booking['start'])) {
-                        $hasOverlap = true;
-                        break;
-                    }
+                // A null capacity means the slot is unconstrained, so no amount
+                // of unassigned bookings can close it.
+                if ($seats === null) {
+                    $unlimited = true;
+                    break;
                 }
 
-                if (!$hasOverlap) {
-                    $availableEmployeeCount++;
-                }
+                $availableSeats += (int)$seats;
             }
 
-            Craft::debug("  Slot {$startTime}: availableEmployees={$availableEmployeeCount}, unassignedOverlap={$unassignedOverlapCount}, show=" . ($availableEmployeeCount > $unassignedOverlapCount ? 'YES' : 'NO'), __METHOD__);
-            if ($availableEmployeeCount > $unassignedOverlapCount) {
+            $show = $unlimited || $availableSeats > $unassignedOverlapCount;
+            Craft::debug("  Slot {$startTime}: availableSeats=" . ($unlimited ? 'unlimited' : $availableSeats) . ", unassignedOverlap={$unassignedOverlapCount}, show=" . ($show ? 'YES' : 'NO'), __METHOD__);
+            if ($show) {
                 $filteredSlots[] = $slot;
             }
         }

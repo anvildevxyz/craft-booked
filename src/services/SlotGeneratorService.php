@@ -99,7 +99,15 @@ class SlotGeneratorService extends Component
         ]), $slots);
     }
 
-    /** Deduplicate slots by time (for "Any available" employee selection). */
+    /**
+     * Deduplicate slots by time (for "Any available" employee selection).
+     *
+     * The merged slot reports the seats of every employee behind it, not the
+     * seats of whichever employee happened to come first. `seatsByEmployee`
+     * keeps the per-employee split so later filters can withdraw one employee's
+     * seats without discarding the rest. A null capacity means unlimited and
+     * wins over any number it is merged with.
+     */
     public function deduplicateByTime(array $slots): array
     {
         $seen = [];
@@ -107,26 +115,47 @@ class SlotGeneratorService extends Component
 
         foreach ($slots as $slot) {
             $key = $slot['time'] . '-' . ($slot['endTime'] ?? '');
+            $employeeId = !empty($slot['employeeId']) ? $slot['employeeId'] : null;
+
             if (!isset($seen[$key])) {
                 $seen[$key] = count($unique);
-                $employeeIds = [];
-                if (!empty($slot['employeeId'])) {
-                    $employeeIds[] = $slot['employeeId'];
-                }
                 $unique[] = array_merge($slot, [
                     'employeeId' => null,
                     'employeeName' => null,
-                    'availableEmployeeIds' => $employeeIds,
+                    'availableEmployeeIds' => $employeeId !== null ? [$employeeId] : [],
+                    'seatsByEmployee' => $employeeId !== null ? [$employeeId => $slot['availableCapacity'] ?? null] : [],
                 ]);
-            } else {
-                $idx = $seen[$key];
-                if (!empty($slot['employeeId']) && !in_array($slot['employeeId'], $unique[$idx]['availableEmployeeIds'], true)) {
-                    $unique[$idx]['availableEmployeeIds'][] = $slot['employeeId'];
-                }
+                continue;
             }
+
+            $idx = $seen[$key];
+            if ($employeeId === null || in_array($employeeId, $unique[$idx]['availableEmployeeIds'], true)) {
+                continue;
+            }
+
+            $unique[$idx]['availableEmployeeIds'][] = $employeeId;
+            $unique[$idx]['seatsByEmployee'][$employeeId] = $slot['availableCapacity'] ?? null;
+            $unique[$idx] = $this->mergeSlotCapacity($unique[$idx], $slot);
         }
 
         return $unique;
+    }
+
+    /** Add one employee's seats to a merged slot. Null (unlimited) absorbs anything. */
+    private function mergeSlotCapacity(array $merged, array $slot): array
+    {
+        foreach (['maxCapacity', 'availableCapacity'] as $attribute) {
+            $mergedValue = $merged[$attribute] ?? null;
+            $slotValue = $slot[$attribute] ?? null;
+            $merged[$attribute] = ($mergedValue === null || $slotValue === null)
+                ? null
+                : $mergedValue + $slotValue;
+        }
+
+        $merged['bookedQuantity'] = ($merged['bookedQuantity'] ?? 0) + ($slot['bookedQuantity'] ?? 0);
+        $merged['capacity'] = $merged['maxCapacity'] ?? 1;
+
+        return $merged;
     }
 
     public function sortByTime(array $slots): array
@@ -135,7 +164,13 @@ class SlotGeneratorService extends Component
         return $slots;
     }
 
-    /** Filter slots requiring $quantity employees available at same time. */
+    /**
+     * Filter slots that cannot seat $quantity bookings at the same time.
+     *
+     * Counts seats rather than employees, so one employee holding several seats
+     * can take a group booking. With one seat per employee this is the same
+     * count as before. An unlimited slot (null capacity) always passes.
+     */
     public function filterByEmployeeQuantity(array $slots, int $quantity): array
     {
         $byTime = [];
@@ -144,7 +179,23 @@ class SlotGeneratorService extends Component
             $byTime[$key][] = $slot;
         }
 
-        $filtered = array_values(array_filter($byTime, fn($group) => count($group) >= $quantity));
+        $filtered = array_values(array_filter($byTime, function(array $group) use ($quantity) {
+            $seats = 0;
+            foreach ($group as $slot) {
+                // A slot that never went through capacity enrichment brings the one
+                // seat of its employee. Only an explicit null means unlimited.
+                if (!array_key_exists('availableCapacity', $slot)) {
+                    $seats++;
+                    continue;
+                }
+                if ($slot['availableCapacity'] === null) {
+                    return true;
+                }
+                $seats += (int)$slot['availableCapacity'];
+            }
+            return $seats >= $quantity;
+        }));
+
         return $filtered !== [] ? array_merge(...$filtered) : [];
     }
 }

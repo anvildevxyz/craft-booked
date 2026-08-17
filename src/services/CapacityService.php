@@ -128,12 +128,16 @@ class CapacityService extends Component
         $employeeIds = array_map(fn($e) => $e->id, $employees);
         $scheduleMap = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
 
+        $serviceSchedule = $serviceId !== null
+            ? $scheduleAssignment->getActiveScheduleForServiceOnDate($serviceId, $date)
+            : null;
+
         foreach ($employees as $employee) {
             $activeSchedule = $scheduleMap[$employee->id] ?? null;
             if ($activeSchedule !== null) {
                 foreach ($activeSchedule->getWorkingSlotsForDay($dayOfWeek) as $slot) {
                     if ($this->minutesInRange($slotMinutes, $slot['start'], $slot['end'])) {
-                        return 1;
+                        return $activeSchedule->getCapacityForDay($dayOfWeek) ?? 1;
                     }
                 }
                 continue;
@@ -142,23 +146,46 @@ class CapacityService extends Component
             // Fallback: inline workingHours
             $hours = $employee->getWorkingHoursForDay($dayOfWeek);
             if ($hours && $this->minutesInRange($slotMinutes, $hours['start'], $hours['end'])) {
-                return 1;
+                // Employees carry no capacity of their own, so a service schedule
+                // that also covers the slot supplies the seats.
+                return $serviceSchedule?->getCapacityForDay($dayOfWeek) ?? 1;
             }
         }
 
         // Final fallback: service schedule
-        if ($serviceId !== null) {
-            $schedule = Booked::getInstance()->getScheduleAssignment()
-                ->getActiveScheduleForServiceOnDate($serviceId, $date);
-            if ($schedule !== null) {
-                $dayHours = $schedule->getWorkingHoursForDay($dayOfWeek);
-                if ($dayHours !== null && $this->minutesInRange($slotMinutes, $dayHours['start'], $dayHours['end'])) {
-                    return $schedule->getCapacityForDay($dayOfWeek) ?? 1;
-                }
+        if ($serviceSchedule !== null) {
+            $dayHours = $serviceSchedule->getWorkingHoursForDay($dayOfWeek);
+            if ($dayHours !== null && $this->minutesInRange($slotMinutes, $dayHours['start'], $dayHours['end'])) {
+                return $serviceSchedule->getCapacityForDay($dayOfWeek) ?? 1;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Seats one employee holds on every slot of a day.
+     *
+     * Mirrors the resolution order of {@see getCapacityFromPreloaded()}, but at
+     * day level, so availability subtraction and capacity enrichment agree on
+     * how many bookings a slot takes. A schedule's capacity is a per-day value,
+     * so the day is the finest grain this needs.
+     *
+     * Should the two ever drift, this is the more generous of the pair and
+     * filterByCapacity() still clamps the outcome — a slot can then be withheld,
+     * but never oversold.
+     */
+    public function getEmployeeSeatsForDay(?Schedule $employeeSchedule, ?Schedule $serviceSchedule, int $dayOfWeek): int
+    {
+        if ($employeeSchedule !== null && $employeeSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
+            return max(1, $employeeSchedule->getCapacityForDay($dayOfWeek) ?? 1);
+        }
+
+        if ($serviceSchedule !== null && $serviceSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
+            return max(1, $serviceSchedule->getCapacityForDay($dayOfWeek) ?? 1);
+        }
+
+        return 1;
     }
 
     public function getBookedQuantity(
@@ -333,7 +360,7 @@ class CapacityService extends Component
         if ($schedule !== null) {
             foreach ($schedule->getWorkingSlotsForDay($dayOfWeek) as $slot) {
                 if ($this->minutesInRange($slotMinutes, $slot['start'], $slot['end'])) {
-                    return 1;
+                    return $schedule->getCapacityForDay($dayOfWeek) ?? 1;
                 }
             }
         }
@@ -343,7 +370,9 @@ class CapacityService extends Component
         if ($employee !== null) {
             $hours = $employee->getWorkingHoursForDay($dayOfWeek);
             if ($hours && $this->minutesInRange($slotMinutes, $hours['start'], $hours['end'])) {
-                return 1;
+                // Employees carry no capacity of their own, so a service schedule
+                // that also covers the slot supplies the seats.
+                return $serviceSchedule?->getCapacityForDay($dayOfWeek) ?? 1;
             }
         }
 

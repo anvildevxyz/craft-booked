@@ -98,6 +98,49 @@ class SlotGeneratorServiceTest extends TestCase
         $this->assertEquals(100, $result[0]['locationId']);
     }
 
+    public function testDeduplicateByTimeSumsSeatsAcrossEmployees(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 3, 'bookedQuantity' => 1, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'maxCapacity' => 3, 'bookedQuantity' => 0, 'availableCapacity' => 3],
+        ];
+
+        $result = $this->service->deduplicateByTime($slots);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals(6, $result[0]['maxCapacity']);
+        $this->assertEquals(1, $result[0]['bookedQuantity']);
+        $this->assertEquals(5, $result[0]['availableCapacity']);
+        $this->assertEquals([1 => 2, 2 => 3], $result[0]['seatsByEmployee']);
+    }
+
+    public function testDeduplicateByTimeTreatsNullCapacityAsUnlimited(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 3, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'maxCapacity' => null, 'availableCapacity' => null],
+        ];
+
+        $result = $this->service->deduplicateByTime($slots);
+
+        $this->assertNull($result[0]['maxCapacity']);
+        $this->assertNull($result[0]['availableCapacity']);
+        $this->assertNull($result[0]['seatsByEmployee'][2]);
+    }
+
+    public function testDeduplicateByTimeIgnoresRepeatedEmployee(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 2, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 2, 'availableCapacity' => 2],
+        ];
+
+        $result = $this->service->deduplicateByTime($slots);
+
+        $this->assertEquals([1], $result[0]['availableEmployeeIds']);
+        $this->assertEquals(2, $result[0]['maxCapacity']);
+    }
+
     // =========================================================================
     // sortByTime() Tests
     // =========================================================================
@@ -255,6 +298,40 @@ class SlotGeneratorServiceTest extends TestCase
         foreach ($result as $slot) {
             $this->assertEquals('09:00', $slot['time']);
         }
+    }
+
+    public function testFilterByEmployeeQuantityCountsSeatsNotEmployees(): void
+    {
+        // One employee holding three seats can take a party of three.
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => 3],
+            ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 1, 'availableCapacity' => 2],
+        ];
+
+        $result = $this->service->filterByEmployeeQuantity($slots, 3);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('09:00', $result[0]['time']);
+    }
+
+    public function testFilterByEmployeeQuantityAddsSeatsAcrossEmployees(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'availableCapacity' => 2],
+        ];
+
+        $this->assertCount(2, $this->service->filterByEmployeeQuantity($slots, 4));
+        $this->assertCount(0, $this->service->filterByEmployeeQuantity($slots, 5));
+    }
+
+    public function testFilterByEmployeeQuantityKeepsUnlimitedSlots(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => null],
+        ];
+
+        $this->assertCount(1, $this->service->filterByEmployeeQuantity($slots, 9));
     }
 
     public function testFilterByEmployeeQuantityPreservesAllFields(): void
