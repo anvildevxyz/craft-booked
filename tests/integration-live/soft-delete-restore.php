@@ -29,6 +29,7 @@ require dirname(__DIR__, 4) . '/bootstrap.php';
 /** @var \craft\console\Application $app */
 $app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
 
+use anvildev\booked\Booked;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Reservation;
 use anvildev\booked\elements\Service;
@@ -64,14 +65,33 @@ foreach (Reservation::find()->siteId('*')->status(null)->trashed(null)->all() as
     }
 }
 
-$service = Service::find()->siteId('*')->status(null)->one();
-$employee = Employee::find()->siteId('*')->status(null)->one();
+$date = (new DateTime('+21 days'))->format('Y-m-d');
+
+// Every check below is about `activeSlotKey`, which only a single-seat slot
+// carries — a schedule granting several seats leaves it NULL on purpose, so a
+// multi-seat pairing would fail this script for a reason that is not a defect.
+// Pick the first pairing whose slot really does hold one booking rather than
+// trusting whatever ->one() happens to return.
+$service = null;
+$employee = null;
+$capacityService = Booked::getInstance()->getCapacity();
+
+foreach (Employee::find()->siteId('*')->status(null)->all() as $candidateEmployee) {
+    foreach (Service::find()->siteId('*')->status(null)->all() as $candidateService) {
+        $seats = $capacityService->getCapacityForSlot($date, '11:00', $candidateEmployee->id, $candidateService->id);
+        if ($seats === null || $seats <= 1) {
+            [$service, $employee] = [$candidateService, $candidateEmployee];
+            break 2;
+        }
+    }
+}
+
 if (!$service || !$employee) {
-    fwrite(STDERR, "Needs at least one service and one employee.\n");
+    fwrite(STDERR, "Needs at least one service and employee whose slot holds a single booking.\n");
     exit(1);
 }
 
-$date = (new DateTime('+21 days'))->format('Y-m-d');
+echo "  fixture: service #{$service->id}, employee #{$employee->id} (single-seat slot)\n";
 
 function book(string $suffix, string $date, Service $service, Employee $employee, string $start = '11:00'): Reservation
 {

@@ -283,6 +283,42 @@ try {
         ? $ok('slot withdrawn once the booking service filled every seat')
         : $bad('slot still listed after the booking service filled every seat');
 
+    $section('K. A soft lock holds one seat of an employee group slot, not the employee');
+    // filterSoftLockedSlots already takes the held seats off the slot. When
+    // filterDeduplicatedSoftLocks tested the lock a second time it zeroed the
+    // employee out entirely, closing a slot that still had a free seat — the
+    // "any available" view lost a bookable slot the moment anyone opened the
+    // booking form. Found by the browser smoke run, not by the unit suite.
+    [$service, , $employeeIds] = $fixture('K', 3, 1, true);
+    $book($service->id, $employeeIds[0], 'K1');
+
+    $slot = $probeSlot($service->id);
+    ($slot['availableCapacity'] ?? null) === 2
+        ? $ok('2 seats left after 1 booking')
+        : $bad('expected 2 seats before the lock, got ' . var_export($slot['availableCapacity'] ?? null, true));
+
+    $token = $plugin->getSoftLock()->createLock([
+        'date' => $date,
+        'startTime' => $time,
+        'endTime' => '10:00',
+        'serviceId' => $service->id,
+        'employeeId' => $employeeIds[0],
+        'quantity' => 1,
+    ]);
+    $token !== false ? $ok('soft lock taken on the group slot') : $bad('could not take a soft lock');
+
+    $slot = $probeSlot($service->id);
+    $slot !== null
+        ? $ok('slot still offered while one seat is held')
+        : $bad('slot withdrawn by a lock that holds only one of its seats');
+    ($slot['availableCapacity'] ?? null) === 1
+        ? $ok('the held seat is the only one taken')
+        : $bad('expected 1 seat under the lock, got ' . var_export($slot['availableCapacity'] ?? null, true));
+
+    if ($token !== false) {
+        $plugin->getSoftLock()->releaseLock($token, $plugin->getSoftLock()->getSessionHash());
+    }
+
     $section('J. The last seat of an employee group slot is only sold once');
     // A multi-seat slot has to hold several active bookings for one employee, so
     // the unique activeSlotKey index no longer guards it. That leaves the mutex

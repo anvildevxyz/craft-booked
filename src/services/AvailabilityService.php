@@ -932,17 +932,24 @@ class AvailabilityService extends Component
                 }
             }
 
-            // Slots that never went through deduplicateByTime carry no seat map;
-            // fall back to one seat per employee behind the slot.
+            // Slots that never went through deduplicateByTime carry no seat map.
+            // Those seats have not been through filterSoftLockedSlots either, so
+            // they still owe the lock check below.
             $seatsByEmployee = $slot['seatsByEmployee'] ?? null;
-            if (!is_array($seatsByEmployee)) {
+            $seatsAreLockAdjusted = is_array($seatsByEmployee);
+            if (!$seatsAreLockAdjusted) {
                 $seatsByEmployee = array_fill_keys($slot['availableEmployeeIds'] ?? [], 1);
             }
 
             $availableSeats = 0;
             $unlimited = false;
             foreach ($seatsByEmployee as $seatEmployeeId => $seats) {
-                if ($this->isSlotLockedByRecords($locks, $startTime, $endTime, (int)$seatEmployeeId, $slotLocationId)) {
+                // filterSoftLockedSlots already ran: it drops a single-seat slot a
+                // lock holds, and takes the held seats off a multi-seat one. Testing
+                // the lock again here would charge for it twice and close a slot
+                // that still has a free seat.
+                if (!$seatsAreLockAdjusted
+                    && $this->isSlotLockedByRecords($locks, $startTime, $endTime, (int)$seatEmployeeId, $slotLocationId)) {
                     continue;
                 }
 
