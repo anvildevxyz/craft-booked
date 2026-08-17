@@ -36,6 +36,7 @@ use anvildev\booked\Booked;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Schedule;
 use anvildev\booked\elements\Service;
+use anvildev\booked\factories\ReservationFactory;
 
 $db = Craft::$app->getDb();
 $elements = Craft::$app->getElements();
@@ -120,7 +121,7 @@ $probeSlot = function(int $serviceId) use ($plugin, $date, $time): ?array {
  *
  * @return array{0: Service, 1: Schedule, 2: int[]}
  */
-$fixture = function(string $label, ?int $capacity, int $employeeCount, bool $scheduleOnEmployee) use ($elements, $prefix): array {
+$fixture = function(string $label, ?int $capacity, int $employeeCount, bool $scheduleOnEmployee, string $durationType = 'minutes') use ($elements, $prefix): array {
     $day = [
         'enabled' => true,
         'start' => '09:00',
@@ -139,7 +140,8 @@ $fixture = function(string $label, ?int $capacity, int $employeeCount, bool $sch
 
     $service = new Service();
     $service->title = "{$prefix} Svc {$label}";
-    $service->duration = 60;
+    $service->durationType = $durationType;
+    $service->duration = $durationType === 'days' ? 1 : 60;
     $service->bufferBefore = 0;
     $service->bufferAfter = 0;
     if (!$elements->saveElement($service)) {
@@ -282,6 +284,64 @@ try {
     $probeSlot($service->id) === null
         ? $ok('slot withdrawn once the booking service filled every seat')
         : $bad('slot still listed after the booking service filled every seat');
+
+    $section('L. Whole-day bookings honour capacity for an employee too');
+    // Whole-day and flexible-day bookings hold no time, so activeSlotKey used to
+    // be built from an empty time segment ("2026-10-01||42") for every one of
+    // them. The second booking of a date collided on the unique index whatever
+    // the schedule granted, so an employee's multi-day service could never take
+    // more than one booking. Found by driving the wizard, not by the suites.
+    [$service, , $employeeIds] = $fixture('L', 3, 1, true, 'days');
+    $seatKeys = [];
+    for ($n = 1; $n <= 3; $n++) {
+        $r = ReservationFactory::create();
+        $r->userName = 'Issue109 L' . $n;
+        $r->userEmail = $marker . "-l{$n}@example.test";
+        $r->bookingDate = $date;
+        $r->endDate = $date;
+        $r->status = 'confirmed';
+        $r->serviceId = $service->id;
+        $r->employeeId = $employeeIds[0];
+        $r->quantity = 1;
+        $r->confirmationToken = $marker . '-l' . $n;
+        $saved = $r->save();
+        $seatKeys[] = $saved ? 'saved' : 'refused';
+    }
+    $seatKeys === ['saved', 'saved', 'saved']
+        ? $ok('3 whole-day bookings fit a capacity of 3')
+        : $bad('whole-day bookings gave ' . implode(', ', $seatKeys));
+
+    $keyed = (int)$db->createCommand(
+        'SELECT COUNT(*) FROM {{%booked_reservations}} WHERE serviceId = :s AND activeSlotKey IS NOT NULL',
+        [':s' => $service->id],
+    )->queryScalar();
+    $keyed === 0
+        ? $ok('none of them claims the single-seat key')
+        : $bad("{$keyed} whole-day booking(s) still took the single-seat key");
+
+    $section('M. Guard: a whole-day service without capacity still takes one booking');
+    [$service, , $employeeIds] = $fixture('M', null, 1, true, 'days');
+    $outcome = [];
+    for ($n = 1; $n <= 2; $n++) {
+        $r = ReservationFactory::create();
+        $r->userName = 'Issue109 M' . $n;
+        $r->userEmail = $marker . "-m{$n}@example.test";
+        $r->bookingDate = $date;
+        $r->endDate = $date;
+        $r->status = 'confirmed';
+        $r->serviceId = $service->id;
+        $r->employeeId = $employeeIds[0];
+        $r->quantity = 1;
+        $r->confirmationToken = $marker . '-m' . $n;
+        try {
+            $outcome[] = $r->save() ? 'saved' : 'refused';
+        } catch (Throwable $e) {
+            $outcome[] = 'refused';
+        }
+    }
+    $outcome === ['saved', 'refused']
+        ? $ok('the unique slot key still stops a second whole-day booking')
+        : $bad('capacity-less whole-day bookings gave ' . implode(', ', $outcome));
 
     $section('K. A soft lock holds one seat of an employee group slot, not the employee');
     // filterSoftLockedSlots already takes the held seats off the slot. When

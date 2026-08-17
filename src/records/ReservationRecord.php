@@ -117,11 +117,33 @@ class ReservationRecord extends ActiveRecord
             ? $this->bookingDate->format('Y-m-d')
             : substr((string)$this->bookingDate, 0, 10);
 
-        if ($date === '' || $this->startTime === null) {
+        if ($date === '') {
             return true;
         }
 
-        $capacity = \anvildev\booked\Booked::getInstance()?->getCapacity()->getCapacityForSlot(
+        $plugin = \anvildev\booked\Booked::getInstance();
+        if ($plugin === null) {
+            return true;
+        }
+
+        // Whole-day and flexible-day bookings hold no time, so there is no slot
+        // to size — their seats come from the day's capacity instead. Without
+        // this branch every such booking took the single-seat key and the second
+        // one on a date collided, whatever capacity the schedule granted.
+        //
+        // Both spellings of "no time" have to count: the column is NULL, but
+        // ReservationModel::$startTime defaults to an empty string, so a booking
+        // reaches this record as either depending on who built it.
+        if (($this->startTime ?? '') === '') {
+            $dayOfWeek = (int)(new \DateTime($date))->format('N');
+            $capacity = $this->serviceId !== null
+                ? $plugin->getScheduleResolver()->getCapacityForDay($this->serviceId, $this->employeeId, $date, $dayOfWeek)
+                : null;
+
+            return $capacity === null || $capacity <= 1;
+        }
+
+        $capacity = $plugin->getCapacity()->getCapacityForSlot(
             $date,
             self::normalizeSlotTime($this->startTime),
             $this->employeeId,
