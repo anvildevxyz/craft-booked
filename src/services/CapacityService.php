@@ -5,7 +5,6 @@ namespace anvildev\booked\services;
 use anvildev\booked\Booked;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Schedule;
-use anvildev\booked\elements\Service;
 use anvildev\booked\factories\ReservationFactory;
 use Craft;
 use craft\base\Component;
@@ -37,25 +36,24 @@ class CapacityService extends Component
         return $this->timeWindowService ??= new TimeWindowService();
     }
 
+    /**
+     * Cheap sanity check on a requested quantity, before the slot is priced out.
+     *
+     * How many seats a booking may actually take is a property of the slot, not
+     * of the service, so the ceiling is enforced by {@see hasAvailableCapacity()}
+     * against the schedule's per-day capacity.
+     *
+     * This used to also test `$service->allowQuantitySelection` and
+     * `$service->maxCapacity`. Neither has ever existed — not as a property, a
+     * column, or a Control Panel field — so both `isset()` calls were always
+     * false and the branches were unreachable. They are gone, along with the
+     * per-call Service lookup they needed, which ran on every availability check.
+     *
+     * @param int|null $serviceId Unused; kept so existing callers keep working.
+     */
     public function isQuantityAllowed(int $quantity, ?int $serviceId = null): bool
     {
-        if ($quantity <= 0) {
-            return false;
-        }
-        if ($serviceId === null) {
-            return true;
-        }
-
-        $service = Service::find()->siteId('*')->id($serviceId)->one();
-        if (!$service) {
-            return true;
-        }
-
-        if (isset($service->allowQuantitySelection) && !$service->allowQuantitySelection && $quantity > 1) {
-            return false;
-        }
-
-        return !(isset($service->maxCapacity) && $quantity > $service->maxCapacity);
+        return $quantity > 0;
     }
 
     /**

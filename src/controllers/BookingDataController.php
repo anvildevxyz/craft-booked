@@ -8,6 +8,7 @@ use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Location;
 use anvildev\booked\elements\Service;
+use anvildev\booked\elements\ServiceExtra;
 use anvildev\booked\helpers\ElementQueryHelper;
 use anvildev\booked\helpers\SiteHelper;
 use Craft;
@@ -59,24 +60,34 @@ class BookingDataController extends Controller
 
         $serviceIds = array_map(fn($s) => $s->id, $services);
 
-        // Batch query: services with enabled extras
+        // Batch query: services with enabled extras.
+        //
+        // An extra's enabled state lives on `elements`, not on the extra's own
+        // table — ServiceExtra is an element. Reading a non-existent
+        // `booked_service_extras.enabled` column threw on every request, was
+        // swallowed into a warning, and left every service reporting no add-ons.
         $servicesWithExtrasSet = [];
         try {
-            $servicesWithExtrasSet = array_flip(
-                (new \craft\db\Query())
-                    ->select(['booked_service_extras_services.serviceId'])
-                    ->distinct()
-                    ->from('{{%booked_service_extras_services}}')
-                    ->innerJoin(
-                        '{{%booked_service_extras}}',
-                        '[[booked_service_extras.id]] = [[booked_service_extras_services.extraId]]'
-                    )
-                    ->where(['booked_service_extras_services.serviceId' => $serviceIds])
-                    ->andWhere(['booked_service_extras.enabled' => true])
-                    ->column()
-            );
+            $enabledExtraIds = ElementQueryHelper::forSite(
+                ServiceExtra::find()->status('enabled')->unique(),
+                $site->id
+            )->ids();
+
+            if (!empty($enabledExtraIds)) {
+                $servicesWithExtrasSet = array_flip(
+                    (new \craft\db\Query())
+                        ->select(['serviceId'])
+                        ->distinct()
+                        ->from('{{%booked_service_extras_services}}')
+                        ->where([
+                            'serviceId' => $serviceIds,
+                            'extraId' => $enabledExtraIds,
+                        ])
+                        ->column()
+                );
+            }
         } catch (\Throwable $e) {
-            Craft::warning("Could not query service extras: " . $e->getMessage(), __METHOD__);
+            Craft::error("Could not query service extras: " . $e->getMessage(), __METHOD__);
         }
 
         // Batch query: service → location IDs

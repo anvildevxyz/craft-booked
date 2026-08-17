@@ -29,6 +29,20 @@ function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
 
+/**
+ * Normalise an element id to the number the API returns.
+ *
+ * Ids reach the wizard as numbers from the API but as strings from a deep link
+ * (`?serviceId=12`) or an integrator's config, and every lookup against a loaded
+ * list is strict. Anything that is not a usable id is passed through untouched
+ * so the caller's own null/undefined handling still sees what it expects.
+ */
+function toId(value) {
+  if (value == null || value === '') return value;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : value;
+}
+
 export class Wizard {
   /** @param {import('./types.js').WizardOptions} [options] */
   constructor(options = {}) {
@@ -278,7 +292,12 @@ export class Wizard {
   // ---- Selection ======================================================
 
   /** Load extras + employees/locations for a service and set it in context. */
-  async _loadServiceData(id) {
+  async _loadServiceData(rawId) {
+    // Ids arrive as strings from a `?serviceId=` deep link and as numbers from
+    // the API, and the lookup below is strict. Without this the match failed and
+    // the service fell back to a bare `{ id }` carrying no durationType, price
+    // or pricingMode — which rendered a multi-day service as an appointment.
+    const id = toId(rawId);
     const service = this._ctx.services.find((s) => s.id === id) ?? { id };
     this._ctx.setService(service);
 
@@ -335,7 +354,8 @@ export class Wizard {
     return this.getState();
   }
 
-  async selectLocation(id) {
+  async selectLocation(rawId) {
+    const id = toId(rawId);
     this._ctx.locationId = id;
     this._ctx.selectedLocation = this._ctx.locations.find((l) => l.id === id) ?? null;
 
@@ -364,7 +384,8 @@ export class Wizard {
     }
     return this.getState();
   }
-  selectEmployee(id) {
+  selectEmployee(rawId) {
+    const id = toId(rawId);
     this._ctx.employeeId = id;
     this._ctx.selectedEmployee = this._ctx.employees.find((e) => e.id === id) ?? null;
     return this.getState();
