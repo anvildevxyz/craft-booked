@@ -1,10 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.5.1 - 2026-08-18
 
 ### Fixed
 - **An employee-less booking cost a whole time slot instead of a seat.** On a service whose schedule sits on the service rather than its staff, `removeUnassignedBookingSlots()` dropped one slot per booking without an employee — and after deduplication there is one slot per time, so a single such booking erased every seat behind it. A two-employee capacity-3 service lost all six. Those seats were already charged by the capacity enrichment, so the filter was subtracting the same booking a second time and far more bluntly; it is gone, and both schedule placements now agree that one booking costs one seat.
-
 - **A party larger than the slot could be offered and then refused.** The quantity filter only ran on the employee-schedule path; the two service-schedule branches never received the requested quantity at all, so a capacity-3 slot was offered for a party of eight and the booking service turned it away. Every path now withholds a slot no single employee can seat. Found while checking the capacity table in `AVAILABILITY.md` against the code.
 - **`selectEventDate()` accepted a string id the way `selectService()` used to.** 1.5.0 normalised ids in the service, location and employee selectors but left the fourth, so an integrator passing an event date id straight from a URL got a selection that matched nothing. The shipped event template never emits one, so no site could hit it — the fix keeps the four selectors consistent rather than repairing a live fault. The wizard's constructor normalises its `serviceId` option too, so `getState()` reports a number before `start()` has resolved the service.
 
