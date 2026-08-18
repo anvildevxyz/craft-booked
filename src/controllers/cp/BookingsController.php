@@ -474,6 +474,30 @@ class BookingsController extends Controller
 
     private function checkForBookingConflicts($reservation, ?int $id): ?\yii\web\Response
     {
+        if ($this->slotHasRoomFor($reservation, $id)) {
+            return null;
+        }
+
+        Craft::$app->getSession()->setError(Craft::t('booked', 'errors.slotAlreadyBooked', [
+            'date' => $reservation->bookingDate,
+            'time' => $reservation->startTime,
+        ]));
+
+        return $this->renderTemplate('booked/bookings/edit', array_merge(
+            ['reservation' => $reservation],
+            $this->getFormOptions()
+        ));
+    }
+
+    /**
+     * Whether the slot still has room for this booking.
+     *
+     * Split out from the response above so the rule can be exercised without a
+     * session, and so the Control Panel measures a booking against the same
+     * per-day capacity the booking wizard does.
+     */
+    private function slotHasRoomFor($reservation, ?int $id): bool
+    {
         $normTime = static fn(?string $t): string => $t ? substr($t, 0, 5) : '';
 
         if ($id) {
@@ -484,7 +508,7 @@ class BookingsController extends Controller
                 $normTime($original->getEndTime()) === $normTime($reservation->endTime) &&
                 $original->getEmployeeId() === $reservation->employeeId
             ) {
-                return null;
+                return true;
             }
         }
 
@@ -496,24 +520,34 @@ class BookingsController extends Controller
             $conflictQuery->andWhere(['!=', 'id', $id]);
         }
 
+        // A slot holds as many bookings as its schedule grants, so an overlap is
+        // only a conflict once the seats are gone. Counting overlaps instead
+        // refused the second booking of a group slot here while the booking
+        // wizard was still selling the third — the Control Panel contradicting
+        // the front end on the same rule.
+        //
+        // An unresolvable capacity falls back to one seat, keeping the stricter
+        // answer rather than waving the booking through.
+        $seats = max(1, Booked::getInstance()->getCapacity()->getCapacityForSlot(
+            $reservation->bookingDate,
+            $normTime($reservation->startTime),
+            $reservation->employeeId ?: null,
+            $reservation->serviceId ?: null,
+        ) ?? 1);
+
+        $rStart = $normTime($reservation->startTime);
+        $rEnd = $normTime($reservation->endTime);
+        $seatsTaken = 0;
+
         foreach ($conflictQuery->all() as $conflict) {
             $cStart = $normTime($conflict->getStartTime());
             $cEnd = $normTime($conflict->getEndTime());
-            $rStart = $normTime($reservation->startTime);
-            $rEnd = $normTime($reservation->endTime);
             if ($rStart < $cEnd && $rEnd > $cStart) {
-                Craft::$app->getSession()->setError(Craft::t('booked', 'errors.slotAlreadyBooked', [
-                    'date' => $reservation->bookingDate,
-                    'time' => $reservation->startTime,
-                ]));
-                return $this->renderTemplate('booked/bookings/edit', array_merge(
-                    ['reservation' => $reservation],
-                    $this->getFormOptions()
-                ));
+                $seatsTaken += max(1, (int)($conflict->quantity ?? 1));
             }
         }
 
-        return null;
+        return $seatsTaken + max(1, (int)($reservation->quantity ?? 1)) <= $seats;
     }
 
     public function actionDelete(): Response
