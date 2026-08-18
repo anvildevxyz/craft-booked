@@ -102,11 +102,16 @@ class SlotGeneratorService extends Component
     /**
      * Deduplicate slots by time (for "Any available" employee selection).
      *
-     * The merged slot reports the seats of every employee behind it, not the
-     * seats of whichever employee happened to come first. `seatsByEmployee`
-     * keeps the per-employee split so later filters can withdraw one employee's
-     * seats without discarding the rest. A null capacity means unlimited and
-     * wins over any number it is merged with.
+     * A booking is assigned to ONE employee, so the merged slot advertises the
+     * best single employee behind it rather than the seats of whichever came
+     * first — and rather than their sum. The wizard uses `availableCapacity` as
+     * the largest party it will let a customer pick, and a total spread across
+     * staff is not a party anyone can book: two employees with two seats each
+     * cannot seat a party of four.
+     *
+     * `seatsByEmployee` keeps the per-employee split, so a filter asking "is any
+     * seat left at all" can still add them up. A null capacity means unlimited
+     * and beats any number it is merged with.
      */
     public function deduplicateByTime(array $slots): array
     {
@@ -141,18 +146,29 @@ class SlotGeneratorService extends Component
         return $unique;
     }
 
-    /** Add one employee's seats to a merged slot. Null (unlimited) absorbs anything. */
+    /**
+     * Adopt an employee's seats into a merged slot when they beat what it holds.
+     *
+     * The three capacity attributes are carried over together: they describe one
+     * employee, and mixing this employee's remaining seats with another's total
+     * would describe nobody. Null (unlimited) beats every number.
+     */
     private function mergeSlotCapacity(array $merged, array $slot): array
     {
-        foreach (['maxCapacity', 'availableCapacity'] as $attribute) {
-            $mergedValue = $merged[$attribute] ?? null;
-            $slotValue = $slot[$attribute] ?? null;
-            $merged[$attribute] = ($mergedValue === null || $slotValue === null)
-                ? null
-                : $mergedValue + $slotValue;
+        $mergedSeats = $merged['availableCapacity'] ?? null;
+        $slotSeats = $slot['availableCapacity'] ?? null;
+
+        // Already unlimited, or the incoming employee has fewer seats to offer.
+        if ($mergedSeats === null) {
+            return $merged;
+        }
+        if ($slotSeats !== null && $slotSeats <= $mergedSeats) {
+            return $merged;
         }
 
-        $merged['bookedQuantity'] = ($merged['bookedQuantity'] ?? 0) + ($slot['bookedQuantity'] ?? 0);
+        $merged['maxCapacity'] = $slot['maxCapacity'] ?? null;
+        $merged['availableCapacity'] = $slotSeats;
+        $merged['bookedQuantity'] = $slot['bookedQuantity'] ?? 0;
         $merged['capacity'] = $merged['maxCapacity'] ?? 1;
 
         return $merged;
@@ -167,9 +183,14 @@ class SlotGeneratorService extends Component
     /**
      * Filter slots that cannot seat $quantity bookings at the same time.
      *
-     * Counts seats rather than employees, so one employee holding several seats
-     * can take a group booking. With one seat per employee this is the same
-     * count as before. An unlimited slot (null capacity) always passes.
+     * A party is one reservation held by one employee, so the test is whether
+     * any SINGLE employee has enough seats — not whether the seats add up across
+     * staff. Two employees with two seats each cannot seat a party of four, and
+     * offering that slot only to have the booking refused is worse than not
+     * offering it.
+     *
+     * With one seat per employee this reduces to the old head count. An
+     * unlimited slot (null capacity) always passes.
      */
     public function filterByEmployeeQuantity(array $slots, int $quantity): array
     {
@@ -180,20 +201,20 @@ class SlotGeneratorService extends Component
         }
 
         $filtered = array_values(array_filter($byTime, function(array $group) use ($quantity) {
-            $seats = 0;
+            $best = 0;
             foreach ($group as $slot) {
                 // A slot that never went through capacity enrichment brings the one
                 // seat of its employee. Only an explicit null means unlimited.
                 if (!array_key_exists('availableCapacity', $slot)) {
-                    $seats++;
+                    $best = max($best, 1);
                     continue;
                 }
                 if ($slot['availableCapacity'] === null) {
                     return true;
                 }
-                $seats += (int)$slot['availableCapacity'];
+                $best = max($best, (int)$slot['availableCapacity']);
             }
-            return $seats >= $quantity;
+            return $best >= $quantity;
         }));
 
         return $filtered !== [] ? array_merge(...$filtered) : [];

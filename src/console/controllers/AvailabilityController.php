@@ -292,7 +292,7 @@ class AvailabilityController extends Controller
 
         $capacity = Booked::getInstance()->getScheduleAssignment()
             ->getActiveScheduleForServiceOnDate($this->service, $date)
-            ?->getCapacityForDay($dayOfWeek === 0 ? 7 : $dayOfWeek);
+            ?->getCapacityForDay($dayOfWeek);
 
         if (empty($bookings)) {
             $this->stdout("  ✓ No bookings\n", Console::FG_GREEN);

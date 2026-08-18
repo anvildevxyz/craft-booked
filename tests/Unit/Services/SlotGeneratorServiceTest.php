@@ -98,7 +98,11 @@ class SlotGeneratorServiceTest extends TestCase
         $this->assertEquals(100, $result[0]['locationId']);
     }
 
-    public function testDeduplicateByTimeSumsSeatsAcrossEmployees(): void
+    /**
+     * A booking belongs to one employee, so the merged slot must advertise the
+     * best single employee — never the total, which is a party nobody can book.
+     */
+    public function testDeduplicateByTimeReportsTheBestEmployeesSeats(): void
     {
         $slots = [
             ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 3, 'bookedQuantity' => 1, 'availableCapacity' => 2],
@@ -108,10 +112,24 @@ class SlotGeneratorServiceTest extends TestCase
         $result = $this->service->deduplicateByTime($slots);
 
         $this->assertCount(1, $result);
-        $this->assertEquals(6, $result[0]['maxCapacity']);
-        $this->assertEquals(1, $result[0]['bookedQuantity']);
-        $this->assertEquals(5, $result[0]['availableCapacity']);
+        $this->assertEquals(3, $result[0]['availableCapacity']);
+        $this->assertEquals(3, $result[0]['maxCapacity']);
+        $this->assertEquals(0, $result[0]['bookedQuantity']);
+        // The per-employee split survives for filters that ask "any seat left?".
         $this->assertEquals([1 => 2, 2 => 3], $result[0]['seatsByEmployee']);
+    }
+
+    public function testDeduplicateByTimeKeepsTheBestWhenItComesFirst(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'maxCapacity' => 5, 'bookedQuantity' => 0, 'availableCapacity' => 5],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'maxCapacity' => 2, 'bookedQuantity' => 0, 'availableCapacity' => 2],
+        ];
+
+        $result = $this->service->deduplicateByTime($slots);
+
+        $this->assertEquals(5, $result[0]['availableCapacity']);
+        $this->assertEquals(5, $result[0]['maxCapacity']);
     }
 
     public function testDeduplicateByTimeTreatsNullCapacityAsUnlimited(): void
@@ -253,7 +271,12 @@ class SlotGeneratorServiceTest extends TestCase
         $this->assertCount(2, $result);
     }
 
-    public function testFilterByEmployeeQuantityTwo(): void
+    /**
+     * Two employees with one seat each cannot seat a party of two: the booking
+     * service hands the whole party to a single employee, so a slot passing on
+     * head count was offered and then refused. Nothing is bookable here.
+     */
+    public function testFilterByEmployeeQuantityTwoSingleSeatEmployeesCannotSeatAPair(): void
     {
         $slots = [
             ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1],
@@ -261,12 +284,9 @@ class SlotGeneratorServiceTest extends TestCase
             ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 1],
         ];
 
-        $result = $this->service->filterByEmployeeQuantity($slots, 2);
-
-        // Only 09:00 has 2 employees available
-        $this->assertCount(2, $result);
-        $this->assertEquals('09:00', $result[0]['time']);
-        $this->assertEquals('09:00', $result[1]['time']);
+        $this->assertCount(0, $this->service->filterByEmployeeQuantity($slots, 2));
+        // Every one of them still serves a single booking.
+        $this->assertCount(3, $this->service->filterByEmployeeQuantity($slots, 1));
     }
 
     public function testFilterByEmployeeQuantityNoneMatch(): void
@@ -281,7 +301,8 @@ class SlotGeneratorServiceTest extends TestCase
         $this->assertCount(0, $result);
     }
 
-    public function testFilterByEmployeeQuantityThree(): void
+    /** Three single-seat employees still cannot seat one party of three. */
+    public function testFilterByEmployeeQuantityThreeSingleSeatEmployeesCannotSeatATrio(): void
     {
         $slots = [
             ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1],
@@ -291,9 +312,11 @@ class SlotGeneratorServiceTest extends TestCase
             ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 2],
         ];
 
-        $result = $this->service->filterByEmployeeQuantity($slots, 3);
+        $this->assertCount(0, $this->service->filterByEmployeeQuantity($slots, 3));
 
-        // Only 09:00 has 3 employees
+        // Give one of them three seats and 09:00 becomes bookable again.
+        $slots[0]['availableCapacity'] = 3;
+        $result = $this->service->filterByEmployeeQuantity($slots, 3);
         $this->assertCount(3, $result);
         foreach ($result as $slot) {
             $this->assertEquals('09:00', $slot['time']);
@@ -314,11 +337,28 @@ class SlotGeneratorServiceTest extends TestCase
         $this->assertEquals('09:00', $result[0]['time']);
     }
 
-    public function testFilterByEmployeeQuantityAddsSeatsAcrossEmployees(): void
+    /**
+     * Seats must NOT add up across staff: the booking goes to one employee, so
+     * two employees with two seats each cannot seat a party of four. Offering
+     * that slot only to refuse the booking is worse than withholding it.
+     */
+    public function testFilterByEmployeeQuantityDoesNotAddSeatsAcrossEmployees(): void
     {
         $slots = [
             ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => 2],
             ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'availableCapacity' => 2],
+        ];
+
+        $this->assertCount(2, $this->service->filterByEmployeeQuantity($slots, 2));
+        $this->assertCount(0, $this->service->filterByEmployeeQuantity($slots, 3));
+        $this->assertCount(0, $this->service->filterByEmployeeQuantity($slots, 4));
+    }
+
+    public function testFilterByEmployeeQuantityUsesTheRoomiestEmployee(): void
+    {
+        $slots = [
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => 1],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'availableCapacity' => 4],
         ];
 
         $this->assertCount(2, $this->service->filterByEmployeeQuantity($slots, 4));
@@ -336,9 +376,10 @@ class SlotGeneratorServiceTest extends TestCase
 
     public function testFilterByEmployeeQuantityPreservesAllFields(): void
     {
+        // One employee with two seats, so the party of two is actually bookable.
         $slots = [
-            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'duration' => 60],
-            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'duration' => 60],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'duration' => 60, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'duration' => 60, 'availableCapacity' => 2],
         ];
 
         $result = $this->service->filterByEmployeeQuantity($slots, 2);
@@ -349,17 +390,17 @@ class SlotGeneratorServiceTest extends TestCase
 
     public function testFilterByEmployeeQuantityMultipleTimeSlots(): void
     {
+        // Two-seat employees at 09:00 and 10:00; the 11:00 employee holds one.
         $slots = [
-            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1],
-            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2],
-            ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 1],
-            ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 2],
-            ['time' => '11:00', 'endTime' => '12:00', 'employeeId' => 1],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 1, 'availableCapacity' => 2],
+            ['time' => '09:00', 'endTime' => '10:00', 'employeeId' => 2, 'availableCapacity' => 2],
+            ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 1, 'availableCapacity' => 2],
+            ['time' => '10:00', 'endTime' => '11:00', 'employeeId' => 2, 'availableCapacity' => 2],
+            ['time' => '11:00', 'endTime' => '12:00', 'employeeId' => 1, 'availableCapacity' => 1],
         ];
 
         $result = $this->service->filterByEmployeeQuantity($slots, 2);
 
-        // 09:00 and 10:00 have 2 employees each
         $this->assertCount(4, $result);
 
         $times = array_column($result, 'time');

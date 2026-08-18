@@ -217,14 +217,57 @@ try {
 
     $section('D. Seats are per employee, not a shared pool');
     [$service, , $employeeIds] = $fixture('D', 3, 2, false);
+
+    // The merged "any available" slot advertises the best single employee, not
+    // the total. A booking goes to one employee, and the wizard reads this same
+    // number as the largest party it will offer — six is a party nobody here
+    // could seat, and the booking service would refuse it.
     $slot = $probeSlot($service->id);
-    ($slot['maxCapacity'] ?? null) === 6
-        ? $ok('merged slot reports 6 seats across 2 employees')
-        : $bad('merged slot reports maxCapacity=' . var_export($slot['maxCapacity'] ?? null, true) . ', expected 6');
+    ($slot['maxCapacity'] ?? null) === 3
+        ? $ok('merged slot advertises one employee\'s 3 seats, not the 6-seat total')
+        : $bad('merged slot reports maxCapacity=' . var_export($slot['maxCapacity'] ?? null, true) . ', expected 3');
+
+    // Single bookings still drain both employees, so the pool really is 6.
     $taken = $fillUntilClosed($service->id, $employeeIds, 8, 'D');
     $taken === 6
-        ? $ok('merged slot took 6 bookings then closed')
+        ? $ok('one-seat bookings still fill all 6 seats before it closes')
         : $bad("merged slot took {$taken} bookings, expected 6");
+
+    $section('N. A party is only offered a slot one employee can seat');
+    // Seats do not add up across staff: the booking service hands the whole
+    // party to a single employee. Offering a slot on the sum and refusing the
+    // booking afterwards is the same dead end this issue is about, pointing the
+    // other way.
+    [$service, , $employeeIds] = $fixture('N', 2, 2, true);
+
+    $plugin->getAvailability()->clearSlotCache();
+    $forPair = $plugin->getAvailability()->getAvailableSlots($date, null, null, $service->id, 2);
+    $hasPair = false;
+    foreach ($forPair as $s) {
+        if (substr($s['time'], 0, 5) === $time) {
+            $hasPair = true;
+        }
+    }
+    $hasPair
+        ? $ok('a party of 2 is offered — one employee holds 2 seats')
+        : $bad('a party of 2 was withheld even though an employee can seat it');
+
+    $plugin->getAvailability()->clearSlotCache();
+    $forFour = $plugin->getAvailability()->getAvailableSlots($date, null, null, $service->id, 4);
+    $hasFour = false;
+    foreach ($forFour as $s) {
+        if (substr($s['time'], 0, 5) === $time) {
+            $hasFour = true;
+        }
+    }
+    !$hasFour
+        ? $ok('a party of 4 is withheld — 2 + 2 seats are not one bookable party')
+        : $bad('a party of 4 was offered across two employees; the booking would be refused');
+
+    $slot = $probeSlot($service->id);
+    ($slot['availableCapacity'] ?? null) === 2
+        ? $ok('the slot advertises 2 seats, so the quantity picker stops at 2')
+        : $bad('the slot advertises ' . var_export($slot['availableCapacity'] ?? null, true) . ' seats, expected 2');
 
     $section('E. Guard: an unset capacity still means one booking per slot');
     [$service, , $employeeIds] = $fixture('E', null, 1, true);
@@ -342,6 +385,48 @@ try {
     $outcome === ['saved', 'refused']
         ? $ok('the unique slot key still stops a second whole-day booking')
         : $bad('capacity-less whole-day bookings gave ' . implode(', ', $outcome));
+
+    $section('O. The Control Panel accepts the seats the wizard sells');
+    // BookingsController::checkForBookingConflicts() treated any overlapping
+    // booking for the employee as a conflict, so an admin adding the second
+    // booking of a capacity-3 slot was refused while the wizard was still
+    // selling the third — the CP contradicting the front end on one rule.
+    [$service, , $employeeIds] = $fixture('O', 3, 1, true);
+
+    $conflictCheck = new ReflectionMethod(\anvildev\booked\controllers\cp\BookingsController::class, 'slotHasRoomFor');
+    $conflictCheck->setAccessible(true);
+    $controller = new \anvildev\booked\controllers\cp\BookingsController('bookings', Craft::$app);
+
+    $candidate = function() use ($service, $employeeIds, $date, $time) {
+        $r = ReservationFactory::create();
+        $r->userName = 'Issue109 O';
+        $r->userEmail = 'issue109-o@example.test';
+        $r->bookingDate = $date;
+        $r->startTime = $time;
+        $r->endTime = '10:00';
+        $r->status = 'confirmed';
+        $r->serviceId = $service->id;
+        $r->employeeId = $employeeIds[0];
+        $r->quantity = 1;
+        return $r;
+    };
+
+    $outcomes = [];
+    for ($n = 1; $n <= 4; $n++) {
+        $r = $candidate();
+        $refused = !$conflictCheck->invoke($controller, $r, null);
+        if ($refused) {
+            $outcomes[] = 'refused';
+            break;
+        }
+        $outcomes[] = 'accepted';
+        $r->confirmationToken = $marker . '-o' . $n;
+        $r->save();
+    }
+
+    $outcomes === ['accepted', 'accepted', 'accepted', 'refused']
+        ? $ok('the CP seats 3 bookings then refuses the 4th, matching the calendar')
+        : $bad('the CP gave ' . implode(', ', $outcomes) . ', expected 3 accepted then refused');
 
     $section('K. A soft lock holds one seat of an employee group slot, not the employee');
     // filterSoftLockedSlots already takes the held seats off the slot. When

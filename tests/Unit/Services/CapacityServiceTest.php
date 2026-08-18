@@ -549,9 +549,29 @@ class CapacityServiceTest extends TestCase
         $schedule = Mockery::mock(\anvildev\booked\elements\Schedule::class);
         $schedule->shouldReceive('getWorkingHoursForDay')
             ->andReturn($worksThatDay ? ['start' => '09:00', 'end' => '17:00'] : null);
+        $schedule->shouldReceive('getWorkingSlotsForDay')
+            ->andReturn($worksThatDay ? [['start' => '09:00', 'end' => '17:00']] : []);
         $schedule->shouldReceive('getCapacityForDay')->andReturn($capacity);
 
         return $schedule;
+    }
+
+    /**
+     * A day toggled on with blank times yields hours but no slots. Capacity
+     * enrichment reads the slots, so the seat count must too — otherwise the
+     * window subtraction is stricter than the seats it advertises.
+     */
+    public function testEmployeeSeatsIgnoreADayWithNoWorkingSlots(): void
+    {
+        $service = new CapacityService();
+
+        $blankDay = Mockery::mock(\anvildev\booked\elements\Schedule::class);
+        $blankDay->shouldReceive('getWorkingHoursForDay')->andReturn(['start' => null, 'end' => null]);
+        $blankDay->shouldReceive('getWorkingSlotsForDay')->andReturn([]);
+        $blankDay->shouldReceive('getCapacityForDay')->andReturn(1);
+
+        // Falls through to the service schedule instead of claiming one seat.
+        $this->assertEquals(9, $service->getEmployeeSeatsForDay($blankDay, $this->makeSchedule(9), 3));
     }
 
     public function testEmployeeSeatsComeFromTheEmployeeSchedule(): void

@@ -135,9 +135,23 @@ class ReservationRecord extends ActiveRecord
         // ReservationModel::$startTime defaults to an empty string, so a booking
         // reaches this record as either depending on who built it.
         if (($this->startTime ?? '') === '') {
-            $dayOfWeek = (int)(new \DateTime($date))->format('N');
+            // Several callers save with validation off, so the date rule may never
+            // have run. An unparseable date must not throw out of beforeSave() —
+            // afterRestore() only catches IntegrityException — so fall back to the
+            // stricter single-seat answer, which is what the timed branch does via
+            // createFromFormat() returning null.
+            $dateObj = \DateTime::createFromFormat('Y-m-d', $date);
+            if (!$dateObj) {
+                return true;
+            }
+
             $capacity = $this->serviceId !== null
-                ? $plugin->getScheduleResolver()->getCapacityForDay($this->serviceId, $this->employeeId, $date, $dayOfWeek)
+                ? $plugin->getScheduleResolver()->getCapacityForDay(
+                    $this->serviceId,
+                    $this->employeeId,
+                    $date,
+                    (int)$dateObj->format('N'),
+                )
                 : null;
 
             return $capacity === null || $capacity <= 1;

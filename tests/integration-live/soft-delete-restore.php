@@ -78,8 +78,11 @@ $capacityService = Booked::getInstance()->getCapacity();
 
 foreach (Employee::find()->siteId('*')->status(null)->all() as $candidateEmployee) {
     foreach (Service::find()->siteId('*')->status(null)->all() as $candidateService) {
+        // Exactly one seat, not null: getCapacityForSlot() also returns null when
+        // the employee does not serve the candidate service at all, and booking
+        // that pairing would prove nothing.
         $seats = $capacityService->getCapacityForSlot($date, '11:00', $candidateEmployee->id, $candidateService->id);
-        if ($seats === null || $seats <= 1) {
+        if ($seats === 1) {
             [$service, $employee] = [$candidateService, $candidateEmployee];
             break 2;
         }

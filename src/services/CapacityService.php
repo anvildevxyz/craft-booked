@@ -177,10 +177,17 @@ class CapacityService extends Component
      */
     public function getEmployeeSeatsForDay(?Schedule $employeeSchedule, ?Schedule $serviceSchedule, int $dayOfWeek): int
     {
-        if ($employeeSchedule !== null && $employeeSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
+        // Working SLOTS, not working hours: a day can be enabled with its start
+        // and end left blank, which yields hours but no slots. Enrichment reads
+        // the slots, so testing the hours here made the subtraction stricter than
+        // the seat count on exactly that day — a slot leaving the calendar while
+        // the API still reported seats free, which is the defect this fixes.
+        if ($employeeSchedule !== null && !empty($employeeSchedule->getWorkingSlotsForDay($dayOfWeek))) {
             return max(1, $employeeSchedule->getCapacityForDay($dayOfWeek) ?? 1);
         }
 
+        // The service fallback mirrors getCapacityFromPreloaded(), which checks
+        // the day's hours rather than its slots.
         if ($serviceSchedule !== null && $serviceSchedule->getWorkingHoursForDay($dayOfWeek) !== null) {
             return max(1, $serviceSchedule->getCapacityForDay($dayOfWeek) ?? 1);
         }

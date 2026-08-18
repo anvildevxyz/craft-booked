@@ -862,9 +862,10 @@ class AvailabilityService extends Component
      * Post-deduplication soft lock filter for "Any available" employee mode.
      *
      * Checks whether any seat remains for each time slot. The merged slot already
-     * carries each employee's remaining seats, with their own bookings and their
-     * per-day capacity accounted for, so this step only has to drop the seats of
-     * soft-locked employees and the seats that unassigned bookings hold.
+     * carries each employee's remaining seats — their own bookings, their per-day
+     * capacity and any soft lock are all accounted for by the time it gets here —
+     * so this step only has to weigh those seats against the employee-less
+     * bookings that hold some of them.
      *
      * Counting seats rather than employees is what lets an employee with a
      * multi-seat schedule stay bookable after their first booking.
@@ -881,8 +882,11 @@ class AvailabilityService extends Component
             return $slots;
         }
 
-        $locks = Booked::getInstance()->getSoftLock()->getActiveSoftLocksForDate($date, $serviceId, $softLockToken);
-
+        // Soft locks are deliberately not re-read here: filterSoftLockedSlots has
+        // already dropped a single-seat slot a lock holds and taken the held seats
+        // off a multi-seat one, so the seats below are lock-adjusted and asking
+        // again would charge for the same hold twice.
+        //
         // Only employee-less bookings are gathered here. Bookings that belong to an
         // employee have already been taken off that employee's seats upstream —
         // by the window subtraction for other services, and by the capacity
@@ -916,7 +920,6 @@ class AvailabilityService extends Component
         foreach ($slots as $slot) {
             $startTime = $slot['time'] ?? null;
             $endTime = $slot['endTime'] ?? null;
-            $slotLocationId = $slot['locationId'] ?? $locationId;
 
             if ($startTime === null || $endTime === null) {
                 continue;
@@ -932,27 +935,16 @@ class AvailabilityService extends Component
                 }
             }
 
-            // Slots that never went through deduplicateByTime carry no seat map.
-            // Those seats have not been through filterSoftLockedSlots either, so
-            // they still owe the lock check below.
+            // deduplicateByTime always attaches the seat map; the fallback only
+            // guards a caller that hands over slots it never merged.
             $seatsByEmployee = $slot['seatsByEmployee'] ?? null;
-            $seatsAreLockAdjusted = is_array($seatsByEmployee);
-            if (!$seatsAreLockAdjusted) {
+            if (!is_array($seatsByEmployee)) {
                 $seatsByEmployee = array_fill_keys($slot['availableEmployeeIds'] ?? [], 1);
             }
 
             $availableSeats = 0;
             $unlimited = false;
-            foreach ($seatsByEmployee as $seatEmployeeId => $seats) {
-                // filterSoftLockedSlots already ran: it drops a single-seat slot a
-                // lock holds, and takes the held seats off a multi-seat one. Testing
-                // the lock again here would charge for it twice and close a slot
-                // that still has a free seat.
-                if (!$seatsAreLockAdjusted
-                    && $this->isSlotLockedByRecords($locks, $startTime, $endTime, (int)$seatEmployeeId, $slotLocationId)) {
-                    continue;
-                }
-
+            foreach ($seatsByEmployee as $seats) {
                 // A null capacity means the slot is unconstrained, so no amount
                 // of unassigned bookings can close it.
                 if ($seats === null) {
