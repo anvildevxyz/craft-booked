@@ -512,6 +512,8 @@ class CapacityServiceTest extends TestCase
         $employeeSchedule->shouldReceive('getWorkingSlotsForDay')->andReturn([
             ['start' => '08:00', 'end' => '17:00'],
         ]);
+        // No capacity set on the schedule, so the slot holds one booking.
+        $employeeSchedule->shouldReceive('getCapacityForDay')->andReturn(null);
 
         $service->shouldReceive('loadBatchCapacityData')->andReturn([
             'employees' => [],
@@ -551,5 +553,83 @@ class CapacityServiceTest extends TestCase
         $result = $service->enrichSlotsWithCapacity($slots, '2025-06-15', 1);
 
         $this->assertEquals(0, $result[0]['availableCapacity']); // max(0, 2-5) = 0
+    }
+
+    // =========================================================================
+    // getEmployeeSeatsForDay() Tests
+    // =========================================================================
+
+    /** Mock a Schedule that works on $dayOfWeek with the given capacity. */
+    private function makeSchedule(?int $capacity, bool $worksThatDay = true): object
+    {
+        $schedule = Mockery::mock(\anvildev\booked\elements\Schedule::class);
+        $schedule->shouldReceive('getWorkingHoursForDay')
+            ->andReturn($worksThatDay ? ['start' => '09:00', 'end' => '17:00'] : null);
+        $schedule->shouldReceive('getWorkingSlotsForDay')
+            ->andReturn($worksThatDay ? [['start' => '09:00', 'end' => '17:00']] : []);
+        $schedule->shouldReceive('getCapacityForDay')->andReturn($capacity);
+
+        return $schedule;
+    }
+
+    /**
+     * A day toggled on with blank times yields hours but no slots. Capacity
+     * enrichment reads the slots, so the seat count must too — otherwise the
+     * window subtraction is stricter than the seats it advertises.
+     */
+    public function testEmployeeSeatsIgnoreADayWithNoWorkingSlots(): void
+    {
+        $service = new CapacityService();
+
+        $blankDay = Mockery::mock(\anvildev\booked\elements\Schedule::class);
+        $blankDay->shouldReceive('getWorkingHoursForDay')->andReturn(['start' => null, 'end' => null]);
+        $blankDay->shouldReceive('getWorkingSlotsForDay')->andReturn([]);
+        $blankDay->shouldReceive('getCapacityForDay')->andReturn(1);
+
+        // Falls through to the service schedule instead of claiming one seat.
+        $this->assertEquals(9, $service->getEmployeeSeatsForDay($blankDay, $this->makeSchedule(9), 3));
+    }
+
+    public function testEmployeeSeatsComeFromTheEmployeeSchedule(): void
+    {
+        $service = new CapacityService();
+
+        $seats = $service->getEmployeeSeatsForDay($this->makeSchedule(4), $this->makeSchedule(9), 3);
+
+        $this->assertEquals(4, $seats);
+    }
+
+    public function testEmployeeSeatsFallBackToTheServiceSchedule(): void
+    {
+        $service = new CapacityService();
+
+        $seats = $service->getEmployeeSeatsForDay(null, $this->makeSchedule(9), 3);
+
+        $this->assertEquals(9, $seats);
+    }
+
+    public function testEmployeeSeatsSkipAScheduleThatIsOffThatDay(): void
+    {
+        $service = new CapacityService();
+
+        $seats = $service->getEmployeeSeatsForDay($this->makeSchedule(4, false), $this->makeSchedule(9), 3);
+
+        $this->assertEquals(9, $seats);
+    }
+
+    public function testEmployeeSeatsDefaultToOneWhenNoCapacityIsSet(): void
+    {
+        $service = new CapacityService();
+
+        // This is the guard that keeps existing sites on one booking per slot.
+        $this->assertEquals(1, $service->getEmployeeSeatsForDay($this->makeSchedule(null), null, 3));
+        $this->assertEquals(1, $service->getEmployeeSeatsForDay(null, null, 3));
+    }
+
+    public function testEmployeeSeatsNeverDropBelowOne(): void
+    {
+        $service = new CapacityService();
+
+        $this->assertEquals(1, $service->getEmployeeSeatsForDay($this->makeSchedule(0), null, 3));
     }
 }

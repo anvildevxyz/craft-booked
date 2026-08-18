@@ -339,7 +339,7 @@ try {
     }
 
     // -----------------------------------------------------------------------
-    $section('S. Employee-based availability is untouched by the capacity change');
+    $section('S. One service\'s capacity never leaks into another service\'s employees');
     $clear();
     $setCapacity(10);
 
@@ -366,7 +366,12 @@ try {
             $expect($at($slots($employeeServiceId, $first->id), $probe), null, "booked employee loses {$probe}");
             $expect($at($slots($employeeServiceId, $second->id), $probe) !== null, true, "a second employee keeps {$probe}");
             $expect($at($slots($employeeServiceId), $probe) !== null, true, "'any available' keeps {$probe} while someone is free");
-            $expect($at($slots($employeeServiceId, $first->id), $probe) === null, true, 'per-employee capacity stays at one seat regardless of schedule capacity 10');
+
+            // Capacity 10 sits on service 1236's schedule. These employees run
+            // their own schedules, so they must keep one seat each — capacity is
+            // read from the schedule that governs the slot, never from whichever
+            // schedule was edited last.
+            $expect($at($slots($employeeServiceId, $first->id), $probe) === null, true, "another service's capacity of 10 does not reach these employees");
         }
     }
 

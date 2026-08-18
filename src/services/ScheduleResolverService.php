@@ -65,8 +65,6 @@ class ScheduleResolverService extends Component
                                 'endTime' => $slot['end'],
                                 'employeeId' => $employee->id,
                                 'locationId' => $employee->locationId,
-                                'capacity' => 1,
-                                'simultaneousSlots' => 1,
                             ];
                         }
                         continue;
@@ -82,8 +80,6 @@ class ScheduleResolverService extends Component
                     'endTime' => $slot['end'],
                     'employeeId' => $employee->id,
                     'locationId' => $employee->locationId,
-                    'capacity' => 1,
-                    'simultaneousSlots' => 1,
                 ];
             }
         }

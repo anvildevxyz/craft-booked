@@ -10,9 +10,14 @@
  * drives an employee-less service whose schedule grants N seats, fills those
  * seats one at a time, and asserts the slot stays listed and bookable until the
  * last seat is gone — then re-runs the capacity-1 and capacity-unset cases to
- * pin the single-booking behaviour, and the employee-based path to prove it is
- * untouched. Self-cleaning: seeded rows are removed and the schedule's original
- * working hours are restored.
+ * pin the single-booking behaviour, and the employee-based path to prove an
+ * employee with no capacity configured still holds exactly one seat.
+ * Self-cleaning: seeded rows are removed and the schedule's original working
+ * hours are restored.
+ *
+ * Issue #109 later extended capacity to employee slots as well. See
+ * employee-slot-capacity.php for that side; this script owns the employee-less
+ * path and the one-seat default.
  *
  * Usage (from the Craft project root, DDEV):
  *   ddev exec php plugins/craft-booked/tests/integration-live/schedule-capacity.php
@@ -279,7 +284,10 @@ try {
     $expectNoSlot($slots(), $time, 'after filling capacity via the booking service');
 
     // -----------------------------------------------------------------------
-    $section('G. Employee-based services still allocate one seat per employee');
+    // Employees on this service run schedules with no capacity of their own, so
+    // one seat each stays the default. Issue #109 only lifts that default where
+    // a capacity is actually configured — see employee-slot-capacity.php.
+    $section('G. Employees without a configured capacity keep one seat each');
     $clearBookings();
     $setCapacity(10);
 
@@ -308,7 +316,7 @@ try {
             $after = $slots($employeeServiceId, $employee->id);
             $slotAt($after, $probe) === null
                 ? $ok("employee slot {$probe} withdrawn after 1 booking")
-                : $bad("employee slot {$probe} survived a booking — per-employee capacity leaked");
+                : $bad("employee slot {$probe} survived a booking — a capacity was applied where none is set");
         }
     }
 
