@@ -1001,7 +1001,7 @@ var Wizard = class {
       fetch: options.api?.fetch
     });
     this._ctx = new Context({
-      serviceId: options.serviceId ?? null,
+      serviceId: toId(options.serviceId ?? null),
       quantity: options.config?.defaultQuantity ?? 1,
       customer: options.customer ?? {},
       locale: options.locale ?? null
@@ -1271,7 +1271,8 @@ var Wizard = class {
     const body = this._pruned({ date: startDate, endDate, ...this._selectionParams({ quantity: true }) });
     return this._acquire("range", body, () => this._emitter.emit("range:selected", { startDate, endDate, quantity }));
   }
-  async selectEventDate(id, { quantity = 1 } = {}) {
+  async selectEventDate(rawId, { quantity = 1 } = {}) {
+    const id = toId(rawId);
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
     this._ctx.quantity = quantity;

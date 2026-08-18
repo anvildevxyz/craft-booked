@@ -428,6 +428,60 @@ try {
         ? $ok('the CP seats 3 bookings then refuses the 4th, matching the calendar')
         : $bad('the CP gave ' . implode(', ', $outcomes) . ', expected 3 accepted then refused');
 
+    $section('P. An employee-less booking costs a seat, not the whole slot');
+    // removeUnassignedBookingSlots() dropped one slot per employee-less booking.
+    // After deduplication there is one slot per time, so a single such booking
+    // erased every seat behind it — six on a two-employee capacity-3 service.
+    // The seats are already charged by enrichSlotsWithCapacity(), so the filter
+    // was subtracting the same booking a second time, far more bluntly.
+    //
+    // Both schedule placements are checked because only the service-schedule
+    // path ran that filter, and the two disagreed.
+    foreach ([['P-svc', false], ['P-emp', true]] as [$label, $onEmployee]) {
+        [$service, , $employeeIds] = $fixture($label, 3, 2, $onEmployee);
+
+        $before = $probeSlot($service->id);
+        ($before['availableCapacity'] ?? null) === 3
+            ? $ok("{$label}: 3 seats before any booking")
+            : $bad("{$label}: expected 3 seats, got " . var_export($before['availableCapacity'] ?? null, true));
+
+        $book($service->id, null, str_replace('-', '', $label) . 'u');
+
+        $after = $probeSlot($service->id);
+        $after !== null
+            ? $ok("{$label}: the slot survives one employee-less booking")
+            : $bad("{$label}: one employee-less booking erased the whole slot");
+        ($after['availableCapacity'] ?? null) === 2
+            ? $ok("{$label}: it costs exactly one seat")
+            : $bad("{$label}: seats went to " . var_export($after['availableCapacity'] ?? null, true) . ', expected 2');
+    }
+
+    $section('Q. A party larger than the slot is withheld on every path');
+    // filterByQuantity() was only reached on the employee-schedule path. The two
+    // service-schedule branches never received the requested quantity at all, so
+    // a capacity-3 slot was offered for a party of eight and the booking was then
+    // refused. Found while verifying the capacity table in AVAILABILITY.md.
+    foreach ([['Q-none', 0, false], ['Q-svc', 2, false], ['Q-emp', 1, true]] as [$label, $employeeCount, $onEmployee]) {
+        [$service] = $fixture($label, 3, $employeeCount, $onEmployee);
+
+        $offered = function(int $quantity) use ($plugin, $service, $date, $time): bool {
+            $plugin->getAvailability()->clearSlotCache();
+            foreach ($plugin->getAvailability()->getAvailableSlots($date, null, null, $service->id, $quantity) as $slot) {
+                if (substr($slot['time'], 0, 5) === $time) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        $offered(3)
+            ? $ok("{$label}: a party of 3 is offered")
+            : $bad("{$label}: a party of 3 was withheld from a capacity-3 slot");
+        !$offered(8)
+            ? $ok("{$label}: a party of 8 is withheld")
+            : $bad("{$label}: a party of 8 was offered on a capacity-3 slot");
+    }
+
     $section('K. A soft lock holds one seat of an employee group slot, not the employee');
     // filterSoftLockedSlots already takes the held seats off the slot. When
     // filterDeduplicatedSoftLocks tested the lock a second time it zeroed the

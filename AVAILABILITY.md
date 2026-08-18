@@ -48,7 +48,7 @@ For day-based services, **buffer before** and **buffer after** are interpreted a
 
 - Enumerates each day in the booking range (and buffer-expanded range for blackouts).
 - Requires schedule coverage on each booking day via `ScheduleResolverService`.
-- Treats overlapping confirmed/pending reservations on the same service (and same employee/location when scoped) as reducing **capacity**; the sum of `quantity` must not exceed the service `capacity` (default 1).
+- Treats overlapping confirmed/pending reservations on the same service (and same employee/location when scoped) as reducing **capacity**; the sum of `quantity` must not exceed the capacity the governing schedule grants for that day (one when none is set).
 
 **Flexible days:** When listing which **start dates** are bookable in a month, the system uses **at least** `minDays` as the length to verify (so a start date is only shown if the minimum stay fits). After the customer picks a start date, `get-valid-end-dates` returns end dates for each length from `minDays` upward until the range fails availability (or `maxDays` is reached).
 
@@ -103,7 +103,7 @@ Each schedule (Employee or Service) contains:
 - **Start Date**: Optional - when the schedule begins (null = unlimited)
 - **End Date**: Optional - when the schedule ends (null = unlimited)
 - **Enabled**: Whether the schedule is active
-- **Capacity**: (Service Schedules only) Maximum number of people that can book the same slot (null = unlimited, 1 = 1-on-1, > 1 = capacity-based)
+- **Capacity**: How many bookings may share one time slot on that day. Leave it empty for one booking per slot — empty does **not** mean unlimited. Applies per service and per employee; see [Capacity Management](#capacity-management).
 
 ### Day of Week Format
 
@@ -175,11 +175,9 @@ Service schedules define when a service is available **without requiring an empl
 
 ## Capacity Management
 
-Capacity management allows you to control how many people can book the same time slot. This feature is available **only for Service Schedules** (employee-less bookings).
+Capacity controls how many bookings may share one time slot. It is set per weekday on a **Schedule**, in the "Capacity" column of the working-hours table, and it applies whether the schedule governs a service directly or the staff who work it.
 
 ### Per-Day Capacity
-
-Schedules support **per-day capacity**, allowing different capacities for each day of the week. This is configured in the Schedule edit page under the "Capacity" column in the working hours table.
 
 **Example**: A bike tour might have:
 - Monday-Friday: Capacity of 10 people
@@ -195,37 +193,50 @@ Schedules support **per-day capacity**, allowing different capacities for each d
 | Saturday | 09:00 | 17:00 | 20 |
 | Sunday | 09:00 | 17:00 | 20 |
 
-**Leave capacity empty** for unlimited bookings on that day.
+**An empty capacity means one booking per slot**, which is the right setting for one-on-one appointments. There is no "unlimited" setting: every slot resolves to a specific number of seats.
 
-### How Capacity Works
+### Capacity counts per employee
 
-Capacity **only applies to employee-less bookings** (service schedules). For employee-based bookings, capacity is always 1 per employee — the service schedule capacity field is ignored.
+A booking belongs to one employee, so each employee gets the seats their schedule grants rather than sharing a pool. This mirrors how capacity already works per service: several services sharing one schedule each get their own seats.
 
-| Capacity Value | Wizard Display | Quantity Selector | Example Use Case |
-|---------------|---------------|-------------------|-----------------|
-| `null` (empty) | "Open" | Yes (up to 99) | Online courses, unlimited events |
-| `1` | — | Hidden (auto 1) | 1-on-1 consultations, automated services |
-| `> 1` (e.g. 20) | "15 available" | Yes (up to remaining) | Tours, group classes |
+Two employees working a capacity-3 schedule therefore offer **six bookings** at the same time — but the largest **party** is three, because one employee must seat the whole party. The calendar advertises the roomiest single employee for that reason, and only offers a slot for a party it can actually seat.
 
-Fully booked slots (remaining capacity = 0) are filtered out automatically.
+| Employees | Capacity | Bookings the slot accepts | Largest party |
+|---|---|---|---|
+| none (service schedule) | 3 | 3 | 3 |
+| 1 | 3 | 3 | 3 |
+| 2 | 3 | 6 | 3 |
+| 2 | 1 | 2 | 1 |
+
+A booking an employee holds on **another** service still blocks their whole range: someone busy elsewhere cannot host a seat here. Only bookings for the service being offered consume its seats.
+
+Whole-day and flexible-day services honour capacity the same way, per day of the range.
+
+### What the customer sees
+
+| Capacity | Slot label | Quantity picker |
+|---|---|---|
+| empty, or `1` | just the time | hidden, quantity is 1 |
+| `> 1` | "3 available" | shown, capped at the remaining seats |
+
+The seat count is deliberately omitted at one remaining seat — a one-on-one appointment needs no annotation.
+
+Fully booked slots (remaining capacity 0) are filtered out automatically, and the Control Panel booking form measures a manually added booking against the same capacity.
 
 ### Capacity in Availability Calculation
 
-Capacity affects availability calculation in the following ways:
+1. **Slot generation**: Capacity comes from the schedule governing the slot — the employee's own schedule when they have one, otherwise the service's. Bookings for this service consume seats; bookings elsewhere block the range outright.
 
-1. **Slot Generation**: For employee-based bookings, capacity is always 1 (one person per employee per slot). For service-level bookings, capacity comes from the active service schedule.
+2. **Available spots**: Each slot includes:
+   - `maxCapacity`: Seats this slot holds
+   - `bookedQuantity`: Seats already taken
+   - `availableCapacity`: Seats remaining
 
-2. **Available Spots**: Each slot includes:
-   - `maxCapacity`: The maximum capacity for this slot (null, 1, or > 1)
-   - `bookedQuantity`: Number of spots already booked
-   - `availableCapacity`: Remaining available spots (null = unlimited)
+   On a merged "any available" slot these describe the **roomiest single employee**, not a total across staff, because that is the largest booking anyone can actually make.
 
-3. **Slot Filtering**: Slots with `availableCapacity = 0` are filtered out (fully booked).
+3. **Slot filtering**: Slots with `availableCapacity = 0` are filtered out.
 
-4. **Quantity Selection**: The booking wizard:
-   - For `capacity = 1`: Hides quantity selector, defaults to 1
-   - For `capacity = null`: Shows "Open" with quantity selector (unlimited)
-   - For `capacity > 1`: Shows available spots and quantity selector (up to remaining capacity)
+4. **Quantity selection**: The wizard offers a party size up to `availableCapacity`, and withholds a slot entirely when no single employee can seat the party requested.
 
 ### Technical Details
 
@@ -242,9 +253,12 @@ Capacity affects availability calculation in the following ways:
 ]
 ```
 
-**Capacity Resolution**:
-- If `Schedule.workingHours[dayOfWeek].capacity` is set, that value is used
-- If capacity is not set (null/empty), bookings are **unlimited**
+**Capacity Resolution**, in order:
+- The employee's own active schedule for that date, when they have one
+- Otherwise the service's active schedule
+- Otherwise one seat
+
+An empty `capacity` resolves to one seat, not to unlimited.
 
 **API**: Slots returned from `getAvailableSlots()` include:
 ```php
@@ -255,6 +269,8 @@ Capacity affects availability calculation in the following ways:
     'availableCapacity' => 15,
     'capacity' => 20, // Legacy field (same as maxCapacity)
 ]
+// On a merged "any available" slot these describe the roomiest single
+// employee behind it, since one employee must seat the whole booking.
 ```
 
 **Booking**: When creating a booking, the `quantity` field specifies how many spots are being booked. The system validates that `quantity <= availableCapacity`.

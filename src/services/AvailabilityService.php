@@ -143,7 +143,7 @@ class AvailabilityService extends Component
 
         if (empty($schedules) && $service?->hasAvailabilitySchedule()) {
             Craft::debug("Using service-level availability schedule for service {$serviceId}" . ($employeeId ? ", filtering for employee {$employeeId}" : ""), __METHOD__);
-            return $this->getSlotsFromServiceSchedule($service, $date, $dayOfWeek, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId);
+            return $this->getSlotsFromServiceSchedule($service, $date, $dayOfWeek, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId, $requestedQuantity);
         }
 
         if (empty($schedules)) {
@@ -524,6 +524,7 @@ class AvailabilityService extends Component
         ?int $employeeId = null,
         int $extrasDuration = 0,
         ?int $excludeReservationId = null,
+        int $requestedQuantity = 1,
     ): array {
         $availability = $this->scheduleResolverService->getServiceAvailability($service, $date, $dayOfWeek);
         if ($availability === null) {
@@ -551,7 +552,7 @@ class AvailabilityService extends Component
 
         if (!empty($employees)) {
             Craft::debug("Service {$service->id} has " . count($employees) . " employees, generating employee-based slots from service schedule" . ($employeeId ? " (filtered for employee {$employeeId})" : ""), __METHOD__);
-            return $this->getSlotsFromServiceScheduleWithEmployees($service, $date, $timeWindows, $employees, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId);
+            return $this->getSlotsFromServiceScheduleWithEmployees($service, $date, $timeWindows, $employees, $locationId, $perfStart, $softLockToken, $employeeId, $extrasDuration, $excludeReservationId, $requestedQuantity);
         }
 
         Craft::debug("Service {$service->id} has no employees, using service schedule for employee-less booking", __METHOD__);
@@ -582,6 +583,9 @@ class AvailabilityService extends Component
         $serviceTimezone = !empty($allSlots) ? ($allSlots[array_key_first($allSlots)]['timezone'] ?? null) : null;
         $allSlots = $this->filterPastSlots($allSlots, $date, $service->id, $service, $serviceTimezone);
         $allSlots = $this->filterSoftLockedSlots($allSlots, $date, $service->id, $locationId, $softLockToken);
+        if ($requestedQuantity > 1) {
+            $allSlots = $this->filterByQuantity($allSlots, $requestedQuantity, $service->id);
+        }
         $allSlots = $this->slotGeneratorService->sortByTime($allSlots);
 
         return $this->fireAfterEvent($date, $service->id, null, $locationId, $allSlots, $perfStart);
@@ -602,6 +606,7 @@ class AvailabilityService extends Component
         ?int $selectedEmployeeId = null,
         int $extrasDuration = 0,
         ?int $excludeReservationId = null,
+        int $requestedQuantity = 1,
     ): array {
         $duration = ($service->duration ?? 60) + max(0, $extrasDuration);
         $slotInterval = $this->slotGeneratorService->getSlotInterval($service, $duration);
@@ -614,18 +619,12 @@ class AvailabilityService extends Component
         if ($excludeReservationId !== null) {
             $allReservations = array_values(array_filter($allReservations, fn($r) => $r->id !== $excludeReservationId));
         }
+        // Employee-less bookings are not collected here. They are charged against
+        // every employee's seats by enrichSlotsWithCapacity(), and weighed once
+        // more against the merged total by filterDeduplicatedSoftLocks().
         $reservationsByEmployee = [];
-        $unassignedBookings = [];
         foreach ($allReservations as $res) {
-            if ($res->employeeId === null) {
-                // Only count unassigned bookings for the current service toward capacity
-                if ($res->serviceId === $service->id) {
-                    $qty = $res->quantity ?? 1;
-                    for ($q = 0; $q < $qty; $q++) {
-                        $unassignedBookings[] = ['start' => $res->startTime, 'end' => $res->endTime];
-                    }
-                }
-            } else {
+            if ($res->employeeId !== null) {
                 $reservationsByEmployee[$res->employeeId][] = $res;
             }
         }
@@ -684,15 +683,14 @@ class AvailabilityService extends Component
         $empTimezone = !empty($allSlots) ? ($allSlots[array_key_first($allSlots)]['timezone'] ?? null) : null;
         $allSlots = $this->filterPastSlots($allSlots, $date, $service->id, $service, $empTimezone);
         $allSlots = $this->filterSoftLockedSlots($allSlots, $date, $service->id, $locationId, $softLockToken);
+        if ($requestedQuantity > 1) {
+            $allSlots = $this->filterByQuantity($allSlots, $requestedQuantity, $service->id);
+        }
 
         // Only deduplicate when no specific employee is selected ("Any available")
         if ($selectedEmployeeId === null) {
             $allSlots = $this->slotGeneratorService->deduplicateByTime($allSlots);
             $allSlots = $this->filterDeduplicatedSoftLocks($allSlots, $date, $service->id, $locationId, $softLockToken, $allReservations);
-
-            if (!empty($unassignedBookings)) {
-                $allSlots = $this->removeUnassignedBookingSlots($allSlots, $unassignedBookings);
-            }
         }
 
         return $this->fireAfterEvent($date, $service->id, $selectedEmployeeId, $locationId, $this->slotGeneratorService->sortByTime(array_values($allSlots)), $perfStart);
@@ -977,15 +975,11 @@ class AvailabilityService extends Component
      */
     protected function filterByQuantity(array $slots, int $quantity, ?int $serviceId = null): array
     {
-        // Employee-less services use capacity-based filtering (handled by filterByCapacity),
-        // so skip employee quantity filtering when the service has no assigned employees.
-        if ($serviceId !== null) {
-            $employeeCount = Employee::find()->siteId('*')->serviceId($serviceId)->count();
-            if ($employeeCount === 0) {
-                return $slots;
-            }
-        }
-
+        // Employee-less services used to skip this on the grounds that
+        // filterByCapacity() had already handled capacity. It has not: that only
+        // drops slots with no seats left, so a capacity-3 slot was offered for a
+        // party of eight and the booking was then refused. The seat test below
+        // covers both kinds of service — the slot must hold the whole party.
         return $this->slotGeneratorService->filterByEmployeeQuantity($slots, $quantity);
     }
 
@@ -1004,46 +998,6 @@ class AvailabilityService extends Component
         return $allShifted;
     }
 
-    /**
-     * Remove slots that overlap with unassigned bookings.
-     * A booking overlaps a slot when bookingStart < slotEnd AND bookingEnd > slotStart.
-     * Each booking entry removes at most one slot.
-     *
-     * @param array $slots Available slots with 'time' and 'endTime' keys
-     * @param array $unassignedBookings Booking intervals [['start' => 'H:i', 'end' => 'H:i'], ...]
-     */
-    protected function removeUnassignedBookingSlots(array $slots, array $unassignedBookings): array
-    {
-        // Track which bookings have been consumed
-        $consumed = array_fill(0, count($unassignedBookings), false);
-
-        $result = [];
-        foreach ($slots as $slot) {
-            $slotStart = $slot['time'];
-            $slotEnd = $slot['endTime'] ?? $slotStart;
-            $removed = false;
-
-            foreach ($unassignedBookings as $i => $booking) {
-                if ($consumed[$i]) {
-                    continue;
-                }
-
-                // Overlap: bookingStart < slotEnd AND bookingEnd > slotStart
-                if ($booking['start'] < $slotEnd && $booking['end'] > $slotStart) {
-                    $consumed[$i] = true;
-                    Craft::debug("Removing slot at {$slotStart} due to overlapping unassigned booking {$booking['start']}-{$booking['end']}", __METHOD__);
-                    $removed = true;
-                    break;
-                }
-            }
-
-            if (!$removed) {
-                $result[] = $slot;
-            }
-        }
-
-        return $result;
-    }
 
     /**
      * Fetch reservations for a date, optionally filtered by employee or service.

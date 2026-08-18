@@ -21,10 +21,26 @@ class ScheduleAssignmentService extends Component
     /** @var array<string, Schedule|null> Memoized service schedules keyed by "serviceId:date" */
     private array $serviceScheduleCache = [];
 
-    /** Clear the memoized service schedule cache. */
+    /**
+     * @var array<string, array<int, Schedule|null>> Memoized employee schedules
+     *      keyed by "employeeIds:date". One availability request resolves the
+     *      same employees three times over — the working-hours lookup, the slot
+     *      subtraction and the capacity enrichment each ask independently.
+     */
+    private array $employeeScheduleCache = [];
+
+    /**
+     * Clear both memoized schedule lookups.
+     *
+     * Named for the service cache because that is what callers already reach
+     * for; it clears the employee cache too, so a test that rewrites a
+     * schedule's hours behind the element layer does not have to know which
+     * caches exist.
+     */
     public function clearServiceScheduleCache(): void
     {
         $this->serviceScheduleCache = [];
+        $this->employeeScheduleCache = [];
     }
 
     /** Evict the oldest cache entry (LRU approximation via FIFO) when the cache reaches its maximum size. */
@@ -46,6 +62,7 @@ class ScheduleAssignmentService extends Component
                 return true;
             }
             $existing->sortOrder = $sortOrder;
+            $this->employeeScheduleCache = [];
             return $existing->save(false);
         }
 
@@ -54,11 +71,14 @@ class ScheduleAssignmentService extends Component
         $record->employeeId = $employeeId;
         $record->sortOrder = $sortOrder;
         $record->uid = StringHelper::UUID();
+        $this->employeeScheduleCache = [];
         return $record->save();
     }
 
     public function unassignScheduleFromEmployee(int $scheduleId, int $employeeId): bool
     {
+        $this->employeeScheduleCache = [];
+
         return EmployeeScheduleAssignmentRecord::deleteAll([
             'scheduleId' => $scheduleId,
             'employeeId' => $employeeId,
@@ -77,6 +97,8 @@ class ScheduleAssignmentService extends Component
      */
     public function setSchedulesForEmployee(int $employeeId, array $scheduleIds): bool
     {
+        $this->employeeScheduleCache = [];
+
         return $this->inTransaction(function() use ($employeeId, $scheduleIds) {
             EmployeeScheduleAssignmentRecord::deleteAll(['employeeId' => $employeeId]);
             foreach ($scheduleIds as $sortOrder => $scheduleId) {
@@ -119,13 +141,23 @@ class ScheduleAssignmentService extends Component
             return [];
         }
 
+        $employeeIds = array_values(array_unique(array_map('intval', $employeeIds)));
+        sort($employeeIds);
+        $cacheKey = implode(',', $employeeIds) . ':' . $date;
+        if (array_key_exists($cacheKey, $this->employeeScheduleCache)) {
+            return $this->employeeScheduleCache[$cacheKey];
+        }
+        if (count($this->employeeScheduleCache) >= 100) {
+            array_shift($this->employeeScheduleCache);
+        }
+
         $assignments = EmployeeScheduleAssignmentRecord::find()
             ->where(['employeeId' => $employeeIds])
             ->orderBy(['sortOrder' => SORT_ASC])
             ->all();
 
         if (empty($assignments)) {
-            return array_fill_keys($employeeIds, null);
+            return $this->employeeScheduleCache[$cacheKey] = array_fill_keys($employeeIds, null);
         }
 
         $employeeScheduleIds = [];
@@ -157,7 +189,8 @@ class ScheduleAssignmentService extends Component
             }
             $result[$empId] = empty($active) ? null : self::sortByDateSpecificityAndSortOrder($active)[0];
         }
-        return $result;
+
+        return $this->employeeScheduleCache[$cacheKey] = $result;
     }
 
     /**

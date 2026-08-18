@@ -95,6 +95,21 @@ describe('Wizard — bootstrap', () => {
     expect(context.selectedService.durationType).toBe('days');
   });
 
+  it('selects an event date given a string id', async () => {
+    const { wizard } = newWizard({
+      eventDates: vi.fn(async () => ({ eventDates: [{ id: 77, title: 'Gala', capacity: 5 }] })),
+    }, { flow: 'event' });
+    await wizard.start();
+
+    await wizard.selectEventDate('77');
+    expect(wizard.getState().context.eventDateId).toBe(77);
+  });
+
+  it('normalises a string serviceId before start() resolves it', () => {
+    const { wizard } = newWizard({}, { serviceId: '12' });
+    expect(wizard.getState().context.serviceId).toBe(12);
+  });
+
   it('selects a location and an employee given string ids', async () => {
     const { wizard } = newWizard({
       employees: vi.fn(async () => ({
