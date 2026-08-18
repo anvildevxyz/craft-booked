@@ -2,6 +2,7 @@
 
 namespace anvildev\booked\elements;
 
+use anvildev\booked\Booked;
 use anvildev\booked\elements\db\ScheduleQuery;
 use anvildev\booked\elements\traits\HasWeeklySchedule;
 use anvildev\booked\records\ScheduleRecord;
@@ -159,6 +160,11 @@ class Schedule extends Element
 
     public function afterSave(bool $isNew): void
     {
+        // Availability memoizes the resolved schedules for the request. Editing
+        // one here — its hours, its capacity, its date range — invalidates them,
+        // and the caches cannot see an element save on their own.
+        Booked::getInstance()?->getScheduleAssignment()->clearServiceScheduleCache();
+
         $record = (!$isNew ? ScheduleRecord::findOne($this->id) : null) ?? new ScheduleRecord();
         if (!$record->id) {
             $record->id = (int)$this->id;
@@ -174,6 +180,8 @@ class Schedule extends Element
 
     public function afterDelete(): void
     {
+        Booked::getInstance()?->getScheduleAssignment()->clearServiceScheduleCache();
+
         ScheduleRecord::findOne($this->id)?->delete();
         \anvildev\booked\records\EmployeeScheduleAssignmentRecord::deleteAll(['scheduleId' => $this->id]);
         parent::afterDelete();

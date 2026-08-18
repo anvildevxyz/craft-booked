@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **An employee-less booking cost a whole time slot instead of a seat.** On a service whose schedule sits on the service rather than its staff, `removeUnassignedBookingSlots()` dropped one slot per booking without an employee — and after deduplication there is one slot per time, so a single such booking erased every seat behind it. A two-employee capacity-3 service lost all six. Those seats were already charged by the capacity enrichment, so the filter was subtracting the same booking a second time and far more bluntly; it is gone, and both schedule placements now agree that one booking costs one seat.
+
+### Changed
+- Availability resolves each employee's schedule once per request instead of three times. The working-hours lookup, the slot subtraction and the capacity enrichment each asked independently. Measured on a three-employee capacity-3 service: an availability request drops from 16 queries to 12, a booking through `BookingService` from 66 to 48, and a reservation save in a loop from 3.0 queries to 1.4. The memo is cleared whenever a schedule is saved, deleted, assigned or unassigned, so it cannot outlive a change, and `clearServiceScheduleCache()` clears it too for code that rewrites a schedule row behind the element layer.
+
 ## 1.5.0 - 2026-08-18
 
 ### Fixed

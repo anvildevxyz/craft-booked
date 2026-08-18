@@ -614,18 +614,12 @@ class AvailabilityService extends Component
         if ($excludeReservationId !== null) {
             $allReservations = array_values(array_filter($allReservations, fn($r) => $r->id !== $excludeReservationId));
         }
+        // Employee-less bookings are not collected here. They are charged against
+        // every employee's seats by enrichSlotsWithCapacity(), and weighed once
+        // more against the merged total by filterDeduplicatedSoftLocks().
         $reservationsByEmployee = [];
-        $unassignedBookings = [];
         foreach ($allReservations as $res) {
-            if ($res->employeeId === null) {
-                // Only count unassigned bookings for the current service toward capacity
-                if ($res->serviceId === $service->id) {
-                    $qty = $res->quantity ?? 1;
-                    for ($q = 0; $q < $qty; $q++) {
-                        $unassignedBookings[] = ['start' => $res->startTime, 'end' => $res->endTime];
-                    }
-                }
-            } else {
+            if ($res->employeeId !== null) {
                 $reservationsByEmployee[$res->employeeId][] = $res;
             }
         }
@@ -689,10 +683,6 @@ class AvailabilityService extends Component
         if ($selectedEmployeeId === null) {
             $allSlots = $this->slotGeneratorService->deduplicateByTime($allSlots);
             $allSlots = $this->filterDeduplicatedSoftLocks($allSlots, $date, $service->id, $locationId, $softLockToken, $allReservations);
-
-            if (!empty($unassignedBookings)) {
-                $allSlots = $this->removeUnassignedBookingSlots($allSlots, $unassignedBookings);
-            }
         }
 
         return $this->fireAfterEvent($date, $service->id, $selectedEmployeeId, $locationId, $this->slotGeneratorService->sortByTime(array_values($allSlots)), $perfStart);
@@ -1004,46 +994,6 @@ class AvailabilityService extends Component
         return $allShifted;
     }
 
-    /**
-     * Remove slots that overlap with unassigned bookings.
-     * A booking overlaps a slot when bookingStart < slotEnd AND bookingEnd > slotStart.
-     * Each booking entry removes at most one slot.
-     *
-     * @param array $slots Available slots with 'time' and 'endTime' keys
-     * @param array $unassignedBookings Booking intervals [['start' => 'H:i', 'end' => 'H:i'], ...]
-     */
-    protected function removeUnassignedBookingSlots(array $slots, array $unassignedBookings): array
-    {
-        // Track which bookings have been consumed
-        $consumed = array_fill(0, count($unassignedBookings), false);
-
-        $result = [];
-        foreach ($slots as $slot) {
-            $slotStart = $slot['time'];
-            $slotEnd = $slot['endTime'] ?? $slotStart;
-            $removed = false;
-
-            foreach ($unassignedBookings as $i => $booking) {
-                if ($consumed[$i]) {
-                    continue;
-                }
-
-                // Overlap: bookingStart < slotEnd AND bookingEnd > slotStart
-                if ($booking['start'] < $slotEnd && $booking['end'] > $slotStart) {
-                    $consumed[$i] = true;
-                    Craft::debug("Removing slot at {$slotStart} due to overlapping unassigned booking {$booking['start']}-{$booking['end']}", __METHOD__);
-                    $removed = true;
-                    break;
-                }
-            }
-
-            if (!$removed) {
-                $result[] = $slot;
-            }
-        }
-
-        return $result;
-    }
 
     /**
      * Fetch reservations for a date, optionally filtered by employee or service.
