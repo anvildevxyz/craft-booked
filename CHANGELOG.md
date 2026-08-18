@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 - 2026-08-18
 
 ### Fixed
 - **A schedule's capacity now applies to employees, not only to services without them.** Issue #85 taught the availability calculation to keep a slot open until every seat of the day's capacity was taken, but only where the service had no employees. A slot belonging to an employee kept exactly one seat, so a schedule set to three still closed after the first booking. Where the capacity sat on the service's schedule the numbers disagreed with what the calendar did: the slot reported three free seats and vanished anyway, because the employee's booking was cut out of their working hours before the seats were ever counted. A booking on the service being offered now takes one seat of the employee's capacity, and a booking that employee holds on any *other* service still blocks their whole range — someone busy elsewhere cannot host a seat here. Seats are counted per employee, matching how capacity already works per service, so two employees on a capacity-3 schedule offer six seats in parallel rather than three shared ones. Merged "any available" slots now report the seats of every employee behind them rather than of whichever one came first, and a party booking is measured against seats instead of head count (#109).
