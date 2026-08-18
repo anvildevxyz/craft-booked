@@ -1026,6 +1026,11 @@ var SLOT_STEPS = /* @__PURE__ */ new Set(["datetime", "event"]);
 function list(payload, key) {
   return payload && Array.isArray(payload[key]) ? payload[key] : [];
 }
+function toId(value) {
+  if (value == null || value === "") return value;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : value;
+}
 var Wizard = class {
   /** @param {import('./types.js').WizardOptions} [options] */
   constructor(options = {}) {
@@ -1222,7 +1227,8 @@ var Wizard = class {
   }
   // ---- Selection ======================================================
   /** Load extras + employees/locations for a service and set it in context. */
-  async _loadServiceData(id) {
+  async _loadServiceData(rawId) {
+    const id = toId(rawId);
     const service = this._ctx.services.find((s) => s.id === id) ?? { id };
     this._ctx.setService(service);
     let extras;
@@ -1267,7 +1273,8 @@ var Wizard = class {
     this._flow.setContext(this._ctx);
     return this.getState();
   }
-  async selectLocation(id) {
+  async selectLocation(rawId) {
+    const id = toId(rawId);
     this._ctx.locationId = id;
     this._ctx.selectedLocation = this._ctx.locations.find((l) => l.id === id) ?? null;
     if (this._ctx.serviceId != null) {
@@ -1290,7 +1297,8 @@ var Wizard = class {
     }
     return this.getState();
   }
-  selectEmployee(id) {
+  selectEmployee(rawId) {
+    const id = toId(rawId);
     this._ctx.employeeId = id;
     this._ctx.selectedEmployee = this._ctx.employees.find((e) => e.id === id) ?? null;
     return this.getState();

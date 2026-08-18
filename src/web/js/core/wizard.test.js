@@ -71,6 +71,49 @@ describe('Wizard — bootstrap', () => {
     expect(wizard.getState().context.serviceId).toBe(12);
   });
 
+  // A `?serviceId=12` deep link arrives as a string while the API returns
+  // numbers. The lookup is strict, so an uncoerced id missed and the service
+  // fell back to a bare `{ id }` with no durationType — which rendered a
+  // multi-day service as an appointment with one-minute slots.
+  it('preselects a service when the id arrives as a string', async () => {
+    const { wizard } = newWizard({}, { serviceId: '12' });
+    await wizard.start();
+    const { context } = wizard.getState();
+    expect(context.serviceId).toBe(12);
+    expect(context.selectedService).toMatchObject({ id: 12, name: 'Haircut' });
+  });
+
+  it('keeps a day service a day service when deep-linked by string id', async () => {
+    const { wizard } = newWizard({
+      services: vi.fn(async () => ({
+        services: [{ id: 20, name: 'Cabin', durationType: 'days' }],
+      })),
+    }, { serviceId: '20' });
+    await wizard.start();
+    const { context } = wizard.getState();
+    expect(context.isDayService).toBe(true);
+    expect(context.selectedService.durationType).toBe('days');
+  });
+
+  it('selects a location and an employee given string ids', async () => {
+    const { wizard } = newWizard({
+      employees: vi.fn(async () => ({
+        employees: [{ id: 4, name: 'Ada' }, { id: 5, name: 'Grace' }],
+        locations: [{ id: 1, name: 'Main' }, { id: 2, name: 'Annex' }],
+        serviceHasSchedule: true,
+      })),
+    }, { serviceId: '12' });
+    await wizard.start();
+
+    await wizard.selectLocation('2');
+    expect(wizard.getState().context.locationId).toBe(2);
+
+    wizard.selectEmployee('5');
+    const { context } = wizard.getState();
+    expect(context.employeeId).toBe(5);
+    expect(context.selectedEmployee).toMatchObject({ id: 5, name: 'Grace' });
+  });
+
   it('surfaces an error state if services fail to load', async () => {
     const onError = vi.fn();
     const { wizard } = newWizard({

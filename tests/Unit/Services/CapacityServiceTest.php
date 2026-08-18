@@ -86,6 +86,22 @@ class CapacityServiceTest extends TestCase
         $this->assertTrue($service->isQuantityAllowed(1));
     }
 
+    /**
+     * The service id is accepted for backwards compatibility but no longer
+     * consulted: how many seats a booking may take belongs to the slot, and
+     * hasAvailableCapacity() enforces it. This also means the method no longer
+     * queries the database, so it can be exercised without a Craft container.
+     */
+    public function testIsQuantityAllowedIgnoresTheServiceId(): void
+    {
+        $service = new CapacityService();
+
+        $this->assertTrue($service->isQuantityAllowed(1, 12345));
+        $this->assertTrue($service->isQuantityAllowed(999, 12345));
+        $this->assertFalse($service->isQuantityAllowed(0, 12345));
+        $this->assertFalse($service->isQuantityAllowed(-5, 12345));
+    }
+
     // =========================================================================
     // hasAvailableCapacity() - Capacity math via partial mock
     // =========================================================================
