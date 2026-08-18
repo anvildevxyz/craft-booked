@@ -456,6 +456,32 @@ try {
             : $bad("{$label}: seats went to " . var_export($after['availableCapacity'] ?? null, true) . ', expected 2');
     }
 
+    $section('Q. A party larger than the slot is withheld on every path');
+    // filterByQuantity() was only reached on the employee-schedule path. The two
+    // service-schedule branches never received the requested quantity at all, so
+    // a capacity-3 slot was offered for a party of eight and the booking was then
+    // refused. Found while verifying the capacity table in AVAILABILITY.md.
+    foreach ([['Q-none', 0, false], ['Q-svc', 2, false], ['Q-emp', 1, true]] as [$label, $employeeCount, $onEmployee]) {
+        [$service] = $fixture($label, 3, $employeeCount, $onEmployee);
+
+        $offered = function(int $quantity) use ($plugin, $service, $date, $time): bool {
+            $plugin->getAvailability()->clearSlotCache();
+            foreach ($plugin->getAvailability()->getAvailableSlots($date, null, null, $service->id, $quantity) as $slot) {
+                if (substr($slot['time'], 0, 5) === $time) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        $offered(3)
+            ? $ok("{$label}: a party of 3 is offered")
+            : $bad("{$label}: a party of 3 was withheld from a capacity-3 slot");
+        !$offered(8)
+            ? $ok("{$label}: a party of 8 is withheld")
+            : $bad("{$label}: a party of 8 was offered on a capacity-3 slot");
+    }
+
     $section('K. A soft lock holds one seat of an employee group slot, not the employee');
     // filterSoftLockedSlots already takes the held seats off the slot. When
     // filterDeduplicatedSoftLocks tested the lock a second time it zeroed the

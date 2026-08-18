@@ -28,7 +28,7 @@ The plugin registers 28+ services via `setComponents()` in `Booked.php`. Key ser
 | `booking` | `BookingService` | Create, update, cancel bookings |
 | `availability` | `AvailabilityService` | Calculate available time slots |
 | `slotGenerator` | `SlotGeneratorService` | Generate time slots from availability windows |
-| `capacity` | `CapacityService` | Capacity checking for service-level bookings |
+| `capacity` | `CapacityService` | Seat counting for service and employee slots |
 | `scheduleAssignment` | `ScheduleAssignmentService` | Schedule-employee/service many-to-many relationships |
 | `scheduleResolver` | `ScheduleResolverService` | Resolve active schedule for a date |
 | `softLock` | `SoftLockService` | Race condition prevention via temporary slot locks |
@@ -180,7 +180,7 @@ $isAvailable = $availabilityService->isSlotAvailable(
 The availability system uses batch queries to minimize database round-trips:
 
 - **Schedule resolution**: Employee schedules are loaded in a single batch query via `ScheduleAssignmentService::getActiveSchedulesForDateBatch()` instead of one query per employee.
-- **Capacity enrichment**: `CapacityService::enrichSlotsWithCapacity()` pre-loads all employees, schedules, and reservations in 3-4 queries, then does in-memory lookups per slot.
+- **Capacity enrichment**: `CapacityService::enrichSlotsWithCapacity()` pre-loads all employees, schedules, and reservations in 3-4 queries, then does in-memory lookups per slot. The employee schedules it needs are memoized per request by `ScheduleAssignmentService`, so the three passes over a date resolve them once.
 - **Service schedule memoization**: `getActiveScheduleForServiceOnDate()` is memoized within a request — repeated calls with the same service/date return cached results.
 - **Session handling**: AJAX controllers (`SlotController`, `BookingDataController`) close the PHP session early to prevent file lock contention during parallel requests. If you extend these controllers, be aware that the session is read-only after `init()`.
 
