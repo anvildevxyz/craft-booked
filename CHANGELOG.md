@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **One customer mid-checkout blocked a whole group slot.** ([#117](https://github.com/anvildevxyz/craft-booked/issues/117)) The lock check only counted held seats against the capacity when the client sent one, and no client ever did — so while anyone held a soft lock, every other customer clicking the same multi-seat slot got "This time slot is temporarily reserved" even though the calendar showed free seats. The lock endpoints and the booking-time re-check now resolve the slot's remaining seats server-side (schedule capacity minus booked seats) and count holds against them, for single slots and multi-day ranges alike. A client-sent capacity is no longer read at all: trusting it would let a request inflate the slot and bypass the hold check. Single-seat and uncapped slots keep the all-or-nothing hold, matching how availability filters them.
+- **A hold could bleed into the slot next to it.** Lock times live in a varchar column, so every comparison against them is a string comparison — and a seconds-carrying time (`10:00:00`, as delivered by event dates' TIME column or an API client) sorts after its `H:i` twin (`10:00`). A 09:00–10:00 hold therefore also consumed a displayed seat on the 10:00 slot. Lock times are now normalized to `H:i` when stored and when compared, and the availability filters normalize legacy rows in place.
+- **The refusal message promised the wrong wait.** It has said "try again in 15 minutes" since the first release while the default hold has always been 5. The message now reports the configured `softLockDurationMinutes`, with proper plural forms in every bundled language.
+
 ## 1.5.1 - 2026-08-18
 
 ### Fixed

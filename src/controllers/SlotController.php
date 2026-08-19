@@ -444,7 +444,7 @@ class SlotController extends Controller
         ], $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', ['minutes' => $durationMinutes]));
         }
 
         return $this->jsonSuccess('', [
@@ -510,7 +510,7 @@ class SlotController extends Controller
         ], $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', ['minutes' => $durationMinutes]));
         }
 
         return $this->jsonSuccess('', [
@@ -549,7 +549,7 @@ class SlotController extends Controller
         ], $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', ['minutes' => $durationMinutes]));
         }
 
         return $this->jsonSuccess('', [
@@ -580,7 +580,7 @@ class SlotController extends Controller
 
         // A gone/expired lock returns 410 so the client can drop into its expired flow.
         if ($newExpiry === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'), statusCode: 410);
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', ['minutes' => $durationMinutes]), statusCode: 410);
         }
 
         // Report the REAL remaining seconds: extendLock clamps the new expiry to

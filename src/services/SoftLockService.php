@@ -28,6 +28,13 @@ class SoftLockService extends Component
             return false;
         }
 
+        // Lock times live in a varchar column, so every comparison against
+        // them is a string comparison. Seconds-carrying times ('10:00:00' from
+        // a TIME column or an API client) sort AFTER their H:i twin ('10:00'),
+        // which made a 09:00-10:00 hold overlap the 10:00 slot. Store H:i only.
+        $data['startTime'] = self::normalizeTime($data['startTime'] ?? null);
+        $data['endTime'] = self::normalizeTime($data['endTime'] ?? null);
+
         $this->deleteExpiredRecords();
 
         $employeeId = $data['employeeId'] ?? null;
@@ -227,8 +234,28 @@ class SoftLockService extends Component
         return hash('sha256', $salt . '|' . $sessionId);
     }
 
+    /**
+     * A time as the lock table stores it: 'HH:MM', or null when absent.
+     *
+     * Times are zero-padded on every path in ('HH:MM' or 'HH:MM:SS'), so the
+     * H:i prefix is the whole normalization.
+     */
+    public static function normalizeTime(?string $time): ?string
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        return substr($time, 0, 5);
+    }
+
     private function buildLockQuery(string $date, string $startTime, int $serviceId, ?int $employeeId, ?string $endTime, ?int $locationId): ActiveQuery
     {
+        // Match the stored H:i format — see createLock() on why seconds break
+        // the varchar comparisons below.
+        $startTime = self::normalizeTime($startTime);
+        $endTime = self::normalizeTime($endTime);
+
         $query = $this->getRecordQuery()
             ->where(['date' => $date, 'serviceId' => $serviceId])
             ->andWhere(['>', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))]);

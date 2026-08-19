@@ -212,6 +212,7 @@ class BookingService extends Component
                 if (!$eventDateId && $serviceId !== null) {
                     $endDate = $data['endDate'] ?? null;
                     $requestedQuantity = max(1, (int)($data['quantity'] ?? 1));
+                    $lockMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
                     if ($isMultiDay && $endDate) {
                         $remainingCapacity = Booked::getInstance()->getMultiDayAvailability()->getRemainingCapacityForRange(
                             $bookingDate,
@@ -222,7 +223,7 @@ class BookingService extends Component
                         );
                         if (Booked::getInstance()->getSoftLock()->isDateRangeLocked($bookingDate, $endDate, $serviceId, $employeeId, $locationId, $requestedQuantity, $remainingCapacity, $softLockToken)) {
                             Craft::warning("Booking blocked by multi-day soft lock: date={$bookingDate}-{$endDate}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
-                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved'));
+                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', ['minutes' => $lockMinutes]));
                         }
                     } elseif (!$isMultiDay) {
                         // A timeless booking has no end time to count seats
@@ -232,7 +233,7 @@ class BookingService extends Component
                             : null;
                         if (Booked::getInstance()->getSoftLock()->isLocked($bookingDate, $startTime, $serviceId, $employeeId, $endTime, $locationId, $softLockToken, $requestedQuantity, $remainingCapacity)) {
                             Craft::warning("Booking blocked by soft lock: date={$bookingDate}, time={$startTime}-{$endTime}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
-                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved'));
+                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', ['minutes' => $lockMinutes]));
                         }
                     }
                 }

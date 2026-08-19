@@ -563,6 +563,77 @@ class SoftLockServiceTest extends TestCase
     }
 
     // =========================================================================
+    // Time normalization — lock times are compared as strings (varchar column)
+    // =========================================================================
+
+    public function testNormalizeTimeStripsSeconds(): void
+    {
+        $this->assertSame('09:00', SoftLockService::normalizeTime('09:00:00'));
+        $this->assertSame('23:45', SoftLockService::normalizeTime('23:45:59'));
+    }
+
+    public function testNormalizeTimeKeepsShortForm(): void
+    {
+        $this->assertSame('09:00', SoftLockService::normalizeTime('09:00'));
+    }
+
+    public function testNormalizeTimeMapsAbsentToNull(): void
+    {
+        $this->assertNull(SoftLockService::normalizeTime(null));
+        $this->assertNull(SoftLockService::normalizeTime(''));
+    }
+
+    public function testCreateLockStoresNormalizedTimes(): void
+    {
+        // '10:00:00' sorts AFTER '10:00' in a string comparison, so a
+        // seconds-carrying lock bled into the ADJACENT slot. Event locks and
+        // API clients both deliver seconds; the record must never keep them.
+        $service = $this->makePartialService();
+        $service->shouldReceive('deleteExpiredRecords')->andReturn(0);
+        $service->shouldReceive('isLocked')
+            ->once()
+            ->with('2025-06-15', '09:00', 1, null, '10:00', null, null, 1, null)
+            ->andReturn(false);
+
+        $mockRecord = $this->createMockRecord();
+        $service->shouldReceive('createRecord')->andReturn($mockRecord);
+        $service->shouldReceive('saveRecord')->andReturn(true);
+
+        $data = $this->makeSlotData(['startTime' => '09:00:00', 'endTime' => '10:00:00']);
+        $token = $service->createLock($data);
+
+        $this->assertIsString($token);
+        $this->assertSame('09:00', $mockRecord->startTime);
+        $this->assertSame('10:00', $mockRecord->endTime);
+    }
+
+    // =========================================================================
+    // booking.slotReserved — the promised wait must be the configured one
+    // =========================================================================
+
+    public function testSlotReservedMessageUsesConfiguredMinutesInEveryLanguage(): void
+    {
+        // The copy hardcoded "15 minutes" while the default hold is 5. Every
+        // catalog must carry the {minutes} placeholder, and every call site
+        // must fill it — a bare Craft::t() would leak the raw placeholder.
+        $translationsDir = dirname(__DIR__, 3) . '/src/translations';
+        foreach (glob($translationsDir . '/*/booked.php') as $file) {
+            $messages = require $file;
+            $this->assertArrayHasKey('booking.slotReserved', $messages, $file);
+            $this->assertStringContainsString('{minutes', $messages['booking.slotReserved'], $file);
+        }
+
+        foreach (['src/controllers/SlotController.php', 'src/services/BookingService.php'] as $sourceFile) {
+            $source = file_get_contents(dirname(__DIR__, 3) . '/' . $sourceFile);
+            $this->assertStringNotContainsString(
+                "'booking.slotReserved')",
+                $source,
+                "{$sourceFile} must pass ['minutes' => ...] to booking.slotReserved"
+            );
+        }
+    }
+
+    // =========================================================================
     // isLocked — null employeeId must check ALL locks
     // =========================================================================
 
