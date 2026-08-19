@@ -288,6 +288,8 @@ You should be redirected to the confirmation page.
 
 ## Step 6: Set Up Email Notifications (Optional)
 
+> **Before you start:** Booked queues its emails. Set up a queue worker on the server, or the emails go out only when a person opens the control panel. See [Queue Setup](QUEUE.md).
+
 ### Enable Confirmation Emails
 
 1. Go to **Booked → Settings** in the sidebar, then click the **Notifications** tab
@@ -340,6 +342,7 @@ You now have a working booking system. Here's where to go next:
 
 ### Learn More
 
+- [Queue Setup](QUEUE.md) - Run a queue worker so notifications go out immediately
 - [Availability System](AVAILABILITY.md) - Understand how schedules and slots work
 - [Developer Guide](DEVELOPER_GUIDE.md) - Full API reference
 - [Event System](EVENT_SYSTEM.md) - Hook into booking lifecycle
@@ -364,6 +367,7 @@ You now have a working booking system. Here's where to go next:
 
 ### Emails not sending
 
+- Check a queue worker is running - Booked queues all emails, see [Queue Setup](QUEUE.md)
 - Check Craft's email settings are configured
 - Verify notifications are enabled in Booked settings
 - Check the Craft logs for email errors
