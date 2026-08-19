@@ -419,8 +419,18 @@ class SlotController extends Controller
         $locationId = $request->getBodyParam('locationId');
 
         $quantity = max(1, (int)($request->getBodyParam('quantity') ?? 1));
-        $capacity = $request->getBodyParam('capacity');
-        $capacity = $capacity !== null ? max(1, (int)$capacity) : null;
+
+        // The slot's seats are resolved server-side. Trusting a client-sent
+        // capacity would let a request inflate the slot and bypass the hold
+        // check — and no client ever sent one, which made the seat-aware
+        // branch dead code: one hold blocked a whole group slot (#117).
+        $capacity = Booked::getInstance()->getCapacity()->getRemainingCapacityForSlot(
+            $date,
+            $startTime,
+            $endTime,
+            $employeeId ? (int)$employeeId : null,
+            (int)$serviceId,
+        );
 
         $token = Booked::getInstance()->getSoftLock()->createLock([
             'date' => $date,
@@ -476,6 +486,17 @@ class SlotController extends Controller
         $locationId = $this->normalizeId($request->getBodyParam('locationId'));
         $quantity = max(1, (int)($request->getBodyParam('quantity') ?? 1));
 
+        // Seats resolved server-side, like actionCreateLock(): without a
+        // capacity the range check is all-or-nothing and one hold blocks the
+        // whole range even when seats remain (#117).
+        $capacity = Booked::getInstance()->getMultiDayAvailability()->getRemainingCapacityForRange(
+            $date,
+            $endDate,
+            (int)$serviceId,
+            $employeeId ? (int)$employeeId : null,
+            $locationId ? (int)$locationId : null,
+        );
+
         $token = Booked::getInstance()->getSoftLock()->createLock([
             'date' => $date,
             'endDate' => $endDate,
@@ -485,6 +506,7 @@ class SlotController extends Controller
             'employeeId' => $employeeId ? (int)$employeeId : null,
             'locationId' => $locationId ? (int)$locationId : null,
             'quantity' => $quantity,
+            'capacity' => $capacity,
         ], $durationMinutes);
 
         if ($token === false) {

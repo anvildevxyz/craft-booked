@@ -274,4 +274,31 @@ class ControllerSourceTest extends TestCase
             'EmployeeScheduleController' => ['EmployeeScheduleController.php'],
         ];
     }
+
+    /**
+     * #117 — the lock endpoints must resolve a slot's seats server-side, so a
+     * hold on some seats of a group slot no longer refuses the rest. A client-
+     * sent capacity is never trusted: it could inflate the slot and bypass the
+     * hold check.
+     */
+    public function testSlotLockCapacityIsResolvedServerSide(): void
+    {
+        $source = $this->controllerSource('SlotController.php');
+
+        $this->assertStringContainsString(
+            'getRemainingCapacityForSlot(',
+            $source,
+            'actionCreateLock() should resolve the remaining seats server-side (#117)'
+        );
+        $this->assertStringContainsString(
+            'getRemainingCapacityForRange(',
+            $source,
+            'actionCreateMultiDayLock() should resolve the remaining range seats server-side (#117)'
+        );
+        $this->assertStringNotContainsString(
+            "getBodyParam('capacity')",
+            $source,
+            'The lock endpoints must not trust a client-sent capacity'
+        );
+    }
 }

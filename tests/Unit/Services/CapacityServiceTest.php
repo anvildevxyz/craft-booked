@@ -632,4 +632,43 @@ class CapacityServiceTest extends TestCase
 
         $this->assertEquals(1, $service->getEmployeeSeatsForDay($this->makeSchedule(0), null, 3));
     }
+
+    // =========================================================================
+    // getRemainingCapacityForSlot() - Seats left for the lock check (#117)
+    // =========================================================================
+
+    public function testRemainingCapacityIsNullOnAnUncappedSlot(): void
+    {
+        $service = $this->makePartialService();
+        $service->shouldReceive('getCapacityForSlot')->once()->andReturn(null);
+        // An uncapped slot must not pay for a booked-quantity query.
+        $service->shouldNotReceive('getBookedQuantity');
+
+        $this->assertNull($service->getRemainingCapacityForSlot('2027-04-14', '09:00', '10:00', null, 1));
+    }
+
+    public function testRemainingCapacitySubtractsBookedSeats(): void
+    {
+        $service = $this->makePartialService();
+        $service->shouldReceive('getCapacityForSlot')
+            ->once()
+            ->with('2027-04-14', '09:00', 7, 1)
+            ->andReturn(5);
+        $service->shouldReceive('getBookedQuantity')
+            ->once()
+            ->with('2027-04-14', '09:00', '10:00', 7, 1)
+            ->andReturn(2);
+
+        $this->assertEquals(3, $service->getRemainingCapacityForSlot('2027-04-14', '09:00', '10:00', 7, 1));
+    }
+
+    public function testRemainingCapacityDoesNotDropBelowZero(): void
+    {
+        $service = $this->makePartialService();
+        $service->shouldReceive('getCapacityForSlot')->once()->andReturn(3);
+        // Over-booked slot (capacity lowered after bookings existed).
+        $service->shouldReceive('getBookedQuantity')->once()->andReturn(5);
+
+        $this->assertEquals(0, $service->getRemainingCapacityForSlot('2027-04-14', '09:00', '10:00', null, 1));
+    }
 }

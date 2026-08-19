@@ -162,6 +162,39 @@ class CapacityService extends Component
     }
 
     /**
+     * Seats still open on a slot after confirmed bookings.
+     *
+     * Soft locks are deliberately not subtracted here — the lock check weighs
+     * them itself ({@see SoftLockService::isLocked()}), so subtracting them
+     * twice would under-report the free seats. Callers pass this value as the
+     * lock check's capacity so a hold on some seats no longer blocks the rest
+     * of a group slot.
+     *
+     * @param string $date Slot date (Y-m-d)
+     * @param string $startTime Slot start time (H:i)
+     * @param string $endTime Slot end time (H:i)
+     * @param int|null $employeeId Employee the seats belong to, or null for employee-less services
+     * @param int|null $serviceId
+     * @return int|null Remaining seats, or null when the slot is uncapped
+     */
+    public function getRemainingCapacityForSlot(
+        string $date,
+        string $startTime,
+        string $endTime,
+        ?int $employeeId,
+        ?int $serviceId,
+    ): ?int {
+        $maxCapacity = $this->getCapacityForSlot($date, $startTime, $employeeId, $serviceId);
+        if ($maxCapacity === null) {
+            return null;
+        }
+
+        $bookedQuantity = $this->getBookedQuantity($date, $startTime, $endTime, $employeeId, $serviceId);
+
+        return max(0, $maxCapacity - $bookedQuantity);
+    }
+
+    /**
      * Seats one employee holds on every slot of a day.
      *
      * Mirrors the resolution order of {@see getCapacityFromPreloaded()}, but at
