@@ -149,6 +149,8 @@ php craft booked/reminders/send   # Send pending reminders synchronously
 php craft booked/reminders/queue  # Queue reminders for async processing (recommended for cron)
 ```
 
+`booked/reminders/queue` only puts the reminders in the queue. A queue worker must run to send them — see [Queue Setup](QUEUE.md).
+
 ## Waitlist
 
 ```bash

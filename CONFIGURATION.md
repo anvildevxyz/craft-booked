@@ -76,6 +76,8 @@ Supports reCAPTCHA v3, hCaptcha, and Cloudflare Turnstile. Select a provider in 
 | Email Reminder Hours Before | 24 | |
 | Send Cancellation Email | Yes | |
 
+Booked queues all emails. A queue worker must run, or the emails go out only when a person opens the control panel — see [Queue Setup](QUEUE.md).
+
 Reminders require a cron job — see [Console Commands](CONSOLE_COMMANDS.md).
 
 ---
@@ -305,6 +307,7 @@ In the CP settings fields, reference these as `$GOOGLE_CALENDAR_CLIENT_ID` etc.
 
 ## Next Steps
 
+- [Queue Setup](QUEUE.md) - Run a queue worker so notifications go out immediately
 - [Email Templates](EMAIL_TEMPLATES.md) - Customize email notifications
 - [Developer Guide](DEVELOPER_GUIDE.md) - API reference and extension guide
 - [Event System](EVENT_SYSTEM.md) - Hook into the booking lifecycle

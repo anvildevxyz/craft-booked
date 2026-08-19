@@ -51,6 +51,7 @@ A comprehensive booking and reservation management plugin for Craft CMS, designe
 - PHP 8.2 or later
 - MySQL 8.0.17+ or PostgreSQL 13+
 - Composer
+- A queue worker (daemon or cron) for the background jobs - see [Queue Setup](QUEUE.md)
 
 ## Quick Start
 
@@ -75,6 +76,7 @@ ddev php craft plugin/install booked
 
 ### Setup & Configuration
 - [Configuration Guide](CONFIGURATION.md) - Complete configuration reference
+- [Queue Setup](QUEUE.md) - **Required** - Run a queue worker so emails, SMS, and webhooks go out immediately
 
 ### Core Features
 - [Availability & Schedule System](AVAILABILITY.md) - Complete guide to how availability and schedules work

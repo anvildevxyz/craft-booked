@@ -18,6 +18,8 @@ The plugin sends these email types automatically:
 
 All emails are sent asynchronously via Craft's queue system. Confirmation emails include an `.ics` calendar attachment.
 
+A queue worker must run on the server — see [Queue Setup](QUEUE.md). Without a worker, the emails stay in the queue until a person opens the control panel.
+
 ---
 
 ## Customizing Templates
