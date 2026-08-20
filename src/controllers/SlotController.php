@@ -408,7 +408,12 @@ class SlotController extends Controller
         try {
             $totalDuration = $service->duration + $extrasDuration;
             $start = new \DateTime($date . ' ' . $startTime);
-            $endTime = (clone $start)->add(new \DateInterval('PT' . $totalDuration . 'M'))->format('H:i');
+            $end = (clone $start)->add(new \DateInterval('PT' . $totalDuration . 'M'));
+            // A slot crossing midnight clamps to '24:00': the times are
+            // string-compared, so a wrapped '00:00' would overlap nothing and
+            // hide every booking from the seat math (mirrors
+            // BookingService::calculateEndTime()).
+            $endTime = $end->format('Y-m-d') !== $start->format('Y-m-d') ? '24:00' : $end->format('H:i');
         } catch (\Throwable $e) {
             Craft::error("Error calculating end time for lock: " . $e->getMessage(), __METHOD__);
             return $this->jsonError(Craft::t('booked', 'errors.invalidTime'));
@@ -419,10 +424,11 @@ class SlotController extends Controller
         $locationId = $request->getBodyParam('locationId');
 
         $quantity = max(1, (int)($request->getBodyParam('quantity') ?? 1));
-        $capacity = $request->getBodyParam('capacity');
-        $capacity = $capacity !== null ? max(1, (int)$capacity) : null;
 
-        $token = Booked::getInstance()->getSoftLock()->createLock([
+        // No 'capacity' key: createLock() resolves the slot's remaining seats
+        // itself, under its mutex. A client-sent capacity is never read — it
+        // could inflate the slot and bypass the hold check (#117).
+        $lockData = [
             'date' => $date,
             'startTime' => $startTime,
             'endTime' => $endTime,
@@ -430,11 +436,15 @@ class SlotController extends Controller
             'employeeId' => $employeeId ? (int)$employeeId : null,
             'locationId' => $locationId ? (int)$locationId : null,
             'quantity' => $quantity,
-            'capacity' => $capacity,
-        ], $durationMinutes);
+        ];
+
+        $softLock = Booked::getInstance()->getSoftLock();
+        $token = $softLock->createLock($lockData, $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', [
+                'minutes' => $softLock->getRetryAfterMinutes($lockData, $durationMinutes),
+            ]));
         }
 
         return $this->jsonSuccess('', [
@@ -476,7 +486,9 @@ class SlotController extends Controller
         $locationId = $this->normalizeId($request->getBodyParam('locationId'));
         $quantity = max(1, (int)($request->getBodyParam('quantity') ?? 1));
 
-        $token = Booked::getInstance()->getSoftLock()->createLock([
+        // No 'capacity' key: createLock() resolves the range's remaining
+        // seats itself, under its mutex (#117).
+        $lockData = [
             'date' => $date,
             'endDate' => $endDate,
             'startTime' => null,
@@ -485,10 +497,15 @@ class SlotController extends Controller
             'employeeId' => $employeeId ? (int)$employeeId : null,
             'locationId' => $locationId ? (int)$locationId : null,
             'quantity' => $quantity,
-        ], $durationMinutes);
+        ];
+
+        $softLock = Booked::getInstance()->getSoftLock();
+        $token = $softLock->createLock($lockData, $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', [
+                'minutes' => $softLock->getRetryAfterMinutes($lockData, $durationMinutes),
+            ]));
         }
 
         return $this->jsonSuccess('', [
@@ -515,7 +532,9 @@ class SlotController extends Controller
         $durationMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
         $quantity = max(1, (int)(Craft::$app->request->getBodyParam('quantity') ?? 1));
 
-        $token = Booked::getInstance()->getSoftLock()->createLock([
+        // Events keep their explicit capacity: their seat model lives on the
+        // event date, not on schedules, so createLock() must not resolve it.
+        $lockData = [
             'date' => $eventDate->eventDate,
             'startTime' => $eventDate->startTime,
             'endTime' => $eventDate->endTime,
@@ -524,10 +543,15 @@ class SlotController extends Controller
             'locationId' => $eventDate->locationId,
             'quantity' => $quantity,
             'capacity' => $eventDate->getRemainingCapacity(),
-        ], $durationMinutes);
+        ];
+
+        $softLock = Booked::getInstance()->getSoftLock();
+        $token = $softLock->createLock($lockData, $durationMinutes);
 
         if ($token === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'));
+            return $this->jsonError(Craft::t('booked', 'booking.slotReserved', [
+                'minutes' => $softLock->getRetryAfterMinutes($lockData, $durationMinutes),
+            ]));
         }
 
         return $this->jsonSuccess('', [
@@ -556,9 +580,11 @@ class SlotController extends Controller
         $softLockService = Booked::getInstance()->getSoftLock();
         $newExpiry = $softLockService->extendLock($token, $durationMinutes, $softLockService->getSessionHash(), $maxLifetimeMinutes);
 
-        // A gone/expired lock returns 410 so the client can drop into its expired flow.
+        // A gone/expired lock returns 410 so the client can drop into its
+        // expired flow. This customer's OWN hold lapsed — the slot is likely
+        // free right now, so the "reserved, try later" copy would be false.
         if ($newExpiry === false) {
-            return $this->jsonError(Craft::t('booked', 'booking.slotReserved'), statusCode: 410);
+            return $this->jsonError(Craft::t('booked', 'booking.lockExpired'), statusCode: 410);
         }
 
         // Report the REAL remaining seconds: extendLock clamps the new expiry to

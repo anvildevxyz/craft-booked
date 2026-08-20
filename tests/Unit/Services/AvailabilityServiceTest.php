@@ -554,4 +554,68 @@ class AvailabilityServiceTest extends TestCase
             'getReservationsForDate must apply both employeeId and serviceId filters, not use elseif'
         );
     }
+
+    // =====================================================
+    // Soft lock overlap — seconds-carrying lock times
+    // =====================================================
+
+    /**
+     * A lock record as loaded from the DB. The lock table stores times in a
+     * varchar column, so rows written before normalization (and rows fed from
+     * a TIME column, e.g. event dates) carry seconds.
+     */
+    private function makeLock(string $startTime, string $endTime, int $quantity = 1): object
+    {
+        return new class($startTime, $endTime, $quantity) {
+            public ?int $employeeId = null;
+            public ?int $locationId = null;
+
+            public function __construct(
+                public string $startTime,
+                public string $endTime,
+                public int $quantity,
+            ) {
+            }
+        };
+    }
+
+    private function invokeLockFilter(string $method, array $args): mixed
+    {
+        $ref = new \ReflectionMethod($this->service, $method);
+        $ref->setAccessible(true);
+
+        return $ref->invoke($this->service, ...$args);
+    }
+
+    public function testSecondsCarryingLockDoesNotBleedIntoAdjacentSlot(): void
+    {
+        // '10:00:00' > '10:00' is TRUE string-wise, which made a 09:00-10:00
+        // hold also consume a seat on the 10:00 slot next to it.
+        $locks = [$this->makeLock('09:00:00', '10:00:00')];
+
+        $held = $this->invokeLockFilter('sumLockedQuantity', [$locks, '10:00', '11:00', null, null]);
+        $locked = $this->invokeLockFilter('isSlotLockedByRecords', [$locks, '10:00', '11:00', null, null]);
+
+        $this->assertSame(0, $held, 'A touching-but-not-overlapping lock must not consume a seat');
+        $this->assertFalse($locked, 'A touching-but-not-overlapping lock must not close the slot');
+    }
+
+    public function testSecondsCarryingLockStillCountsOnItsOwnSlot(): void
+    {
+        $locks = [$this->makeLock('09:00:00', '10:00:00', 2)];
+
+        $held = $this->invokeLockFilter('sumLockedQuantity', [$locks, '09:00', '10:00', null, null]);
+        $locked = $this->invokeLockFilter('isSlotLockedByRecords', [$locks, '09:00', '10:00', null, null]);
+
+        $this->assertSame(2, $held);
+        $this->assertTrue($locked);
+    }
+
+    public function testShortFormLockKeepsCorrectOverlap(): void
+    {
+        $locks = [$this->makeLock('09:00', '10:00')];
+
+        $this->assertSame(0, $this->invokeLockFilter('sumLockedQuantity', [$locks, '10:00', '11:00', null, null]));
+        $this->assertSame(1, $this->invokeLockFilter('sumLockedQuantity', [$locks, '09:30', '10:30', null, null]));
+    }
 }

@@ -36,7 +36,13 @@ class CapacityServiceTest extends TestCase
      */
     private function makePartialService(): Mockery\MockInterface
     {
-        $service = Mockery::mock(CapacityService::class)->makePartial();
+        $service = Mockery::mock(CapacityService::class)
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+
+        // The any-employee seat pool needs element queries; tests exercise it
+        // explicitly and everything else runs the single-employee math.
+        $service->shouldReceive('getAnyEmployeeSeatPool')->andReturn(null)->byDefault();
 
         // Inject TimeWindowService via reflection since init() isn't called on mocks
         $ref = new \ReflectionProperty(CapacityService::class, 'timeWindowService');
@@ -631,5 +637,52 @@ class CapacityServiceTest extends TestCase
         $service = new CapacityService();
 
         $this->assertEquals(1, $service->getEmployeeSeatsForDay($this->makeSchedule(0), null, 3));
+    }
+
+    // =========================================================================
+    // getAvailableCapacity() - Any-employee seat pool (#117)
+    // =========================================================================
+
+    public function testAvailableCapacityUsesTheSeatPoolInAnyEmployeeMode(): void
+    {
+        // With no employee picked ("any available"), the pooled seats across
+        // employees must win — the single-employee math would treat the
+        // service as employee-less and refuse customers the merged calendar
+        // still shows seats for.
+        $service = $this->makePartialService();
+        $service->shouldReceive('getAnyEmployeeSeatPool')
+            ->once()
+            ->with('2027-04-14', '09:00', '10:00', 1)
+            ->andReturn(7);
+        $service->shouldNotReceive('getCapacityForSlot');
+
+        $this->assertEquals(7, $service->getAvailableCapacity('2027-04-14', '09:00', '10:00', null, 1));
+    }
+
+    public function testAvailableCapacityFallsBackWhenNoPoolApplies(): void
+    {
+        // Pool null = the service has no employees; the schedule math applies.
+        $service = $this->makePartialService();
+        $service->shouldReceive('getAnyEmployeeSeatPool')->once()->andReturn(null);
+        $service->shouldReceive('getCapacityForSlot')->once()->andReturn(3);
+        $service->shouldReceive('getBookedQuantity')->once()->andReturn(1);
+
+        $this->assertEquals(2, $service->getAvailableCapacity('2027-04-14', '09:00', '10:00', null, 1));
+    }
+
+    public function testAvailableCapacitySkipsThePoolForASpecificEmployee(): void
+    {
+        $service = $this->makePartialService();
+        $service->shouldNotReceive('getAnyEmployeeSeatPool');
+        $service->shouldReceive('getCapacityForSlot')
+            ->once()
+            ->with('2027-04-14', '09:00', 7, 1)
+            ->andReturn(5);
+        $service->shouldReceive('getBookedQuantity')
+            ->once()
+            ->with('2027-04-14', '09:00', '10:00', 7, 1)
+            ->andReturn(2);
+
+        $this->assertEquals(3, $service->getAvailableCapacity('2027-04-14', '09:00', '10:00', 7, 1));
     }
 }

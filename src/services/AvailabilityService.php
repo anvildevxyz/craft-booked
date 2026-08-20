@@ -733,7 +733,11 @@ class AvailabilityService extends Component
             if ($locationId !== null && $lock->locationId !== null && $lock->locationId !== $locationId) {
                 continue;
             }
-            if ($lock->startTime < $endTime && $lock->endTime > $startTime) {
+            // H:i on both sides: a seconds-carrying lock time ('10:00:00')
+            // sorts after its H:i twin ('10:00') in a string comparison, which
+            // bled a hold into the ADJACENT slot. New locks store H:i, but
+            // rows written before that normalization may still carry seconds.
+            if (SoftLockService::normalizeTime($lock->startTime) < $endTime && SoftLockService::normalizeTime($lock->endTime) > $startTime) {
                 return true;
             }
         }
@@ -757,7 +761,8 @@ class AvailabilityService extends Component
             if ($locationId !== null && $lock->locationId !== null && $lock->locationId !== $locationId) {
                 continue;
             }
-            if ($lock->startTime < $endTime && $lock->endTime > $startTime) {
+            // H:i on both sides — see isSlotLockedByRecords() on why.
+            if (SoftLockService::normalizeTime($lock->startTime) < $endTime && SoftLockService::normalizeTime($lock->endTime) > $startTime) {
                 $total += max(1, (int) ($lock->quantity ?? 1));
             }
         }

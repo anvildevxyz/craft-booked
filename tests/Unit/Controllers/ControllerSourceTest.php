@@ -274,4 +274,51 @@ class ControllerSourceTest extends TestCase
             'EmployeeScheduleController' => ['EmployeeScheduleController.php'],
         ];
     }
+
+    /**
+     * #117 — a slot's seats are resolved inside SoftLockService, under its
+     * mutex. The controllers neither trust a client-sent capacity (it could
+     * inflate the slot and bypass the hold check) nor resolve one themselves
+     * (their read would go stale before the mutex, and every new caller
+     * would have to remember the ritual).
+     */
+    public function testSlotLockCapacityIsResolvedInsideTheLockService(): void
+    {
+        $controllerSource = $this->controllerSource('SlotController.php');
+        $this->assertStringNotContainsString(
+            "getBodyParam('capacity')",
+            $controllerSource,
+            'The lock endpoints must not trust a client-sent capacity'
+        );
+        $this->assertStringNotContainsString(
+            'getAvailableCapacity(',
+            $controllerSource,
+            'Seats are resolved inside SoftLockService::createLock(), under its mutex — not in the controller'
+        );
+        // actionRangeCapacity() legitimately READS range capacity for the
+        // calendar; only the lock actions must not resolve seats themselves.
+        $lockActionsStart = strpos($controllerSource, 'function actionCreateLock');
+        $this->assertNotFalse($lockActionsStart);
+        $this->assertStringNotContainsString(
+            'getRemainingCapacityForRange(',
+            substr($controllerSource, $lockActionsStart),
+            'Range seats are resolved inside SoftLockService::createLock(), under its mutex — not in the lock actions'
+        );
+
+        $lockServiceSource = file_get_contents($this->srcDir . '/services/SoftLockService.php');
+        $this->assertStringContainsString('resolveSlotSeats(', $lockServiceSource);
+        $this->assertStringContainsString('resolveRangeSeats(', $lockServiceSource);
+
+        $bookingServiceSource = file_get_contents($this->srcDir . '/services/BookingService.php');
+        $this->assertStringContainsString(
+            'isSlotBlockedByHolds(',
+            $bookingServiceSource,
+            'The booking-time re-check must go through the self-resolving hold check'
+        );
+        $this->assertStringContainsString(
+            'isRangeBlockedByHolds(',
+            $bookingServiceSource,
+            'The multi-day booking-time re-check must go through the self-resolving hold check'
+        );
+    }
 }

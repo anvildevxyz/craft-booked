@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.2 - 2026-08-20
+
+### Fixed
+- **One customer mid-checkout blocked a whole group slot.** ([#117](https://github.com/anvildevxyz/craft-booked/issues/117)) The lock check only counted held seats against the capacity when the client sent one, and no client ever did — so while anyone held a soft lock, every other customer clicking the same multi-seat slot got "This time slot is temporarily reserved" even though the calendar showed free seats. `SoftLockService::createLock()` now resolves the slot's remaining seats itself, inside its mutex — a booking landing between an earlier read and the check can no longer make the seats stale, and a future caller cannot regress to the all-or-nothing hold by forgetting a parameter. The booking-time re-check goes through the same self-resolving methods (`isSlotBlockedByHolds()`, `isRangeBlockedByHolds()`). A client-sent capacity is not read at all: trusting it would let a request inflate the slot and bypass the hold check. Single-seat and uncapped slots keep the all-or-nothing hold, matching how availability filters them.
+- **"Any available employee" mode counts seats now too.** With the schedules sitting on the staff and no employee picked, the seat resolution treated the service as employee-less, found no service schedule, and fell back to the all-or-nothing hold — #117 again for exactly the multi-employee services group bookings favor. The remaining seats are now pooled across every employee who covers the slot, with each employee's own bookings and the service's employee-less bookings taken off the pool.
+- **A hold could bleed into the slot next to it.** Lock times live in a varchar column, so every comparison against them is a string comparison — and a seconds-carrying time (`10:00:00`, as delivered by event dates' TIME column or an API client) sorts after its `H:i` twin (`10:00`). A 09:00–10:00 hold therefore also consumed a displayed seat on the 10:00 slot. Lock times are now normalized to `H:i` — single-digit hours zero-padded — when stored and when compared, existing rows are rewritten by a migration, and the availability filters normalize stragglers in place.
+- **A full or unschedulable slot was never "temporarily reserved", but said so.** With the seats gone to confirmed bookings — or a range blacked out — and not a single hold present, the hold check reported the slot as temporarily reserved and promised a retry that could never succeed. Holds only refuse when held seats actually tip the balance; everything else falls through to the capacity validation and its accurate message.
+- **Two holds on the edges of a long range refused its middle.** The range hold check summed every hold touching the requested range against its tightest day. It now weighs the peak per-day load instead, so holds on disjoint days no longer stack.
+- **Slots ending at midnight hid their bookings from the seat math.** The lock endpoint wrapped such a slot's end time to `00:00`, which string-compares before every time of day; it now clamps to `24:00` like the booking path always has.
+- **The refusal message promised the wrong wait.** It has said "try again in 15 minutes" since the first release while the default hold has always been 5. The message now reports how long the holds that actually block the slot still live — a renewed hold promises its extended life, a nearly-lapsed one promises a single minute — with proper plural forms in every bundled language. A customer whose own hold expired gets its own message instead of being told to come back later to a slot that is likely free.
+
+### Changed
+- `QUEUE.md` documents the queue worker that reminders, notification emails and calendar sync have always needed; the README, tutorial, console-command and email-template guides link to it. ([#116](https://github.com/anvildevxyz/craft-booked/pull/116))
+
 ## 1.5.1 - 2026-08-18
 
 ### Fixed

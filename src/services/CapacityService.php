@@ -399,6 +399,27 @@ class CapacityService extends Component
             && $minutes < $this->getTimeWindowService()->timeToMinutes($end);
     }
 
+    /**
+     * Seats still open on a slot after confirmed bookings.
+     *
+     * With a specific employee: their per-day schedule seats minus their own
+     * bookings. Without one ("any available employee"), the seats are pooled
+     * across every employee who covers the slot — a hold in that mode can be
+     * served by any of them, so counting a single employee's seats (or none
+     * at all, when the schedules sit on the staff) would refuse customers
+     * while the merged calendar still shows seats: the #117 symptom.
+     *
+     * Soft locks are deliberately not subtracted here — the lock check weighs
+     * them itself ({@see SoftLockService::isLocked()}), so subtracting them
+     * twice would under-report the free seats.
+     *
+     * @param string $date Slot date (Y-m-d)
+     * @param string $startTime Slot start time (H:i)
+     * @param string $endTime Slot end time (H:i)
+     * @param int|null $employeeId Employee the seats belong to, or null to pool
+     * @param int|null $serviceId
+     * @return int|null Remaining seats, or null when the slot is uncapped
+     */
     public function getAvailableCapacity(
         string $date,
         string $startTime,
@@ -406,9 +427,96 @@ class CapacityService extends Component
         ?int $employeeId,
         ?int $serviceId,
     ): ?int {
+        if ($employeeId === null) {
+            $pool = $this->getAnyEmployeeSeatPool($date, $startTime, $endTime, $serviceId);
+            if ($pool !== null) {
+                return $pool;
+            }
+        }
+
         $maxCapacity = $this->getCapacityForSlot($date, $startTime, $employeeId, $serviceId);
         return $maxCapacity !== null
             ? max(0, $maxCapacity - $this->getBookedQuantity($date, $startTime, $endTime, $employeeId, $serviceId))
             : null;
+    }
+
+    /**
+     * Total remaining seats across every employee who covers the slot, or
+     * null when the service has no employees — the employee-less schedule
+     * math applies then — or when no employee covers the slot, so the hold
+     * check keeps its all-or-nothing behavior instead of refusing a slot
+     * the availability pipeline may still offer.
+     *
+     * Mirrors {@see getCapacityForSlot()}'s per-employee resolution (active
+     * schedule first, inline working hours with the service schedule's seats
+     * second) but sums over all covering employees instead of returning the
+     * first match. Employee-less bookings on the service consume pool seats
+     * too, the same way the deduplicated calendar weighs them.
+     *
+     * @param string $date Slot date (Y-m-d)
+     * @param string $startTime Slot start time (H:i)
+     * @param string $endTime Slot end time (H:i)
+     * @param int|null $serviceId
+     * @return int|null Pooled remaining seats, or null when pooling does not apply
+     */
+    protected function getAnyEmployeeSeatPool(
+        string $date,
+        string $startTime,
+        string $endTime,
+        ?int $serviceId,
+    ): ?int {
+        if ($serviceId === null) {
+            return null;
+        }
+
+        $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+        if (!$dateObj) {
+            return null;
+        }
+        $dayOfWeek = (int)$dateObj->format('N');
+
+        $employees = Employee::find()->siteId('*')->enabled()->serviceId($serviceId)->all();
+        if (empty($employees)) {
+            return null;
+        }
+
+        $slotMinutes = $this->getTimeWindowService()->timeToMinutes($startTime);
+        $scheduleAssignment = Booked::getInstance()->getScheduleAssignment();
+        $employeeIds = array_map(fn($e) => $e->id, $employees);
+        $scheduleMap = $scheduleAssignment->getActiveSchedulesForDateBatch($employeeIds, $date);
+        $serviceSchedule = $scheduleAssignment->getActiveScheduleForServiceOnDate($serviceId, $date);
+
+        $pool = 0;
+        $covered = false;
+        foreach ($employees as $employee) {
+            $seats = null;
+            $activeSchedule = $scheduleMap[$employee->id] ?? null;
+            if ($activeSchedule !== null) {
+                foreach ($activeSchedule->getWorkingSlotsForDay($dayOfWeek) as $slot) {
+                    if ($this->minutesInRange($slotMinutes, $slot['start'], $slot['end'])) {
+                        $seats = $activeSchedule->getCapacityForDay($dayOfWeek) ?? 1;
+                        break;
+                    }
+                }
+            } else {
+                $hours = $employee->getWorkingHoursForDay($dayOfWeek);
+                if ($hours && $this->minutesInRange($slotMinutes, $hours['start'], $hours['end'])) {
+                    $seats = $serviceSchedule?->getCapacityForDay($dayOfWeek) ?? 1;
+                }
+            }
+
+            if ($seats === null) {
+                continue;
+            }
+
+            $covered = true;
+            $pool += max(0, $seats - $this->getBookedQuantity($date, $startTime, $endTime, $employee->id, $serviceId));
+        }
+
+        if (!$covered) {
+            return null;
+        }
+
+        return max(0, $pool - $this->getBookedQuantity($date, $startTime, $endTime, null, $serviceId));
     }
 }
