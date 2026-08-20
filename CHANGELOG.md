@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.2 - 2026-08-20
 
 ### Fixed
 - **One customer mid-checkout blocked a whole group slot.** ([#117](https://github.com/anvildevxyz/craft-booked/issues/117)) The lock check only counted held seats against the capacity when the client sent one, and no client ever did — so while anyone held a soft lock, every other customer clicking the same multi-seat slot got "This time slot is temporarily reserved" even though the calendar showed free seats. `SoftLockService::createLock()` now resolves the slot's remaining seats itself, inside its mutex — a booking landing between an earlier read and the check can no longer make the seats stale, and a future caller cannot regress to the all-or-nothing hold by forgetting a parameter. The booking-time re-check goes through the same self-resolving methods (`isSlotBlockedByHolds()`, `isRangeBlockedByHolds()`). A client-sent capacity is not read at all: trusting it would let a request inflate the slot and bypass the hold check. Single-seat and uncapped slots keep the all-or-nothing hold, matching how availability filters them.
@@ -10,6 +10,9 @@
 - **Two holds on the edges of a long range refused its middle.** The range hold check summed every hold touching the requested range against its tightest day. It now weighs the peak per-day load instead, so holds on disjoint days no longer stack.
 - **Slots ending at midnight hid their bookings from the seat math.** The lock endpoint wrapped such a slot's end time to `00:00`, which string-compares before every time of day; it now clamps to `24:00` like the booking path always has.
 - **The refusal message promised the wrong wait.** It has said "try again in 15 minutes" since the first release while the default hold has always been 5. The message now reports how long the holds that actually block the slot still live — a renewed hold promises its extended life, a nearly-lapsed one promises a single minute — with proper plural forms in every bundled language. A customer whose own hold expired gets its own message instead of being told to come back later to a slot that is likely free.
+
+### Changed
+- `QUEUE.md` documents the queue worker that reminders, notification emails and calendar sync have always needed; the README, tutorial, console-command and email-template guides link to it. ([#116](https://github.com/anvildevxyz/craft-booked/pull/116))
 
 ## 1.5.1 - 2026-08-18
 
