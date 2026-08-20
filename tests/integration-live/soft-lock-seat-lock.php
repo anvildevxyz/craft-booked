@@ -19,9 +19,14 @@
  *   D  multi-day range, capacity 3 -> 3 range locks grant, the 4th is refused
  *   E  REAL createBooking()        -> succeeds beside a foreign hold, refused when holds fill the slot
  *   F  REAL multi-day booking      -> succeeds beside a foreign range hold, refused when holds fill the range
+ *   G  "any available employee"    -> the pooled seats across employees govern the holds
+ *   H  full slot, ZERO holds       -> the hold check stays silent; the booking refusal names capacity, not holds
+ *   I  range holds on disjoint edges -> a request across the middle is still granted (per-day peak, not sum)
  *
  * Self-cleaning: every element, reservation, soft lock and queued notification
- * job it creates is removed again, including after a failure.
+ * job it creates is removed again, including after a failure. Queued jobs are
+ * tracked by id right after each booking; a worker draining the queue during
+ * the run can still send a test email before cleanup catches it.
  *
  * Usage (from the Craft project root, DDEV):
  *   ddev exec php plugins/craft-booked/tests/integration-live/soft-lock-seat-lock.php [YYYY-MM-DD]
@@ -32,8 +37,10 @@ require dirname(__DIR__, 4) . '/bootstrap.php';
 $app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
 
 use anvildev\booked\Booked;
+use anvildev\booked\elements\Employee;
 use anvildev\booked\elements\Schedule;
 use anvildev\booked\elements\Service;
+use anvildev\booked\factories\ReservationFactory;
 
 $db = Craft::$app->getDb();
 $elements = Craft::$app->getElements();
@@ -64,13 +71,21 @@ $dayOfWeek = (int)(new DateTime($date))->format('N');
 $purge = function() use ($elements, $db, $prefix, $marker): void {
     $db->createCommand()->delete('{{%booked_reservations}}', ['like', 'confirmationToken', $marker . '%', false])->execute();
 
-    foreach ([Service::class, Schedule::class] as $cls) {
+    foreach ([Service::class, Employee::class, Schedule::class] as $cls) {
         foreach ($cls::find()->siteId('*')->status(null)->trashed(null)->all() as $el) {
             if (!str_starts_with((string)$el->title, $prefix)) {
                 continue;
             }
             if ($el instanceof Service) {
                 $db->createCommand()->delete('{{%booked_soft_locks}}', ['serviceId' => $el->id])->execute();
+                // In element mode the real booking pipeline creates
+                // reservation ELEMENTS; a raw row delete would orphan their
+                // elements/searchindex rows forever.
+                foreach (ReservationFactory::find()->serviceId($el->id)->status(null)->all() as $reservation) {
+                    if ($reservation instanceof \craft\base\ElementInterface) {
+                        $elements->deleteElement($reservation, true);
+                    }
+                }
                 $db->createCommand()->delete('{{%booked_reservations}}', ['serviceId' => $el->id])->execute();
             }
             $elements->deleteElement($el, true);
@@ -97,8 +112,11 @@ $book = function(int $serviceId, string $tag) use ($db, $date, $marker): void {
     ])->execute();
 };
 
-/** Build an employee-less service from a schedule with the given per-day capacity. */
-$fixture = function(string $label, ?int $capacity, string $durationType = 'minutes') use ($elements, $plugin, $prefix): Service {
+/**
+ * Build a service from a per-day-capacity schedule — employee-less by
+ * default, or with employees carrying the schedule when $employeeCount > 0.
+ */
+$fixture = function(string $label, ?int $capacity, string $durationType = 'minutes', int $employeeCount = 0) use ($elements, $plugin, $prefix): Service {
     $day = [
         'enabled' => true,
         'start' => '09:00',
@@ -125,38 +143,50 @@ $fixture = function(string $label, ?int $capacity, string $durationType = 'minut
         throw new RuntimeException("service {$label}: " . implode(', ', $service->getErrorSummary(true)));
     }
 
-    $plugin->getScheduleAssignment()->setSchedulesForService($service->id, [$schedule->id]);
-    $plugin->getScheduleAssignment()->clearServiceScheduleCache();
+    $assign = $plugin->getScheduleAssignment();
+    if ($employeeCount > 0) {
+        // The schedules sit on the staff — the configuration whose "any
+        // available employee" holds regressed to all-or-nothing (#117).
+        for ($i = 1; $i <= $employeeCount; $i++) {
+            $employee = new Employee();
+            $employee->title = "{$prefix} Emp {$label}{$i}";
+            $employee->email = "issue117-{$label}{$i}@example.test";
+            $employee->serviceIds = [$service->id];
+            $employee->workingHours = array_fill_keys(range(1, 7), ['enabled' => false]);
+            if (!$elements->saveElement($employee)) {
+                throw new RuntimeException("employee {$label}{$i}: " . implode(', ', $employee->getErrorSummary(true)));
+            }
+            $assign->setSchedulesForEmployee($employee->id, [$schedule->id]);
+        }
+    } else {
+        $assign->setSchedulesForService($service->id, [$schedule->id]);
+    }
+    $assign->clearServiceScheduleCache();
 
     return $service;
 };
 
 /**
- * Acquire one lock exactly as SlotController::actionCreateLock() now does:
- * remaining seats resolved server-side and passed as the lock capacity.
+ * Acquire one lock exactly as SlotController::actionCreateLock() now does —
+ * no capacity in the data: createLock() resolves the seats itself.
  */
-$acquire = function(int $serviceId) use ($plugin, $date, $time, $endTime): string|false {
-    $capacity = $plugin->getCapacity()->getRemainingCapacityForSlot($date, $time, $endTime, null, $serviceId);
-
+$acquire = function(int $serviceId, ?string $onDate = null) use ($plugin, $date, $time, $endTime): string|false {
     return $plugin->getSoftLock()->createLock([
-        'date' => $date,
+        'date' => $onDate ?? $date,
         'startTime' => $time,
         'endTime' => $endTime,
         'serviceId' => $serviceId,
         'employeeId' => null,
         'locationId' => null,
         'quantity' => 1,
-        'capacity' => $capacity,
     ], 5);
 };
 
 /**
  * Acquire one multi-day lock exactly as SlotController::actionCreateMultiDayLock()
- * now does: the range's remaining seats resolved server-side.
+ * now does — createLock() resolves the range's seats itself.
  */
 $acquireRange = function(int $serviceId, string $startDate, string $endDate) use ($plugin): string|false {
-    $capacity = $plugin->getMultiDayAvailability()->getRemainingCapacityForRange($startDate, $endDate, $serviceId);
-
     return $plugin->getSoftLock()->createLock([
         'date' => $startDate,
         'endDate' => $endDate,
@@ -166,7 +196,6 @@ $acquireRange = function(int $serviceId, string $startDate, string $endDate) use
         'employeeId' => null,
         'locationId' => null,
         'quantity' => 1,
-        'capacity' => $capacity,
     ], 5);
 };
 
@@ -190,8 +219,25 @@ $insertLock = function(int $serviceId, string $onDate, ?string $onEndDate, ?stri
     ])->execute();
 };
 
+// Notification jobs queued by real bookings would dangle after the purge.
+// Track the EXACT booked-plugin job ids that appear right after each booking
+// — a blanket "everything newer than the start" delete would take a
+// colleague's unrelated jobs with it on a shared dev database.
+$queueWatermark = (int)$db->createCommand('SELECT COALESCE(MAX(id), 0) FROM {{%queue}}')->queryScalar();
+$queuedJobIds = [];
+$captureQueuedJobs = function() use ($db, &$queueWatermark, &$queuedJobIds): void {
+    $ids = $db->createCommand(
+        "SELECT id FROM {{%queue}} WHERE id > :watermark AND job LIKE '%booked%'",
+        [':watermark' => $queueWatermark]
+    )->queryColumn();
+    foreach ($ids as $id) {
+        $queuedJobIds[] = (int)$id;
+        $queueWatermark = max($queueWatermark, (int)$id);
+    }
+};
+
 /** A booking through the REAL booking pipeline, as the wizard submits it. */
-$realBooking = function(int $serviceId, string $onDate, ?string $onEndDate, ?string $atTime, string $tag) use ($plugin, $marker): array {
+$realBooking = function(int $serviceId, string $onDate, ?string $onEndDate, ?string $atTime, string $tag) use ($plugin, $marker, $captureQueuedJobs): array {
     try {
         $reservation = $plugin->getBooking()->createBooking([
             'customerName' => 'Issue117 ' . $tag,
@@ -206,12 +252,10 @@ $realBooking = function(int $serviceId, string $onDate, ?string $onEndDate, ?str
         return ['ok' => true, 'id' => $reservation->id, 'error' => null];
     } catch (\Throwable $e) {
         return ['ok' => false, 'id' => null, 'error' => $e->getMessage()];
+    } finally {
+        $captureQueuedJobs();
     }
 };
-
-// Notification jobs queued by real bookings would dangle after the purge;
-// remember where the queue ends now so cleanup can drop exactly what we added.
-$queueFloor = (int)$db->createCommand('SELECT COALESCE(MAX(id), 0) FROM {{%queue}}')->queryScalar();
 
 $purge();
 echo "Issue #117 — seat-aware soft locks\n";
@@ -298,6 +342,11 @@ try {
     !$bookingE2['ok']
         ? $ok('booking refused once holds + bookings exceed the seats (got: ' . $bookingE2['error'] . ')')
         : $bad('booking accepted although 3 holds + 1 booking exceed 3 seats — oversold');
+    // The blocking holds live for 1 hour — the promised wait must reflect
+    // THAT, not the configured 5-minute duration for new holds.
+    !$bookingE2['ok'] && preg_match('/\b(5[5-9]|60) minutes\b/', (string)$bookingE2['error'])
+        ? $ok('the refusal promises the blocking hold\'s real remaining life (~60 min)')
+        : $bad('the refusal does not report the blocking hold\'s expiry: ' . $bookingE2['error']);
 
     $section('F. Real multi-day booking beside a foreign range hold');
     if ($rangeStart === null) {
@@ -316,10 +365,66 @@ try {
             ? $ok('multi-day booking refused once holds + bookings exceed the seats (got: ' . $bookingF2['error'] . ')')
             : $bad('multi-day booking accepted although the range is oversold');
     }
+
+    $section('G. "Any available employee": pooled seats govern the holds');
+    // Two employees carrying a capacity-3 schedule each = a 6-seat pool. The
+    // wizard sends no employeeId in this mode; before the pool fix the
+    // resolution treated that as an employee-less service, found no service
+    // schedule, and fell back to all-or-nothing — #117 all over again.
+    $serviceG = $fixture('G', 3, 'minutes', 2);
+    $granted = 0;
+    for ($n = 1; $n <= 6; $n++) {
+        if ($acquire($serviceG->id) !== false) {
+            $granted++;
+        }
+    }
+    $granted === 6
+        ? $ok('6 holds granted across the 2-employee seat pool (3 seats each)')
+        : $bad("only {$granted} of 6 holds granted in any-employee mode — the pool is not summed");
+    $acquire($serviceG->id) === false
+        ? $ok('7th hold refused once the pool is exhausted')
+        : $bad('7th hold granted — the pool is oversold');
+
+    $section('H. Full slot with ZERO holds: the hold check stays silent');
+    $serviceH = $fixture('H', 3);
+    $book($serviceH->id, 'H1');
+    $book($serviceH->id, 'H2');
+    $book($serviceH->id, 'H3');
+    // Zero seats remain but nothing is HELD, so the hold gate must not fire:
+    // the hold is granted (the booking gate still protects the seats), and a
+    // booking attempt fails with the capacity message — not with a false
+    // "temporarily reserved, try again later".
+    $acquire($serviceH->id) !== false
+        ? $ok('hold granted on a fully-booked slot with no competing holds (booking gate decides)')
+        : $bad('hold refused with zero holds present — the false "temporarily reserved" is back');
+    $db->createCommand()->delete('{{%booked_soft_locks}}', ['serviceId' => $serviceH->id])->execute();
+    $bookingH = $realBooking($serviceH->id, $date, null, $time, 'H4');
+    !$bookingH['ok'] && !str_contains((string)$bookingH['error'], 'temporarily reserved')
+        ? $ok('the booking refusal names the capacity, not the holds (got: ' . $bookingH['error'] . ')')
+        : $bad('expected a capacity refusal without "temporarily reserved", got: ' . json_encode($bookingH));
+
+    $section('I. Range holds on disjoint edges do not refuse the middle');
+    if ($rangeStart === null) {
+        $bad('skipped — no open 3-day window (see section D)');
+    } else {
+        // Hold A sits on the range's first day, hold B on its last; a booking
+        // for the days in between shares at most one day with each. The old
+        // global sum charged BOTH holds against EVERY day and refused.
+        $serviceI = $fixture('I', 3, 'days');
+        $insertLock($serviceI->id, $rangeStart, $rangeStart, null, null, 'i-edge-a');
+        $insertLock($serviceI->id, $rangeStart, $rangeStart, null, null, 'i-edge-a2');
+        $insertLock($serviceI->id, $rangeEnd, $rangeEnd, null, null, 'i-edge-b');
+        $insertLock($serviceI->id, $rangeEnd, $rangeEnd, null, null, 'i-edge-b2');
+        $acquireRange($serviceI->id, $rangeStart, $rangeEnd) !== false
+            ? $ok('range hold granted: per-day peak (2) + 1 fits the 3 seats, the global sum (4) would not')
+            : $bad('range hold refused — holds are still summed across the whole range');
+    }
 } finally {
     $purge();
-    // Drop only the notification jobs the real bookings above queued.
-    $db->createCommand()->delete('{{%queue}}', ['>', 'id', $queueFloor])->execute();
+    // Drop exactly the notification jobs the real bookings above queued.
+    if (!empty($queuedJobIds)) {
+        $db->createCommand()->delete('{{%queue}}', ['id' => $queuedJobIds])->execute();
+    }
 }
 
 echo "\n{$pass} passed, {$fail} failed\n";

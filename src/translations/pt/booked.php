@@ -275,6 +275,7 @@ return [
     'booking.customerLimit' => 'Atingiu o limite de reservas para este serviço. Por favor, tente novamente mais tarde.',
     'booking.systemBusy' => 'O sistema de reservas está ocupado de momento. Por favor, tente novamente num instante.',
     'booking.slotReserved' => 'Este horário está temporariamente reservado. Por favor, tente novamente em {minutes, plural, one{# minuto} other{# minutos}}.',
+    'booking.lockExpired' => 'A sua reserva temporária deste horário expirou. Por favor, selecione novamente o horário.',
     'booking.employeeCannotService' => 'O colaborador selecionado não pode realizar este serviço.',
     'booking.insufficientCapacity' => 'O horário selecionado não tem capacidade suficiente para a quantidade solicitada.',
     'booking.eventFullyBooked' => 'Este evento está totalmente reservado.',

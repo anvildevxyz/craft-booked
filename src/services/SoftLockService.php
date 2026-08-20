@@ -39,7 +39,11 @@ class SoftLockService extends Component
 
         $employeeId = $data['employeeId'] ?? null;
         $quantity = max(1, (int)($data['quantity'] ?? 1));
-        $capacity = isset($data['capacity']) ? (int)$data['capacity'] : null;
+        // Callers that know their own seat model (event locks) pass an
+        // explicit capacity — possibly null for an uncapped event. Everyone
+        // else gets the seats resolved here, under the mutex below.
+        $hasExplicitCapacity = array_key_exists('capacity', $data);
+        $capacity = $hasExplicitCapacity && $data['capacity'] !== null ? (int)$data['capacity'] : null;
         $endDate = $data['endDate'] ?? null;
 
         try {
@@ -55,6 +59,16 @@ class SoftLockService extends Component
         }
 
         try {
+            // Resolve the slot's remaining seats INSIDE the mutex: a booking
+            // that lands between a caller's earlier read and this check would
+            // otherwise make the capacity stale and grant a hold on a seat
+            // that is already gone.
+            if (!$hasExplicitCapacity) {
+                $capacity = $endDate
+                    ? $this->resolveRangeSeats($data['date'], $endDate, (int)$data['serviceId'], $employeeId, $data['locationId'] ?? null)
+                    : $this->resolveSlotSeats($data['date'], (string)$data['startTime'], $data['endTime'], (int)$data['serviceId'], $employeeId);
+            }
+
             // For multi-day locks, check date-range overlap instead of time-based overlap
             if ($endDate) {
                 $isAlreadyLocked = $this->isDateRangeLocked(
@@ -103,10 +117,14 @@ class SoftLockService extends Component
             $query->andWhere(['!=', 'token', $excludeToken]);
         }
 
-        // When capacity is provided, compare total held quantity against it
+        // When capacity is provided, compare total held quantity against it.
+        // Only actual holds may refuse: with zero held seats this check must
+        // stay silent, so a fully-booked or unschedulable slot is refused by
+        // the capacity validation with its accurate message instead of a
+        // false "temporarily reserved, try again later".
         if ($capacity !== null) {
             $heldQuantity = (int)$query->sum('quantity');
-            $isLocked = ($heldQuantity + $quantity) > $capacity;
+            $isLocked = $heldQuantity > 0 && ($heldQuantity + $quantity) > $capacity;
         } else {
             $isLocked = $query->exists();
         }
@@ -237,8 +255,10 @@ class SoftLockService extends Component
     /**
      * A time as the lock table stores it: 'HH:MM', or null when absent.
      *
-     * Times are zero-padded on every path in ('HH:MM' or 'HH:MM:SS'), so the
-     * H:i prefix is the whole normalization.
+     * Single-digit hours are zero-padded too — the public booking form
+     * accepts '9:05:00' (see ValidationHelper::TIME_FORMAT_PATTERN), and a
+     * bare prefix cut would turn that into the malformed bound '9:05:' that
+     * string-compares wrong against every stored 'HH:MM' value.
      */
     public static function normalizeTime(?string $time): ?string
     {
@@ -246,7 +266,113 @@ class SoftLockService extends Component
             return null;
         }
 
-        return substr($time, 0, 5);
+        $parts = explode(':', $time);
+        if (count($parts) < 2) {
+            return $time;
+        }
+
+        return str_pad($parts[0], 2, '0', STR_PAD_LEFT) . ':' . str_pad(substr($parts[1], 0, 2), 2, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Whether other customers' holds leave too few seats for this booking.
+     *
+     * This is the one entry point for slot-shaped hold checks: it resolves
+     * the slot's remaining seats itself, so a caller can never regress to
+     * the all-or-nothing hold by forgetting to pass a capacity — the exact
+     * shape of bug #117.
+     *
+     * @param string $date Slot date (Y-m-d)
+     * @param string $startTime Slot start time
+     * @param string|null $endTime Slot end time, or null for a timeless booking (all-or-nothing hold)
+     * @param int $serviceId
+     * @param int|null $employeeId
+     * @param int|null $locationId
+     * @param int $quantity Seats the booking wants
+     * @param string|null $excludeToken The caller's own hold
+     */
+    public function isSlotBlockedByHolds(string $date, string $startTime, ?string $endTime, int $serviceId, ?int $employeeId, ?int $locationId, int $quantity, ?string $excludeToken = null): bool
+    {
+        $capacity = $this->resolveSlotSeats($date, $startTime, $endTime, $serviceId, $employeeId);
+
+        return $this->isLocked($date, $startTime, $serviceId, $employeeId, $endTime, $locationId, $excludeToken, $quantity, $capacity);
+    }
+
+    /**
+     * Whether other customers' range holds leave too few seats for this
+     * multi-day booking. See {@see isSlotBlockedByHolds()}.
+     *
+     * @param string $startDate Range start (Y-m-d)
+     * @param string $endDate Range end (Y-m-d)
+     * @param int $serviceId
+     * @param int|null $employeeId
+     * @param int|null $locationId
+     * @param int $quantity Seats the booking wants
+     * @param string|null $excludeToken The caller's own hold
+     */
+    public function isRangeBlockedByHolds(string $startDate, string $endDate, int $serviceId, ?int $employeeId, ?int $locationId, int $quantity, ?string $excludeToken = null): bool
+    {
+        $capacity = $this->resolveRangeSeats($startDate, $endDate, $serviceId, $employeeId, $locationId);
+
+        return $this->isDateRangeLocked($startDate, $endDate, $serviceId, $employeeId, $locationId, $quantity, $capacity, $excludeToken);
+    }
+
+    /**
+     * Minutes until the last blocking hold lapses — the honest retry hint
+     * for the "temporarily reserved" refusal. The configured hold duration
+     * is only a floor for NEW holds; the blocking hold may have been renewed
+     * or may be about to expire, so its stored expiry is what counts.
+     *
+     * @param array $data The same shape createLock() takes (date, startTime, endTime, endDate, serviceId, employeeId, locationId)
+     * @param int $fallbackMinutes Reported when no blocking hold is found (it may have lapsed since the refusal)
+     * @param string|null $excludeToken The caller's own hold
+     */
+    public function getRetryAfterMinutes(array $data, int $fallbackMinutes, ?string $excludeToken = null): int
+    {
+        $endDate = $data['endDate'] ?? null;
+        if ($endDate) {
+            $query = $this->buildRangeLockQuery($data['date'], $endDate, (int)$data['serviceId'], $data['employeeId'] ?? null, $data['locationId'] ?? null, $excludeToken);
+        } else {
+            $query = $this->buildLockQuery($data['date'], (string)$data['startTime'], (int)$data['serviceId'], $data['employeeId'] ?? null, $data['endTime'] ?? null, $data['locationId'] ?? null);
+            if ($excludeToken !== null && $excludeToken !== '') {
+                $query->andWhere(['!=', 'token', $excludeToken]);
+            }
+        }
+
+        $latestExpiry = $query->max('expiresAt');
+        if (!$latestExpiry) {
+            return max(1, $fallbackMinutes);
+        }
+
+        $secondsLeft = (new DateTime((string)$latestExpiry, new DateTimeZone('UTC')))->getTimestamp() - time();
+
+        return max(1, (int)ceil($secondsLeft / 60));
+    }
+
+    /**
+     * Remaining seats on a slot, resolved for the hold checks.
+     *
+     * @return int|null Seats, or null for an uncapped or timeless slot (all-or-nothing hold)
+     */
+    protected function resolveSlotSeats(string $date, string $startTime, ?string $endTime, int $serviceId, ?int $employeeId): ?int
+    {
+        // A timeless booking has no end time to count seats against.
+        if ($endTime === null) {
+            return null;
+        }
+
+        return Booked::getInstance()->getCapacity()->getAvailableCapacity($date, $startTime, $endTime, $employeeId, $serviceId);
+    }
+
+    /**
+     * Remaining seats across a date range (tightest day), resolved for the
+     * hold checks.
+     *
+     * @return int|null Seats, or null when the range is unconstrained
+     */
+    protected function resolveRangeSeats(string $startDate, string $endDate, int $serviceId, ?int $employeeId, ?int $locationId): ?int
+    {
+        return Booked::getInstance()->getMultiDayAvailability()->getRemainingCapacityForRange($startDate, $endDate, $serviceId, $employeeId, $locationId);
     }
 
     private function buildLockQuery(string $date, string $startTime, int $serviceId, ?int $employeeId, ?string $endTime, ?int $locationId): ActiveQuery
@@ -285,6 +411,53 @@ class SoftLockService extends Component
 
     public function isDateRangeLocked(string $startDate, string $endDate, int $serviceId, ?int $employeeId, ?int $locationId, int $quantity = 1, ?int $capacity = null, ?string $excludeToken = null): bool
     {
+        $query = $this->buildRangeLockQuery($startDate, $endDate, $serviceId, $employeeId, $locationId, $excludeToken);
+
+        // Holds block only when their PEAK per-day load leaves no room. A
+        // global sum would charge holds that merely touch the range against
+        // every one of its days — two holds on disjoint edges of a long
+        // range would then refuse a customer the middle days can seat. And
+        // as in isLocked(), zero held seats never refuse: full or
+        // unschedulable ranges get their accurate message downstream.
+        if ($capacity !== null) {
+            /** @var SoftLockRecord[] $locks */
+            $locks = $query->all();
+            $peakHeld = $this->peakDailyHeldQuantity($locks, $startDate, $endDate);
+            return $peakHeld > 0 && ($peakHeld + $quantity) > $capacity;
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * The largest per-day sum of held seats across the days of a range.
+     *
+     * @param SoftLockRecord[] $locks Active range locks touching the range
+     * @param string $startDate Range start (Y-m-d)
+     * @param string $endDate Range end (Y-m-d)
+     */
+    private function peakDailyHeldQuantity(array $locks, string $startDate, string $endDate): int
+    {
+        $peak = 0;
+        $current = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        while ($current <= $end) {
+            $day = $current->format('Y-m-d');
+            $held = 0;
+            foreach ($locks as $lock) {
+                if ($lock->date <= $day && ($lock->endDate ?? $lock->date) >= $day) {
+                    $held += max(1, (int)$lock->quantity);
+                }
+            }
+            $peak = max($peak, $held);
+            $current->modify('+1 day');
+        }
+
+        return $peak;
+    }
+
+    private function buildRangeLockQuery(string $startDate, string $endDate, int $serviceId, ?int $employeeId, ?int $locationId, ?string $excludeToken = null): ActiveQuery
+    {
         $query = $this->getRecordQuery()
             ->where(['serviceId' => $serviceId])
             ->andWhere(['>', 'expiresAt', Db::prepareDateForDb(new DateTime('now', new DateTimeZone('UTC')))])
@@ -302,12 +475,7 @@ class SoftLockService extends Component
             $query->andWhere(['not', ['token' => $excludeToken]]);
         }
 
-        if ($capacity !== null) {
-            $heldQuantity = (int)$query->sum('quantity');
-            return ($heldQuantity + $quantity) > $capacity;
-        }
-
-        return $query->exists();
+        return $query;
     }
 
     protected function createRecord()

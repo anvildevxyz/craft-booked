@@ -275,6 +275,7 @@ return [
     'booking.customerLimit' => 'U heeft het boekingslimiet voor deze dienst bereikt. Probeer het later opnieuw.',
     'booking.systemBusy' => 'Het boekingssysteem is momenteel bezet. Probeer het over een moment opnieuw.',
     'booking.slotReserved' => 'Dit tijdslot is tijdelijk gereserveerd. Probeer het over {minutes, plural, one{# minuut} other{# minuten}} opnieuw.',
+    'booking.lockExpired' => 'Uw tijdelijke reservering van dit tijdslot is verlopen. Selecteer het tijdstip opnieuw.',
     'booking.employeeCannotService' => 'De geselecteerde medewerker kan deze dienst niet uitvoeren.',
     'booking.insufficientCapacity' => 'Het geselecteerde tijdslot heeft niet genoeg capaciteit voor het gevraagde aantal.',
     'booking.eventFullyBooked' => 'Dit evenement is volgeboekt.',

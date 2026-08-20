@@ -44,6 +44,11 @@ class SoftLockServiceTest extends TestCase
         $mutexMock->shouldReceive('release')->andReturn(true)->byDefault();
         $mock->shouldReceive('getMutex')->andReturn($mutexMock)->byDefault();
 
+        // The seat resolvers need the full Craft app; tests exercise them
+        // explicitly and everything else defaults to an uncapped slot.
+        $mock->shouldReceive('resolveSlotSeats')->andReturn(null)->byDefault();
+        $mock->shouldReceive('resolveRangeSeats')->andReturn(null)->byDefault();
+
         return $mock;
     }
 
@@ -543,10 +548,63 @@ class SoftLockServiceTest extends TestCase
         $this->assertIsString($token);
     }
 
-    public function testCreateLockPassesNullCapacityWhenNotProvided(): void
+    public function testCreateLockResolvesSeatsItselfWhenNoCapacityIsGiven(): void
+    {
+        // Without a 'capacity' key the service resolves the remaining seats
+        // internally (under its mutex) — a caller can no longer regress to
+        // the all-or-nothing hold by forgetting to pass one (#117).
+        $service = $this->makePartialService();
+        $service->shouldReceive('deleteExpiredRecords')->andReturn(0);
+        $service->shouldReceive('resolveSlotSeats')
+            ->once()
+            ->with('2025-06-15', '09:00', '10:00', 1, null)
+            ->andReturn(7);
+        $service->shouldReceive('isLocked')
+            ->once()
+            ->with('2025-06-15', '09:00', 1, null, '10:00', null, null, 1, 7)
+            ->andReturn(false);
+
+        $mockRecord = $this->createMockRecord();
+        $service->shouldReceive('createRecord')->andReturn($mockRecord);
+        $service->shouldReceive('saveRecord')->andReturn(true);
+
+        $data = $this->makeSlotData(); // No capacity key
+        $token = $service->createLock($data);
+
+        $this->assertIsString($token);
+    }
+
+    public function testCreateLockResolvesRangeSeatsForMultiDayLocks(): void
     {
         $service = $this->makePartialService();
         $service->shouldReceive('deleteExpiredRecords')->andReturn(0);
+        $service->shouldReceive('resolveRangeSeats')
+            ->once()
+            ->with('2025-06-15', '2025-06-17', 1, null, null)
+            ->andReturn(3);
+        $service->shouldReceive('isDateRangeLocked')
+            ->once()
+            ->with('2025-06-15', '2025-06-17', 1, null, null, 1, 3)
+            ->andReturn(false);
+
+        $mockRecord = $this->createMockRecord();
+        $service->shouldReceive('createRecord')->andReturn($mockRecord);
+        $service->shouldReceive('saveRecord')->andReturn(true);
+
+        $data = ['serviceId' => 1, 'date' => '2025-06-15', 'endDate' => '2025-06-17', 'startTime' => null, 'endTime' => null];
+        $token = $service->createLock($data);
+
+        $this->assertIsString($token);
+    }
+
+    public function testCreateLockKeepsAnExplicitNullCapacityUnresolved(): void
+    {
+        // Event locks pass their own capacity — null means an uncapped event,
+        // which must stay all-or-nothing, not trigger schedule resolution
+        // (events have no schedules; serviceId is 0).
+        $service = $this->makePartialService();
+        $service->shouldReceive('deleteExpiredRecords')->andReturn(0);
+        $service->shouldNotReceive('resolveSlotSeats');
         $service->shouldReceive('isLocked')
             ->once()
             ->with('2025-06-15', '09:00', 1, null, '10:00', null, null, 1, null)
@@ -556,7 +614,7 @@ class SoftLockServiceTest extends TestCase
         $service->shouldReceive('createRecord')->andReturn($mockRecord);
         $service->shouldReceive('saveRecord')->andReturn(true);
 
-        $data = $this->makeSlotData(); // No capacity
+        $data = $this->makeSlotData(['capacity' => null]); // Explicit null
         $token = $service->createLock($data);
 
         $this->assertIsString($token);
@@ -575,6 +633,15 @@ class SoftLockServiceTest extends TestCase
     public function testNormalizeTimeKeepsShortForm(): void
     {
         $this->assertSame('09:00', SoftLockService::normalizeTime('09:00'));
+    }
+
+    public function testNormalizeTimePadsSingleDigitHours(): void
+    {
+        // The public booking form accepts '9:05:00' (ValidationHelper's time
+        // pattern), and a bare 5-character cut would produce the malformed
+        // bound '9:05:' that string-compares wrong against 'HH:MM' values.
+        $this->assertSame('09:05', SoftLockService::normalizeTime('9:05:00'));
+        $this->assertSame('09:05', SoftLockService::normalizeTime('9:05'));
     }
 
     public function testNormalizeTimeMapsAbsentToNull(): void
@@ -616,21 +683,57 @@ class SoftLockServiceTest extends TestCase
         // The copy hardcoded "15 minutes" while the default hold is 5. Every
         // catalog must carry the {minutes} placeholder, and every call site
         // must fill it — a bare Craft::t() would leak the raw placeholder.
-        $translationsDir = dirname(__DIR__, 3) . '/src/translations';
-        foreach (glob($translationsDir . '/*/booked.php') as $file) {
+        $translationFiles = glob(dirname(__DIR__, 3) . '/src/translations/*/booked.php') ?: [];
+        $this->assertGreaterThanOrEqual(8, count($translationFiles), 'Expected all bundled language catalogs');
+        foreach ($translationFiles as $file) {
             $messages = require $file;
             $this->assertArrayHasKey('booking.slotReserved', $messages, $file);
             $this->assertStringContainsString('{minutes', $messages['booking.slotReserved'], $file);
+            // The 410 expired-own-hold path has its own message.
+            $this->assertArrayHasKey('booking.lockExpired', $messages, $file);
         }
 
-        foreach (['src/controllers/SlotController.php', 'src/services/BookingService.php'] as $sourceFile) {
-            $source = file_get_contents(dirname(__DIR__, 3) . '/' . $sourceFile);
-            $this->assertStringNotContainsString(
-                "'booking.slotReserved')",
-                $source,
-                "{$sourceFile} must pass ['minutes' => ...] to booking.slotReserved"
+        // Scan EVERY source file, so a future call site cannot slip in a bare
+        // Craft::t() — and the params array must fill exactly 'minutes'.
+        foreach ($this->findSlotReservedCallSites() as [$file, $lineNumber, $line]) {
+            $this->assertStringContainsString(
+                "'minutes' =>",
+                $line,
+                "{$file}:{$lineNumber} must pass ['minutes' => ...] to booking.slotReserved"
             );
         }
+    }
+
+    /**
+     * Every source line that translates booking.slotReserved, as
+     * [path, line number, line] triples. Fails the suite when none are found
+     * — the message is known to be in use, so an empty scan means the scan
+     * itself is broken (e.g. this file moved).
+     */
+    private function findSlotReservedCallSites(): array
+    {
+        $srcDir = dirname(__DIR__, 3) . '/src';
+        $this->assertDirectoryExists($srcDir);
+
+        $callSites = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($srcDir));
+        foreach ($iterator as $file) {
+            if ($file->getExtension() !== 'php' || str_contains($file->getPathname(), '/translations/')) {
+                continue;
+            }
+            $lines = file($file->getPathname());
+            foreach ($lines as $index => $line) {
+                if (str_contains($line, "'booking.slotReserved'")) {
+                    // A call site may wrap its params array onto the next lines.
+                    $window = implode('', array_slice($lines, $index, 3));
+                    $callSites[] = [$file->getPathname(), $index + 1, $window];
+                }
+            }
+        }
+
+        $this->assertNotEmpty($callSites, 'The scan found no booking.slotReserved call sites at all — is it looking in the right place?');
+
+        return $callSites;
     }
 
     // =========================================================================

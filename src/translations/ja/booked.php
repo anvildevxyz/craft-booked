@@ -275,6 +275,7 @@ return [
     'booking.customerLimit' => 'このサービスの予約上限に達しました。しばらくしてから再度お試しください。',
     'booking.systemBusy' => '予約システムが混み合っています。しばらくしてから再度お試しください。',
     'booking.slotReserved' => 'この時間枠は一時的に確保されています。{minutes}分後に再度お試しください。',
+    'booking.lockExpired' => 'この時間枠の仮押さえは期限切れになりました。もう一度時間を選択してください。',
     'booking.employeeCannotService' => '選択されたスタッフはこのサービスを担当できません。',
     'booking.insufficientCapacity' => '選択された時間枠にはリクエストされた数量分の空きがありません。',
     'booking.eventFullyBooked' => 'このイベントは満席です。',

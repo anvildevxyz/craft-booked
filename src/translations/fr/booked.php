@@ -275,6 +275,7 @@ return [
     'booking.customerLimit' => 'Vous avez atteint la limite de réservations pour ce service. Veuillez réessayer plus tard.',
     'booking.systemBusy' => 'Le système de réservation est actuellement occupé. Veuillez réessayer dans un instant.',
     'booking.slotReserved' => 'Ce créneau horaire est temporairement réservé. Veuillez réessayer dans {minutes, plural, one{# minute} other{# minutes}}.',
+    'booking.lockExpired' => 'Votre réservation temporaire de ce créneau a expiré. Veuillez sélectionner à nouveau l\'horaire.',
     'booking.employeeCannotService' => 'L\'employé sélectionné ne peut pas effectuer ce service.',
     'booking.insufficientCapacity' => 'Le créneau horaire sélectionné n\'a pas suffisamment de capacité pour la quantité demandée.',
     'booking.eventFullyBooked' => 'Cet événement est complet.',

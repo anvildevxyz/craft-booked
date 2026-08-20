@@ -205,36 +205,28 @@ class BookingService extends Component
                 $endTime = $isMultiDay ? null : $this->calculateEndTime($data, $bookingDate, $startTime, $serviceId, $extrasDuration);
                 $endTime = $endTime ?: null;
 
-                // Soft lock check (skip for event-based bookings — capacity handled separately)
-                // The remaining seats are passed as the lock capacity so other
-                // sessions' holds only block the booking when the seats they
-                // hold plus this request exceed what is left (#117).
+                // Soft lock check (skip for event-based bookings — capacity handled separately).
+                // The blocked-by-holds checks resolve the remaining seats
+                // themselves, so other sessions' holds only block the booking
+                // when the seats they hold plus this request exceed what is
+                // left (#117).
                 if (!$eventDateId && $serviceId !== null) {
                     $endDate = $data['endDate'] ?? null;
                     $requestedQuantity = max(1, (int)($data['quantity'] ?? 1));
                     $lockMinutes = Booked::getInstance()->getSettings()->softLockDurationMinutes ?? 5;
+                    $softLock = Booked::getInstance()->getSoftLock();
                     if ($isMultiDay && $endDate) {
-                        $remainingCapacity = Booked::getInstance()->getMultiDayAvailability()->getRemainingCapacityForRange(
-                            $bookingDate,
-                            $endDate,
-                            $serviceId,
-                            $employeeId,
-                            $locationId,
-                        );
-                        if (Booked::getInstance()->getSoftLock()->isDateRangeLocked($bookingDate, $endDate, $serviceId, $employeeId, $locationId, $requestedQuantity, $remainingCapacity, $softLockToken)) {
+                        if ($softLock->isRangeBlockedByHolds($bookingDate, $endDate, $serviceId, $employeeId, $locationId, $requestedQuantity, $softLockToken)) {
                             Craft::warning("Booking blocked by multi-day soft lock: date={$bookingDate}-{$endDate}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
-                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', ['minutes' => $lockMinutes]));
+                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', [
+                                'minutes' => $softLock->getRetryAfterMinutes(['date' => $bookingDate, 'endDate' => $endDate, 'serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId], $lockMinutes, $softLockToken),
+                            ]));
                         }
-                    } elseif (!$isMultiDay) {
-                        // A timeless booking has no end time to count seats
-                        // against — keep the all-or-nothing hold there.
-                        $remainingCapacity = $endTime !== null
-                            ? Booked::getInstance()->getCapacity()->getRemainingCapacityForSlot($bookingDate, $startTime, $endTime, $employeeId, $serviceId)
-                            : null;
-                        if (Booked::getInstance()->getSoftLock()->isLocked($bookingDate, $startTime, $serviceId, $employeeId, $endTime, $locationId, $softLockToken, $requestedQuantity, $remainingCapacity)) {
-                            Craft::warning("Booking blocked by soft lock: date={$bookingDate}, time={$startTime}-{$endTime}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
-                            throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', ['minutes' => $lockMinutes]));
-                        }
+                    } elseif (!$isMultiDay && $softLock->isSlotBlockedByHolds($bookingDate, $startTime, $endTime, $serviceId, $employeeId, $locationId, $requestedQuantity, $softLockToken)) {
+                        Craft::warning("Booking blocked by soft lock: date={$bookingDate}, time={$startTime}-{$endTime}, service={$serviceId}, employee={$employeeId}, location={$locationId}", __METHOD__);
+                        throw new BookingConflictException(Craft::t('booked', 'booking.slotReserved', [
+                            'minutes' => $softLock->getRetryAfterMinutes(['date' => $bookingDate, 'startTime' => $startTime, 'endTime' => $endTime, 'serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId], $lockMinutes, $softLockToken),
+                        ]));
                     }
                 }
 

@@ -95,7 +95,7 @@ use yii\base\Event;
  */
 class Booked extends Plugin
 {
-    public string $schemaVersion = '1.4.1';
+    public string $schemaVersion = '1.4.2';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
 

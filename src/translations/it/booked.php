@@ -275,6 +275,7 @@ return [
     'booking.customerLimit' => 'Ha raggiunto il limite di prenotazioni per questo servizio. Riprovi più tardi.',
     'booking.systemBusy' => 'Il sistema di prenotazione è attualmente occupato. Riprovi tra un momento.',
     'booking.slotReserved' => 'Questa fascia oraria è temporaneamente riservata. Riprovi tra {minutes, plural, one{# minuto} other{# minuti}}.',
+    'booking.lockExpired' => 'La sua prenotazione temporanea di questa fascia oraria è scaduta. Selezioni di nuovo l\'orario.',
     'booking.employeeCannotService' => 'Il dipendente selezionato non può eseguire questo servizio.',
     'booking.insufficientCapacity' => 'La fascia oraria selezionata non ha capacità sufficiente per la quantità richiesta.',
     'booking.eventFullyBooked' => 'Questo evento è al completo.',

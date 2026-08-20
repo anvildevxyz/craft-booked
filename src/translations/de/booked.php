@@ -276,6 +276,7 @@ return [
     'booking.customerLimit' => 'Sie haben das Buchungslimit für diesen Service erreicht. Bitte versuchen Sie es später erneut.',
     'booking.systemBusy' => 'Das Buchungssystem ist derzeit beschäftigt. Bitte versuchen Sie es in einem Moment erneut.',
     'booking.slotReserved' => 'Dieser Zeitraum ist vorübergehend reserviert. Bitte versuchen Sie es in {minutes, plural, one{# Minute} other{# Minuten}} erneut.',
+    'booking.lockExpired' => 'Ihre Reservierung für diesen Zeitraum ist abgelaufen. Bitte wählen Sie die Zeit erneut aus.',
     'booking.employeeCannotService' => 'Der gewählte Mitarbeiter kann diesen Service nicht durchführen.',
     'booking.insufficientCapacity' => 'Der gewählte Zeitraum hat nicht genug Kapazität für die gewünschte Anzahl.',
     'booking.eventFullyBooked' => 'Dieses Ereignis ist vollständig gebucht.',

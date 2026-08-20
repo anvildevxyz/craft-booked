@@ -276,6 +276,7 @@ return [
     'booking.customerLimit' => 'You have reached the booking limit for this service. Please try again later.',
     'booking.systemBusy' => 'The booking system is currently busy. Please try again in a moment.',
     'booking.slotReserved' => 'This time slot is temporarily reserved. Please try again in {minutes, plural, one{# minute} other{# minutes}}.',
+    'booking.lockExpired' => 'Your hold on this time slot has expired. Please select the time again.',
     'booking.employeeCannotService' => 'The selected employee cannot perform this service.',
     'booking.insufficientCapacity' => 'The selected time slot does not have enough capacity for the requested quantity.',
     'booking.eventFullyBooked' => 'This event is fully booked.',
