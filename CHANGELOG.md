@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3 - 2026-09-17
+
+### Fixed
+- **Booking emails were unreadable in dark mode.** ([#127](https://github.com/anvildevxyz/craft-booked/issues/127)) Some mail clients kept badge and button backgrounds dark, and also darkened the text. The booking number badge and the "Manage Booking" button then showed dark text on a dark background. Every email template now declares `color-scheme: light dark` and ships a `prefers-color-scheme: dark` stylesheet that inverts the black/white design. Scattered inline colors moved into shared classes, so the dark styles actually apply. ([#128](https://github.com/anvildevxyz/craft-booked/pull/128))
+- **The status-change email's total rows kept a black border in dark mode.** One inline style was missed during the dark-mode audit above. The extras-total and grand-total rows in `status-change.twig` now use the shared `.info-row-total` class, like every other template.
+
 ## 1.5.2 - 2026-08-20
 
 ### Fixed

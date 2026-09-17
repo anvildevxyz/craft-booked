@@ -7,17 +7,7 @@
 
 {% block header %}
 	<div class="email-header">
-		<div style="
-				        display: inline-block;
-				        background-color: #000000;
-				        color: white;
-				        padding: 12px 24px;
-				        font-weight: 900;
-				        font-size: 12px;
-				        text-transform: uppercase;
-				        letter-spacing: 0.1em;
-				        margin-bottom: 16px;
-				    ">
+		<div class="header-badge">
 			📅
 			{{ 'labels.newBooking'|t('booked') }}
 		</div>
@@ -138,7 +128,7 @@
 	{% if notes is defined and notes %}
 		<div class="section">
 			<div class="section-title">{{ 'emails.owner.customerNotes'|t('booked') }}</div>
-			<div style="background-color: #ffffff; border: 2px solid #000000; padding: 20px; color: #000000; font-size: 14px; font-weight: 600;">
+			<div class="content-box">
 				{{ notes }}
 			</div>
 		</div>
@@ -163,11 +153,11 @@
 							<span class="info-value">{{ (extra.price * qty)|currency }}</span>
 						</div>
 					{% endfor %}
-					<div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+					<div class="info-row info-row-total">
 						<span class="info-label">{{ 'emails.confirmation.extrasTotal'|t('booked') }}</span>
 						<span class="info-value">{{ reservation.getExtrasPrice()|currency }}</span>
 					</div>
-					<div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+					<div class="info-row info-row-total">
 						<span class="info-label" style="font-size: 16px;">{{ 'labels.totalPrice'|t('booked') }}</span>
 						<span class="info-value" style="font-size: 20px;">{{ reservation.getTotalPrice()|currency }}</span>
 					</div>
