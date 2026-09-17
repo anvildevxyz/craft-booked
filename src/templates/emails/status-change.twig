@@ -93,11 +93,11 @@
                         <span class="info-value">{{ (extra.price * qty)|currency }}</span>
                     </div>
                 {% endfor %}
-                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                <div class="info-row info-row-total">
                     <span class="info-label">{{ 'emails.confirmation.extrasTotal'|t('booked') }}</span>
                     <span class="info-value">{{ reservation.getExtrasPrice()|currency }}</span>
                 </div>
-                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                <div class="info-row info-row-total">
                     <span class="info-label" style="font-size: 16px;">{{ 'labels.totalPrice'|t('booked') }}</span>
                     <span class="info-value" style="font-size: 20px;">{{ reservation.getTotalPrice()|currency }}</span>
                 </div>
