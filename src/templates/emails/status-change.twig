@@ -7,17 +7,7 @@
 
 {% block header %}
 <div class="email-header">
-    <div style="
-        display: inline-block;
-        background-color: #000000;
-        color: white;
-        padding: 12px 24px;
-        font-weight: 900;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 16px;
-    ">
+    <div class="header-badge">
         📋 {{ 'emails.statusChange.heading'|t('booked') }}
     </div>
     <h1 class="header-title">{{ title }}</h1>
@@ -34,11 +24,11 @@
     </p>
 
     <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin: 32px 0; flex-wrap: wrap;">
-        <div style="padding: 16px 24px; border: 2px solid #000000; background-color: #ffffff; color: #000000; font-weight: 800; text-decoration: line-through;">
+        <div class="status-pill-old">
             {{ oldStatus }}
         </div>
-        <span style="font-size: 32px; color: #000000; font-weight: 900;">→</span>
-        <div style="padding: 16px 24px; border: 2px solid #000000; background: #000000; color: #ffffff; font-weight: 900; text-transform: uppercase;">
+        <span class="status-arrow">→</span>
+        <div class="status-pill-new">
             {{ newStatus }}
         </div>
     </div>

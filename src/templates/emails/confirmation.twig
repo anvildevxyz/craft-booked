@@ -7,15 +7,7 @@
 
 {% block header %}
 <div class="email-header">
-    <div style="
-        width: 64px;
-        height: 64px;
-        background: #000000;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 16px;
-    ">
+    <div class="icon-circle">
         <svg viewBox="0 0 24 24" style="width: 36px; height: 36px; stroke: white; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none;">
             <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
@@ -113,11 +105,11 @@
                         <span class="info-value">{{ (extra.price * qty)|currency }}</span>
                     </div>
                 {% endfor %}
-                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                <div class="info-row info-row-total">
                     <span class="info-label">{{ 'emails.confirmation.extrasTotal'|t('booked') }}</span>
                     <span class="info-value">{{ reservation.getExtrasPrice()|currency }}</span>
                 </div>
-                <div class="info-row" style="border-top: 2px solid #000000; padding-top: 16px; margin-top: 8px;">
+                <div class="info-row info-row-total">
                     <span class="info-label" style="font-size: 16px;">{{ 'labels.totalPrice'|t('booked') }}</span>
                     <span class="info-value" style="font-size: 20px;">{{ reservation.getTotalPrice()|currency }}</span>
                 </div>
@@ -129,7 +121,7 @@
     {% if notes is defined and notes %}
     <div class="section">
         <div class="section-title">{{ 'emails.confirmation.yourNotes'|t('booked') }}</div>
-        <div style="background-color: #ffffff; border: 2px solid #000000; padding: 20px; color: #000000; font-size: 14px; font-weight: 600;">
+        <div class="content-box">
             {{ notes }}
         </div>
     </div>
@@ -162,16 +154,16 @@
     </div>
 
     {% if isVirtual is defined and isVirtual %}
-    <div class="highlight-box" style="border-color: #000000;">
+    <div class="highlight-box">
         <div class="highlight-primary">🎥 {{ 'account.virtualMeeting'|t('booked') }}</div>
-        <p style="color: #000000; margin: 16px 0; font-weight: 700;">
+        <p style="margin: 16px 0; font-weight: 700;">
             {{ 'emails.confirmation.onlineBooking'|t('booked') }}
         </p>
         <a href="{{ virtualMeetingUrl }}" class="btn btn-primary" style="margin: 8px 0;">
             {{ 'emails.common.joinMeeting'|t('booked') }} ({{ virtualMeetingProvider|capitalize }})
         </a>
         {% if virtualMeetingPassword is defined and virtualMeetingPassword %}
-        <p style="color: #000000; margin-top: 16px; font-size: 14px; font-weight: 800;">
+        <p style="margin-top: 16px; font-size: 14px; font-weight: 800;">
             <strong>{{ 'labels.password'|t('booked') }}:</strong> {{ virtualMeetingPassword }}
         </p>
         {% endif %}

@@ -21,6 +21,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
     <title>{{ title }}</title>
     {% if preheader is defined and preheader %}
     <span style="display: none; max-height: 0; overflow: hidden;">{{ preheader }}</span>
@@ -365,6 +367,87 @@
             border-color: #000000;
         }
 
+        /* Icon Circle */
+        .icon-circle {
+            width: 64px;
+            height: 64px;
+            background: #000000;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        /* Header Badge (eyebrow pill) */
+        .header-badge {
+            display: inline-block;
+            background-color: #000000;
+            color: #ffffff;
+            padding: 12px 24px;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        /* Content Box (notes, cancellation reason) */
+        .content-box {
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            padding: 20px;
+            color: #000000;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Muted Text */
+        .text-muted {
+            color: #666666;
+        }
+
+        .text-subtle {
+            color: #999999;
+        }
+
+        /* Status Pills */
+        .status-pill-old {
+            padding: 16px 24px;
+            border: 2px solid #000000;
+            background-color: #ffffff;
+            color: #000000;
+            font-weight: 800;
+            text-decoration: line-through;
+        }
+
+        .status-pill-new {
+            padding: 16px 24px;
+            border: 2px solid #000000;
+            background: #000000;
+            color: #ffffff;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .status-arrow {
+            font-size: 32px;
+            color: #000000;
+            font-weight: 900;
+        }
+
+        /* Row / Section Dividers */
+        .info-row-total {
+            border-top: 2px solid #000000;
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+
+        .extras-divider {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 2px solid #000000;
+        }
+
         /* Footer */
         .footer-company {
             font-size: 18px;
@@ -427,6 +510,179 @@
             .btn {
                 display: block;
                 margin: 12px 0;
+            }
+        }
+
+        /* Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: #ffffff;
+                background-color: #000000;
+            }
+
+            .email-wrapper {
+                background-color: #000000;
+            }
+
+            .email-container {
+                background-color: #000000;
+                border-color: #ffffff;
+            }
+
+            .email-header {
+                border-bottom-color: #ffffff;
+            }
+
+            .header-title,
+            .header-subtitle {
+                color: #ffffff;
+            }
+
+            .email-footer {
+                background-color: #000000;
+                border-top-color: #ffffff;
+            }
+
+            h1, h2, h3,
+            p,
+            a {
+                color: #ffffff;
+            }
+
+            .section-title {
+                color: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+
+            .info-grid {
+                background-color: #000000;
+                border-color: #ffffff;
+            }
+
+            .info-row {
+                border-bottom-color: #ffffff;
+            }
+
+            .info-label,
+            .info-value {
+                color: #ffffff;
+            }
+
+            .highlight-box,
+            .highlight-box.success,
+            .highlight-box.warning,
+            .highlight-box.danger {
+                background: #000000;
+                border-color: #ffffff;
+            }
+
+            .highlight-primary,
+            .highlight-secondary,
+            .highlight-tertiary {
+                color: #ffffff;
+            }
+
+            .customer-box {
+                background: #000000;
+                border-color: #ffffff;
+            }
+
+            .customer-box-title {
+                color: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+
+            .btn,
+            .btn-primary,
+            .btn-danger,
+            .btn-success {
+                background: #ffffff;
+                color: #000000 !important;
+                border-color: #ffffff;
+            }
+
+            .btn-secondary {
+                background-color: #000000;
+                color: #ffffff !important;
+                border-color: #ffffff;
+            }
+
+            .notice-box {
+                background: #000000;
+                border-color: #ffffff;
+            }
+
+            .notice-title {
+                color: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+
+            .notice-box ul {
+                color: #ffffff;
+            }
+
+            .badge,
+            .badge-primary,
+            .badge-success,
+            .badge-warning,
+            .badge-danger {
+                background: #ffffff;
+                color: #000000;
+                border-color: #ffffff;
+            }
+
+            .footer-company,
+            .footer-contact,
+            .footer-meta {
+                color: #ffffff;
+            }
+
+            .footer-meta {
+                border-top-color: #ffffff;
+            }
+
+            .icon-circle {
+                border: 2px solid #ffffff;
+            }
+
+            .header-badge {
+                background-color: #ffffff;
+                color: #000000;
+            }
+
+            .content-box {
+                background-color: #000000;
+                border-color: #ffffff;
+                color: #ffffff;
+            }
+
+            .text-muted {
+                color: #a1a1aa;
+            }
+
+            .text-subtle {
+                color: #71717a;
+            }
+
+            .status-pill-old {
+                border-color: #ffffff;
+                background-color: #000000;
+                color: #ffffff;
+            }
+
+            .status-pill-new {
+                border-color: #ffffff;
+                background: #ffffff;
+                color: #000000;
+            }
+
+            .status-arrow {
+                color: #ffffff;
+            }
+
+            .info-row-total,
+            .extras-divider {
+                border-top-color: #ffffff;
             }
         }
     </style>
