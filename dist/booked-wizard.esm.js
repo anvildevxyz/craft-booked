@@ -3191,7 +3191,7 @@ var reviewStep = {
     setRow(region, "time", isRange ? "" : context.time ?? (evt ? evt.formattedTimeRange ?? evt.startTime ?? "" : ""));
     setRow(region, "date-range", isRange ? `${context.date} \u2013 ${context.endDate}` : "");
     setRow(region, "duration", isRange ? context.durationDays : "");
-    setRow(region, "quantity", context.quantity > 1 ? context.quantity : "");
+    setRow(region, "quantity", evt || context.quantity > 1 ? context.quantity : "");
     setRow(region, "extras-total", context.extrasTotal > 0 ? formatPrice(context.extrasTotal, currencySymbol) : "");
     setRow(region, "customer-name", context.customer?.name ?? "");
     setRow(region, "customer-email", context.customer?.email ?? "");
@@ -3202,6 +3202,15 @@ var reviewStep = {
 };
 
 // src/web/js/ui/steps/success.js
+function setRow2(region, key, value) {
+  const dd = qs(`[data-booked-summary="${key}"]`, region);
+  if (!dd) return;
+  const empty = value === null || value === void 0 || value === "";
+  setText(dd, empty ? "" : value);
+  setHidden(dd, empty);
+  const dt = dd.previousElementSibling;
+  if (dt && dt.tagName === "DT") setHidden(dt, empty);
+}
 var successStep = {
   render(region, wizard) {
     const { context } = wizard.getState();
@@ -3211,6 +3220,7 @@ var successStep = {
     const evt = context.selectedEvent;
     const appointment = r.formattedDateTime ?? (context.isDayService && context.endDate ? `${context.date} \u2013 ${context.endDate}` : [context.date ?? evt?.formattedDate ?? evt?.date, context.time ?? evt?.formattedTimeRange ?? evt?.startTime].filter(Boolean).join(" "));
     setText(qs('[data-booked-summary="appointment"]', region), appointment);
+    setRow2(region, "quantity", evt || context.quantity > 1 ? context.quantity : "");
     setText(qs('[data-booked-summary="customer-email"]', region), context.customer?.email ?? "");
   }
 };

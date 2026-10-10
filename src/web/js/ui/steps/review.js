@@ -52,8 +52,9 @@ export const reviewStep = {
     setRow(region, 'date-range', isRange ? `${context.date} – ${context.endDate}` : '');
     setRow(region, 'duration', isRange ? context.durationDays : '');
 
-    // Quantity only when more than one seat; extras only when some were added.
-    setRow(region, 'quantity', context.quantity > 1 ? context.quantity : '');
+    // Quantity: always for an event (a ticket count is worth confirming even
+    // at 1), only above 1 for a regular appointment. Extras only when added.
+    setRow(region, 'quantity', evt || context.quantity > 1 ? context.quantity : '');
     setRow(region, 'extras-total', context.extrasTotal > 0 ? formatPrice(context.extrasTotal, currencySymbol) : '');
 
     setRow(region, 'customer-name', context.customer?.name ?? '');

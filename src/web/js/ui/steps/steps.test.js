@@ -254,4 +254,26 @@ describe('reviewStep', () => {
     // necessarily the location the customer was browsing beforehand.
     expect(region.querySelector('[data-booked-summary="location"]').textContent).toBe('Main Studio');
   });
+
+  it('shows the ticket count for an event even at quantity 1, unlike a single-person appointment', async () => {
+    document.body.innerHTML = `
+      <section>
+        <dl>
+          <dt data-dt="quantity">Qty</dt><dd data-booked-summary="quantity"></dd>
+        </dl>
+      </section>`;
+    const region = document.body.firstElementChild;
+    const wizard = await startedWizard({
+      eventDates: vi.fn(async () => ({ eventDates: [{ id: 77, title: 'Open Studio Night', price: 0 }] })),
+      createEventLock: vi.fn(async () => ({ success: true, token: 'evt-lock', expiresIn: 300 })),
+    });
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+    await wizard.loadEventDates();
+    await wizard.selectEventDate(77);
+    reviewStep.render(region, wizard);
+
+    expect(region.querySelector('[data-booked-summary="quantity"]').hidden).toBe(false);
+    expect(region.querySelector('[data-booked-summary="quantity"]').textContent).toBe('1');
+  });
 });
