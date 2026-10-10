@@ -370,6 +370,7 @@ var Context = class {
     this.selectedEmployee = null;
     this.locationId = null;
     this.selectedLocation = null;
+    this.eventDateId = null;
     this.date = null;
     this.time = null;
     this.endDate = null;
@@ -1322,13 +1323,13 @@ var Wizard = class {
       this._syncLockAfterFailure();
       if (bestEffort) {
         onSuccess();
-      } else {
-        this._emitter.emit("error", {
-          message: res.message || this._i18n.t("error.slotReserved"),
-          code: "slot_reserved",
-          recoverable: true
-        });
+        return { ...res, bestEffort: true };
       }
+      this._emitter.emit("error", {
+        message: res.message || this._i18n.t("error.slotReserved"),
+        code: "slot_reserved",
+        recoverable: true
+      });
     }
     return res;
   }
@@ -1434,11 +1435,21 @@ var Wizard = class {
     if (data === null) return null;
     return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
-  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
+  /**
+   * Event dates, stored on the context. A month-scoped call (the booking flow's
+   * merged calendar) must not drop the already-selected event just because it
+   * falls outside the newly-loaded month — `selectedEvent`/`unitPrice`/the
+   * review step all resolve it by looking it up in this list. Emits `data:loaded`.
+   */
   async loadEventDates(query = {}) {
     const data = await this._load(() => this._api.eventDates(this._pruned(query)));
     if (data === null) return null;
     const eventDates = data.eventDates || [];
+    const selectedId = this._ctx.eventDateId;
+    if (selectedId != null && !eventDates.some((e) => e.id === selectedId)) {
+      const previouslySelected = this._ctx.eventDates.find((e) => e.id === selectedId);
+      if (previouslySelected) eventDates.push(previouslySelected);
+    }
     this._ctx.eventDates = eventDates;
     this._emitter.emit("data:loaded", { kind: "eventDates", items: eventDates });
     return eventDates;
@@ -2774,12 +2785,12 @@ var datetimeStep = {
       isAvailable,
       hasEvent: (date) => s.eventsByDate.has(date),
       onMonthChange: async ({ year, month }) => {
-        const [map] = await Promise.all([
+        const [map, eventsUpdated] = await Promise.all([
           wizard.loadCalendar({ year, month }),
           this._loadEventsForMonth(wizard, s, year, month)
         ]);
         if (map) s.calMap = map;
-        cal.setAvailability(isAvailable);
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       },
       onSelect: async (date) => {
         s.selectedDate = date;
@@ -2792,9 +2803,9 @@ var datetimeStep = {
     });
     s.cal = cal;
     Promise.all([wizard.loadCalendar({ year: iy, month: im }), this._loadEventsForMonth(wizard, s, iy, im)]).then(
-      ([map]) => {
+      ([map, eventsUpdated]) => {
         if (map) s.calMap = map;
-        cal.setAvailability(isAvailable);
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       }
     );
   },
@@ -2805,22 +2816,29 @@ var datetimeStep = {
    * same as a fully-booked regular day reports `isBookable: false` server-side
    * (AvailabilityService::filterByCapacity). The merged calendar offers no
    * per-event waitlist, so there is nothing useful left to show once it's full.
-   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`.
+   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`
+   * — and returns false then, so the caller knows not to force a re-render.
+   *
+   * A location-less event always passes the location check; a located event
+   * needs an exact match, which correctly excludes it when the wizard has no
+   * selected location at all (a zero-location service never sets one) rather
+   * than letting every location's events leak in.
    */
   async _loadEventsForMonth(wizard, s, year, month) {
     const dateFrom = `${year}-${pad2(month)}-01`;
     const dateTo = `${year}-${pad2(month)}-${pad2(lastDayOfMonth(year, month))}`;
     const events = await wizard.loadEventDates({ dateFrom, dateTo });
-    if (events === null) return;
+    if (events === null) return false;
     const locationId = wizard.getState().context.locationId;
     const byDate = /* @__PURE__ */ new Map();
     for (const evt of events) {
       if (evt.isFullyBooked) continue;
-      if (evt.locationId != null && locationId != null && evt.locationId !== locationId) continue;
+      if (evt.locationId != null && evt.locationId !== locationId) continue;
       if (!byDate.has(evt.date)) byDate.set(evt.date, []);
       byDate.get(evt.date).push(evt);
     }
     s.eventsByDate = byDate;
+    return true;
   },
   _buildDayCalendar(region, wizard, s, calContainer, initialMonth, iy, im, isFlexible) {
     const startAvailability = (d) => s.availSet.has(d);

@@ -181,12 +181,12 @@ export const datetimeStep = {
       isAvailable,
       hasEvent: (date) => s.eventsByDate.has(date),
       onMonthChange: async ({ year, month }) => {
-        const [map] = await Promise.all([
+        const [map, eventsUpdated] = await Promise.all([
           wizard.loadCalendar({ year, month }),
           this._loadEventsForMonth(wizard, s, year, month),
         ]);
         if (map) s.calMap = map;
-        cal.setAvailability(isAvailable);
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       },
       onSelect: async (date) => {
         s.selectedDate = date;
@@ -199,9 +199,9 @@ export const datetimeStep = {
     });
     s.cal = cal;
     Promise.all([wizard.loadCalendar({ year: iy, month: im }), this._loadEventsForMonth(wizard, s, iy, im)]).then(
-      ([map]) => {
+      ([map, eventsUpdated]) => {
         if (map) s.calMap = map;
-        cal.setAvailability(isAvailable);
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       },
     );
   },
@@ -213,22 +213,29 @@ export const datetimeStep = {
    * same as a fully-booked regular day reports `isBookable: false` server-side
    * (AvailabilityService::filterByCapacity). The merged calendar offers no
    * per-event waitlist, so there is nothing useful left to show once it's full.
-   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`.
+   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`
+   * — and returns false then, so the caller knows not to force a re-render.
+   *
+   * A location-less event always passes the location check; a located event
+   * needs an exact match, which correctly excludes it when the wizard has no
+   * selected location at all (a zero-location service never sets one) rather
+   * than letting every location's events leak in.
    */
   async _loadEventsForMonth(wizard, s, year, month) {
     const dateFrom = `${year}-${pad(month)}-01`;
     const dateTo = `${year}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
     const events = await wizard.loadEventDates({ dateFrom, dateTo });
-    if (events === null) return;
+    if (events === null) return false;
     const locationId = wizard.getState().context.locationId;
     const byDate = new Map();
     for (const evt of events) {
       if (evt.isFullyBooked) continue;
-      if (evt.locationId != null && locationId != null && evt.locationId !== locationId) continue;
+      if (evt.locationId != null && evt.locationId !== locationId) continue;
       if (!byDate.has(evt.date)) byDate.set(evt.date, []);
       byDate.get(evt.date).push(evt);
     }
     s.eventsByDate = byDate;
+    return true;
   },
 
   _buildDayCalendar(region, wizard, s, calContainer, initialMonth, iy, im, isFlexible) {

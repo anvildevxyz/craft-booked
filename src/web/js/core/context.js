@@ -149,12 +149,15 @@ export class Context {
   setService(service) {
     this.selectedService = service ?? null;
     this.serviceId = service?.id ?? null;
-    // Selecting a service invalidates downstream selections.
+    // Selecting a service invalidates downstream selections, including an
+    // event picked earlier in the same datetime step (merged calendar) — it
+    // must not survive a service change and get booked instead of this one.
     this.selectedExtras = {};
     this.employeeId = null;
     this.selectedEmployee = null;
     this.locationId = null;
     this.selectedLocation = null;
+    this.eventDateId = null;
     this.date = null;
     this.time = null;
     this.endDate = null;

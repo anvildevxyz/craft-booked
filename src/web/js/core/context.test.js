@@ -139,6 +139,14 @@ describe('Context — mutators', () => {
     expect(c.isFlexibleDayService).toBe(false);
   });
 
+  it('setService clears an event picked earlier in the same datetime step (#132 follow-up)', () => {
+    // Otherwise the stale event, not the newly chosen service, gets booked.
+    const c = new Context({ eventDateId: 77, eventDates: [{ id: 77, price: 25 }] });
+    c.setService({ id: 7, price: 40, durationType: 'minutes' });
+    expect(c.eventDateId).toBeNull();
+    expect(c.selectedEvent).toBeNull();
+  });
+
   it('setExtraQuantity adds and removes', () => {
     const c = new Context();
     c.setExtraQuantity(3, 2);

@@ -585,6 +585,39 @@ describe('Wizard — event flow', () => {
     expect(body).toMatchObject({ eventDateId: 77, quantity: 2 });
     expect(body.serviceId).toBeUndefined(); // event bookings carry no serviceId
   });
+
+  it('a lock decline that resolves without throwing still reports bestEffort, like a thrown one does', async () => {
+    // createEventLock can resolve (not reject) with no token — e.g. the event
+    // just sold out. The selection still stands (event locks are best-effort),
+    // and the result must say so or the UI never marks it selected.
+    const api = eventApi({ createEventLock: vi.fn(async () => ({ success: true, message: 'Just sold out' })) });
+    const wizard = new Wizard({ apiClient: api, flow: 'event' });
+    await wizard.start();
+    await wizard.loadEventDates();
+    const res = await wizard.selectEventDate(77);
+    expect(res.acquired).toBe(false);
+    expect(res.bestEffort).toBe(true);
+    expect(wizard.getState().context.eventDateId).toBe(77);
+  });
+
+  it('loadEventDates keeps an already-selected event resolvable after a month-scoped load omits it', async () => {
+    const api = eventApi();
+    const wizard = new Wizard({ apiClient: api, flow: 'event' });
+    await wizard.start();
+    await wizard.loadEventDates();
+    await wizard.selectEventDate(77);
+    expect(wizard.getState().context.selectedEvent).toMatchObject({ id: 77 });
+
+    // Simulate the booking flow's merged calendar browsing to a month that
+    // doesn't include the already-picked event.
+    api.eventDates = vi.fn(async () => ({ eventDates: [{ id: 88, title: 'Other', price: 10 }] }));
+    await wizard.loadEventDates({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
+
+    const ctx = wizard.getState().context;
+    expect(ctx.eventDateId).toBe(77); // the selection itself was never touched
+    expect(ctx.selectedEvent).toMatchObject({ id: 77, price: 25 }); // still resolvable
+    expect(ctx.totalPrice).toBe(25); // review/price must not silently fall back to the service
+  });
 });
 
 describe('Wizard — event picked from the booking flow\'s merged calendar (#132)', () => {

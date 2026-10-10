@@ -312,6 +312,25 @@ describe('datetimeStep — merged events (#132)', () => {
     expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
   });
 
+  it('excludes a located event when the wizard has no selected location at all, instead of leaking every location in', async () => {
+    // A zero-location service never auto-selects a location, so ctx.locationId
+    // stays null for the whole datetime step — a located event must not show
+    // just because there's nothing to compare it against.
+    const { region } = await setup(
+      eventOverrides({
+        employees: vi.fn(async () => ({ employees: [], locations: [], serviceHasSchedule: true })),
+        eventDates: vi.fn(async () => ({
+          eventDates: [
+            { id: 77, title: 'Yoga Workshop', date: '2026-08-11', startTime: '14:00', endTime: '15:00', remainingCapacity: 5, isFullyBooked: false, locationId: 42 },
+          ],
+        })),
+      }),
+    );
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
+    expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
+  });
+
   it('excludes a fully-booked event — it must not keep an otherwise-unavailable day looking bookable', async () => {
     const { region } = await setup(
       eventOverrides({

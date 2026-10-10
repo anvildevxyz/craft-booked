@@ -478,13 +478,16 @@ export class Wizard {
       this._syncLockAfterFailure();
       if (bestEffort) {
         onSuccess();
-      } else {
-        this._emitter.emit('error', {
-          message: res.message || this._i18n.t('error.slotReserved'),
-          code: 'slot_reserved',
-          recoverable: true,
-        });
+        // Flag it like the catch branch above does — callers (the merged
+        // calendar's click handler) key their UI update off `bestEffort`,
+        // not just `acquired`, since the selection stands either way.
+        return { ...res, bestEffort: true };
       }
+      this._emitter.emit('error', {
+        message: res.message || this._i18n.t('error.slotReserved'),
+        code: 'slot_reserved',
+        recoverable: true,
+      });
     }
     return res;
   }
@@ -603,11 +606,21 @@ export class Wizard {
     return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
 
-  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
+  /**
+   * Event dates, stored on the context. A month-scoped call (the booking flow's
+   * merged calendar) must not drop the already-selected event just because it
+   * falls outside the newly-loaded month — `selectedEvent`/`unitPrice`/the
+   * review step all resolve it by looking it up in this list. Emits `data:loaded`.
+   */
   async loadEventDates(query = {}) {
     const data = await this._load(() => this._api.eventDates(this._pruned(query)));
     if (data === null) return null;
     const eventDates = data.eventDates || [];
+    const selectedId = this._ctx.eventDateId;
+    if (selectedId != null && !eventDates.some((e) => e.id === selectedId)) {
+      const previouslySelected = this._ctx.eventDates.find((e) => e.id === selectedId);
+      if (previouslySelected) eventDates.push(previouslySelected);
+    }
     this._ctx.eventDates = eventDates;
     this._emitter.emit('data:loaded', { kind: 'eventDates', items: eventDates });
     return eventDates;
@@ -866,11 +879,10 @@ export class Wizard {
       siteHandle: this._config.siteHandle || '',
     };
 
-    // Event bookings (whether from the dedicated event flow or an event picked
-    // from the booking flow's merged calendar) carry no service/employee/
-    // location/date/time/extras — those may still be set in context from
-    // browsing a service beforehand, and must not leak into the reservation
-    // (the backend derives date/time/location from the EventDate itself).
+    // An event booking carries no service, employee, location, date, time, or
+    // extras. Context may still hold these from browsing a service first. Keep
+    // them out of the body — the backend reads date, time, and location from
+    // the EventDate record instead.
     if (this._ctx.eventDateId != null) {
       const body = this._pruned({ eventDateId: this._ctx.eventDateId, quantity: this._ctx.quantity, ...customer });
       return { ...body, ...fields };
