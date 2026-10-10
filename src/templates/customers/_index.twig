@@ -1,0 +1,107 @@
+{% extends "_layouts/cp" %}
+{% do view.registerAssetBundle("anvildev\\booked\\assetbundles\\BookedCpAsset") %}
+
+{% set title = 'titles.customers'|t('booked') %}
+{% set selectedSubnavItem = 'customers' %}
+
+{% macro sortLink(column, label, sort, dir, search) %}
+    {%- set nextDir = (sort == column and dir == 'desc') ? 'asc' : 'desc' -%}
+    {%- set params = { sort: column, dir: nextDir } -%}
+    {%- if search %}{% set params = params|merge({ search: search }) %}{% endif -%}
+    <a href="{{ url('booked/customers', params) }}">
+        {{- label -}}
+        {%- if sort == column %}<span class="sort-indicator"> {{ dir == 'asc' ? '↑' : '↓' }}</span>{% endif -%}
+    </a>
+{% endmacro %}
+
+{% block content %}
+    <form method="get" action="{{ url('booked/customers') }}" class="booked-customers-search">
+        <div class="toolbar flex flex-nowrap">
+            <div class="flex-grow texticon search icon clearable">
+                <input type="text"
+                       name="search"
+                       id="search-input"
+                       class="text fullwidth"
+                       placeholder="{{ 'customers.searchPlaceholder'|t('booked') }}"
+                       value="{{ search }}"
+                       autocomplete="off">
+            </div>
+            <button type="submit" class="btn">{{ 'labels.filter'|t('booked') }}</button>
+            {% if search %}
+                <a class="btn" href="{{ url('booked/customers') }}">{{ 'buttons.clear'|t('booked') }}</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if customers|length %}
+        <div class="tableview">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ _self.sortLink('name', 'labels.name'|t('booked'), sort, dir, search) }}</th>
+                        <th>{{ _self.sortLink('email', 'labels.email'|t('booked'), sort, dir, search) }}</th>
+                        <th>{{ 'labels.phone'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('totalBookings', 'customers.bookings'|t('booked'), sort, dir, search) }}</th>
+                        <th>{{ 'customers.upcoming'|t('booked') }}</th>
+                        <th>{{ _self.sortLink('lastBooking', 'customers.lastBooking'|t('booked'), sort, dir, search) }}</th>
+                        <th>{{ 'customers.totalPaid'|t('booked') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                        <tr>
+                            <td>
+                                <a href="{{ url('booked/customers/' ~ customer.email|url_encode) }}">
+                                    {{ customer.name ?: 'labels.na'|t('booked') }}
+                                </a>
+                                {% if customer.userId %}
+                                    <span class="status green" title="{{ 'customers.hasAccount'|t('booked') }}"></span>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ customer.email }}</code></td>
+                            <td>{{ customer.phone ?: '—' }}</td>
+                            <td>
+                                {{ customer.totalBookings }}
+                                {% if customer.cancelledBookings %}
+                                    <span class="light">({{ 'customers.cancelledCount'|t('booked', { count: customer.cancelledBookings }) }})</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ customer.upcomingBookings ?: '—' }}</td>
+                            <td>{{ customer.lastBooking ? customer.lastBooking|date('medium') : '—' }}</td>
+                            <td>
+                                {%- if customer.paidMinorUnits -%}
+                                    {{ (customer.paidMinorUnits / 100)|currency(customer.currency) }}
+                                {%- else -%}
+                                    —
+                                {%- endif -%}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if totalPages > 1 %}
+            <div class="booked-pagination">
+                {% set pageParams = search ? { search: search, sort: sort, dir: dir } : { sort: sort, dir: dir } %}
+                {% if page > 1 %}
+                    <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page - 1 })) }}">
+                        {{ 'calendar.previous'|t('booked') }}
+                    </a>
+                {% endif %}
+                <span class="light">{{ 'customers.pageOf'|t('booked', { page: page, total: totalPages }) }}</span>
+                {% if page < totalPages %}
+                    <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page + 1 })) }}">
+                        {{ 'calendar.next'|t('booked') }}
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <p class="light">{{ 'customers.totalCount'|t('booked', { count: total }) }}</p>
+    {% else %}
+        <div class="zilch">
+            <p>{{ search ? 'customers.noneMatching'|t('booked') : 'customers.none'|t('booked') }}</p>
+        </div>
+    {% endif %}
+{% endblock %}

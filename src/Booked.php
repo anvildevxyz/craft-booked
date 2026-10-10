@@ -92,6 +92,7 @@ use yii\base\Event;
  * @property-read \anvildev\booked\services\MultiDayAvailabilityService $multiDayAvailability
  * @property-read \anvildev\booked\services\PaymentGatewayService $paymentGateways
  * @property-read \anvildev\booked\services\PaymentService $payments
+ * @property-read \anvildev\booked\services\CustomerService $customers
  */
 class Booked extends Plugin
 {
@@ -223,6 +224,7 @@ class Booked extends Plugin
             'multiDayAvailability' => \anvildev\booked\services\MultiDayAvailabilityService::class,
             'paymentGateways' => \anvildev\booked\services\PaymentGatewayService::class,
             'payments' => \anvildev\booked\services\PaymentService::class,
+            'customers' => \anvildev\booked\services\CustomerService::class,
         ]);
     }
 
@@ -633,6 +635,10 @@ class Booked extends Plugin
                     'booked/bookings/<id:\d+>/view' => 'booked/cp/bookings/view',
                     'booked/bookings/export' => 'booked/cp/bookings/export',
 
+                    // Customers
+                    'booked/customers' => 'booked/cp/customers/index',
+                    'booked/customers/<email:.+>' => 'booked/cp/customers/detail',
+
                     // Settings - with sidebar navigation
                     'booked/settings' => 'booked/cp/settings/booking',
                     'booked/settings/booking' => 'booked/cp/settings/booking',
@@ -834,6 +840,7 @@ class Booked extends Plugin
         $navDefs = [
             ['calendar', 'nav.calendar', 'booked/calendar-view/month', 'booked-viewCalendar', 'booked-viewBookings'],
             ['bookings', 'nav.bookings', 'booked/bookings', 'booked-viewBookings'],
+            ['customers', 'nav.customers', 'booked/customers', 'booked-viewBookings'],
             ['services', 'nav.services', 'booked/services', 'booked-manageServices'],
             ['service-extras', 'nav.serviceExtras', 'booked/service-extras', 'booked-manageServices'],
             ['employees', 'nav.employees', 'booked/employees', 'booked-manageEmployees'],
@@ -1030,6 +1037,11 @@ class Booked extends Plugin
     public function getRefund(): \anvildev\booked\services\RefundService
     {
         return $this->get('refund');
+    }
+
+    public function getCustomers(): \anvildev\booked\services\CustomerService
+    {
+        return $this->get('customers');
     }
 
     public function getRefundPolicy(): \anvildev\booked\services\RefundPolicyService
