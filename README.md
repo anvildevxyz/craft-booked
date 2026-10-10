@@ -20,7 +20,7 @@ A comprehensive booking and reservation management plugin for Craft CMS, designe
 - **Session Notes**: Private post-appointment notes on a booking, separate from the customer's own notes and visible only to the assigned employee and admins
 - **No-Show Tracking**: Mark a booking as a no-show, in the Control Panel or in bulk via `booked/bookings/mark-no-shows`
 - **Multi-Site Support**: Localized services with propagation across multiple sites
-- **Framework-Free Booking Wizard**: A zero-dependency, CSP-safe multi-step booking wizard (no front-end framework required) that auto-selects and skips single-option steps to shorten the path to booking; plus dedicated event-booking and customer self-service flows
+- **Framework-Free Booking Wizard**: A zero-dependency, CSP-safe multi-step booking wizard (no front-end framework required) that auto-selects and skips single-option steps to shorten the path to booking, and surfaces matching events right on its own calendar; plus dedicated event-booking and customer self-service flows
 
 ### Advanced Features
 - **Calendar Sync**: Two-way sync with Google Calendar and Microsoft Outlook
