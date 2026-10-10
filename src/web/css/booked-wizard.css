@@ -393,7 +393,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--booked-tracking);
-  color: var(--booked-success);
+  color: var(--booked-muted);
 }
 
 .booked-slots [data-booked-event-id][aria-selected='true'] .booked-slot__event-badge {
