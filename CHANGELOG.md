@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.4 - 2026-10-10
+
+### Added
+- **A customer index.** ([#91](https://github.com/anvildevxyz/craft-booked/issues/91)) There has never been a way to look at a customer — there is no customer table, since a booking needs no account, so a customer here is every booking that shares an email address, aggregated on read. The new Customers page lists them searchably and sortably with booking count, upcoming/cancelled/no-show counts, last booking date, and total paid (settled payments net of refunds); a detail page adds the full booking history and a link to the Craft user account when one exists, visible to those with the `editUsers` permission. Scoped through the same staff employee filter as the bookings index, and email matches case-insensitively so one person's history can't split across casing. ([#130](https://github.com/anvildevxyz/craft-booked/pull/130))
+
 ## 1.5.3 - 2026-09-17
 
 ### Fixed
