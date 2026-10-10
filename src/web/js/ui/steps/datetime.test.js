@@ -311,6 +311,24 @@ describe('datetimeStep — merged events (#132)', () => {
     expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
     expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
   });
+
+  it('excludes a fully-booked event — it must not keep an otherwise-unavailable day looking bookable', async () => {
+    const { region } = await setup(
+      eventOverrides({
+        eventDates: vi.fn(async () => ({
+          eventDates: [
+            { id: 77, title: 'Yoga Workshop', date: '2026-08-11', startTime: '14:00', endTime: '15:00', remainingCapacity: 0, isFullyBooked: true, locationId: null },
+          ],
+        })),
+      }),
+    );
+    // A fully-booked regular slot day reports isBookable:false server-side
+    // (AvailabilityService::filterByCapacity) — a sold-out event must match that,
+    // not leave the day looking available with nothing left to actually book.
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
+    expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
+  });
 });
 
 describe('datetimeStep — waitlist branch', () => {

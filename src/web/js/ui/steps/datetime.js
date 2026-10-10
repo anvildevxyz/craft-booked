@@ -208,7 +208,11 @@ export const datetimeStep = {
 
   /**
    * Load event dates for a month into `s.eventsByDate` ('YYYY-MM-DD' → EventDate[]),
-   * kept only when they match the currently selected location (or have none).
+   * kept only when they match the currently selected location (or have none) and
+   * still have a spot — a sold-out event must not keep a day looking bookable,
+   * same as a fully-booked regular day reports `isBookable: false` server-side
+   * (AvailabilityService::filterByCapacity). The merged calendar offers no
+   * per-event waitlist, so there is nothing useful left to show once it's full.
    * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`.
    */
   async _loadEventsForMonth(wizard, s, year, month) {
@@ -219,6 +223,7 @@ export const datetimeStep = {
     const locationId = wizard.getState().context.locationId;
     const byDate = new Map();
     for (const evt of events) {
+      if (evt.isFullyBooked) continue;
       if (evt.locationId != null && locationId != null && evt.locationId !== locationId) continue;
       if (!byDate.has(evt.date)) byDate.set(evt.date, []);
       byDate.get(evt.date).push(evt);
