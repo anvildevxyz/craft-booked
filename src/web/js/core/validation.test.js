@@ -89,6 +89,12 @@ describe('canLeaveStep', () => {
     expect(canLeaveStep('datetime', { date: null, time: null, lock: { token: 't' } }).ok).toBe(true);
   });
 
+  it('an event picked from the merged calendar satisfies the datetime step even without a lock', () => {
+    // Event locks are best-effort (Wizard#selectEventDate) — a failed acquire
+    // must not strand the customer on the datetime step.
+    expect(canLeaveStep('datetime', { date: null, time: null, lock: null, eventDateId: 77 }).ok).toBe(true);
+  });
+
   it('info validates the customer and honors requirePhone', () => {
     const ctx = { customer: { name: 'Ada', email: 'ada@example.com' } };
     expect(canLeaveStep('info', ctx).ok).toBe(true);

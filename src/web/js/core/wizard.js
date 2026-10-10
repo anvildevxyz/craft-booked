@@ -399,6 +399,9 @@ export class Wizard {
   // ---- Slot / range / event selection (acquire lock) ==================
 
   async selectSlot({ date, time, quantity = 1 } = {}) {
+    // Supersedes any event picked earlier in the same datetime step (booking
+    // flow's merged calendar) — the two selections are mutually exclusive.
+    this._ctx.eventDateId = null;
     this._ctx.date = date;
     this._ctx.time = time;
     // Both counts track the picked quantity: `slotQuantity` drives lock/availability,
@@ -410,6 +413,7 @@ export class Wizard {
   }
 
   async selectRange({ startDate, endDate, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
@@ -422,6 +426,10 @@ export class Wizard {
     // The fourth selector, normalised like the other three: an integrator can
     // pass this straight from a URL, where it is a string.
     const id = toId(rawId);
+    // Supersedes any slot/range picked earlier in the same datetime step
+    // (booking flow's merged calendar) — the two selections are mutually exclusive.
+    this._ctx.date = null;
+    this._ctx.time = null;
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
     this._ctx.quantity = quantity;
@@ -848,18 +856,7 @@ export class Wizard {
   }
 
   _buildBookingBody(fields, addToCart) {
-    const extras = {};
-    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
-      if (qty > 0) extras[id] = qty;
-    }
-    const body = this._pruned({
-      serviceId: this._ctx.serviceId,
-      eventDateId: this._ctx.eventDateId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      date: this._ctx.date,
-      time: this._ctx.time,
-      quantity: this._ctx.quantity,
+    const customer = {
       customerName: this._ctx.customer.name,
       customerEmail: this._ctx.customer.email,
       customerPhone: this._ctx.customer.phone,
@@ -867,6 +864,30 @@ export class Wizard {
       softLockToken: this._lock.token,
       addToCart: addToCart ? '1' : '0',
       siteHandle: this._config.siteHandle || '',
+    };
+
+    // Event bookings (whether from the dedicated event flow or an event picked
+    // from the booking flow's merged calendar) carry no service/employee/
+    // location/date/time/extras — those may still be set in context from
+    // browsing a service beforehand, and must not leak into the reservation
+    // (the backend derives date/time/location from the EventDate itself).
+    if (this._ctx.eventDateId != null) {
+      const body = this._pruned({ eventDateId: this._ctx.eventDateId, quantity: this._ctx.quantity, ...customer });
+      return { ...body, ...fields };
+    }
+
+    const extras = {};
+    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
+      if (qty > 0) extras[id] = qty;
+    }
+    const body = this._pruned({
+      serviceId: this._ctx.serviceId,
+      employeeId: this._ctx.employeeId,
+      locationId: this._ctx.locationId,
+      date: this._ctx.date,
+      time: this._ctx.time,
+      quantity: this._ctx.quantity,
+      ...customer,
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
     if (this._ctx.isDayService && this._ctx.endDate) {

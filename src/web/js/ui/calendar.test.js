@@ -191,6 +191,17 @@ describe('Calendar — availability & range', () => {
     expect(el.querySelector('[data-booked-cal="label"]').textContent).toBe('September 2026');
     expect(onMonthChange).toHaveBeenCalledWith({ year: 2026, month: 9 });
   });
+
+  it('marks a day data-has-event when the hasEvent predicate matches it', () => {
+    const { el } = mountCal({ hasEvent: (d) => d === '2026-08-15' });
+    expect(cell(el, '2026-08-15').getAttribute('data-has-event')).toBe('true');
+    expect(cell(el, '2026-08-16').hasAttribute('data-has-event')).toBe(false);
+  });
+
+  it('omits data-has-event entirely with no hasEvent predicate', () => {
+    const { el } = mountCal();
+    expect(cell(el, '2026-08-15').hasAttribute('data-has-event')).toBe(false);
+  });
 });
 
 describe('Calendar — range mode', () => {

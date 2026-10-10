@@ -11,6 +11,7 @@ function fakeApi(overrides = {}) {
     calendar: vi.fn(async () => ({
       calendar: { '2026-08-10': { isBookable: true }, '2026-08-11': { isBookable: false } },
     })),
+    eventDates: vi.fn(async () => ({ eventDates: [] })),
     slots: vi.fn(async () => ({ slots: [{ time: '10:00', availableCapacity: 2 }, { time: '11:00', availableCapacity: 0 }] })),
     joinWaitlist: vi.fn(async () => ({ success: true })),
     createSlotLock: vi.fn(async () => ({ success: true, token: 'lock-1', expiresIn: 300 })),
@@ -227,6 +228,88 @@ describe('datetimeStep — flexible-day service', () => {
     await vi.waitFor(() => expect(wizard.state).toBe('holdingLock'));
     expect(wizard.getState().context.endDate).toBe('2026-08-05');
     expect(day(region, '2026-08-04').getAttribute('data-in-range')).toBe('true');
+  });
+});
+
+describe('datetimeStep — merged events (#132)', () => {
+  function eventOverrides(overrides = {}) {
+    return {
+      eventDates: vi.fn(async () => ({
+        eventDates: [
+          {
+            id: 77,
+            title: 'Yoga Workshop',
+            date: '2026-08-11', // a day the regular schedule has NO availability on
+            startTime: '14:00:00',
+            endTime: '15:00:00',
+            formattedTimeRange: '2:00 PM - 3:00 PM',
+            remainingCapacity: 5,
+            isFullyBooked: false,
+            locationId: null,
+          },
+        ],
+      })),
+      createEventLock: vi.fn(async () => ({ success: true, token: 'evt-lock', expiresIn: 300 })),
+      ...overrides,
+    };
+  }
+
+  it('makes an event-only day selectable even where the regular schedule has none', async () => {
+    const { region } = await setup(eventOverrides());
+    await vi.waitFor(() => expect(day(region, '2026-08-11').getAttribute('data-has-event')).toBe('true'));
+    expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('lists the event as a distinct, labeled option in the slot listbox', async () => {
+    const { region } = await setup(eventOverrides());
+    await vi.waitFor(() => expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-11').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-event-id="77"]')).not.toBeNull());
+    const opt = region.querySelector('[data-booked-event-id="77"]');
+    expect(opt.getAttribute('role')).toBe('option');
+    expect(opt.textContent).toContain('Yoga Workshop');
+  });
+
+  it('selecting the event option acquires the event lock and sets eventDateId', async () => {
+    const { region, wizard } = await setup(eventOverrides());
+    await vi.waitFor(() => expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-11').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-event-id="77"]')).not.toBeNull());
+    region.querySelector('[data-booked-event-id="77"]').click();
+    await vi.waitFor(() => expect(wizard.state).toBe('holdingLock'));
+    expect(wizard.getState().context.eventDateId).toBe(77);
+    expect(region.querySelector('[data-booked-event-id="77"]').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('picking a regular slot afterwards deselects the event option', async () => {
+    const { region, wizard } = await setup(eventOverrides());
+    await vi.waitFor(() => expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-11').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-event-id="77"]')).not.toBeNull());
+    region.querySelector('[data-booked-event-id="77"]').click();
+    await vi.waitFor(() => expect(wizard.state).toBe('holdingLock'));
+
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull());
+    slot(region, '10:00').click();
+    await vi.waitFor(() => expect(wizard.getState().context.date).toBe('2026-08-10'));
+    expect(wizard.getState().context.eventDateId).toBeNull();
+  });
+
+  it('excludes an event whose location does not match the one currently selected', async () => {
+    const { region } = await setup(
+      eventOverrides({
+        eventDates: vi.fn(async () => ({
+          eventDates: [
+            { id: 77, title: 'Yoga Workshop', date: '2026-08-11', startTime: '14:00', endTime: '15:00', remainingCapacity: 5, isFullyBooked: false, locationId: 999 },
+          ],
+        })),
+      }),
+    );
+    // Default setup auto-selects locationId 1 (a lone location) — 999 doesn't match.
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
+    expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
   });
 });
 

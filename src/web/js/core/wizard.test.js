@@ -587,6 +587,64 @@ describe('Wizard — event flow', () => {
   });
 });
 
+describe('Wizard — event picked from the booking flow\'s merged calendar (#132)', () => {
+  function bookingEventApi(overrides = {}) {
+    return fakeApi({
+      eventDates: vi.fn(async () => ({
+        eventDates: [{ id: 77, title: 'Yoga', price: 25, remainingCapacity: 5, isFullyBooked: false, date: '2026-08-10' }],
+      })),
+      serviceExtras: vi.fn(async () => ({ extras: [{ id: 5, title: 'Towel', price: 10 }] })),
+      ...overrides,
+    });
+  }
+
+  it('picking an event clears a previously picked slot, and picking a slot clears a previously picked event', async () => {
+    const { wizard } = newWizard({ ...bookingEventApi() });
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+
+    await wizard.selectSlot({ date: '2026-08-01', time: '10:00' });
+    expect(wizard.getState().context.date).toBe('2026-08-01');
+
+    await wizard.selectEventDate(77);
+    let ctx = wizard.getState().context;
+    expect(ctx.eventDateId).toBe(77);
+    expect(ctx.date).toBeNull();
+    expect(ctx.time).toBeNull();
+
+    await wizard.selectSlot({ date: '2026-08-02', time: '11:00' });
+    ctx = wizard.getState().context;
+    expect(ctx.eventDateId).toBeNull();
+    expect(ctx.date).toBe('2026-08-02');
+  });
+
+  it('submits a clean event-only body — no leftover service, employee, location, date/time or extras', async () => {
+    const { wizard, api } = newWizard(bookingEventApi());
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.selectExtra(5, 1); // picked before realizing an event fits better
+    wizard.goNext(); // extras → datetime (1 location, no employees)
+    wizard.goNext();
+
+    expect(wizard.stepId).toBe('datetime');
+    await wizard.loadEventDates(); // the datetime step always loads events before one can be picked
+    await wizard.selectEventDate(77);
+    expect(wizard.getState().context.totalPrice).toBe(25); // event price only, extras suppressed
+
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    expect(await wizard.submit()).toMatchObject({ ok: true, confirmed: true });
+
+    const body = api.createBooking.mock.calls[0][0];
+    expect(body).toMatchObject({ eventDateId: 77, quantity: 1 });
+    for (const leftover of ['serviceId', 'employeeId', 'locationId', 'date', 'time', 'extras']) {
+      expect(body[leftover]).toBeUndefined();
+    }
+  });
+});
+
 describe('Wizard — back navigation preserves a held lock across info/review', () => {
   it('keeps the hold when navigating back within the info/review steps', async () => {
     const { wizard, api } = newWizard();

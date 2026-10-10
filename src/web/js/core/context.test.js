@@ -27,6 +27,11 @@ describe('Context — extras math', () => {
     const c = new Context({ extras, selectedExtras: { '1': 1 } });
     expect(c.extrasTotal).toBe(10);
   });
+
+  it('zeroes out once an event date is selected, even with extras left over from an abandoned service', () => {
+    const c = new Context({ extras, selectedExtras: { 1: 2, 2: 1 }, eventDateId: 77 });
+    expect(c.extrasTotal).toBe(0);
+  });
 });
 
 describe('Context — duration days', () => {
