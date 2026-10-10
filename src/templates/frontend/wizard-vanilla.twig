@@ -125,7 +125,11 @@
     <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
 
     {# --- Steps ------------------------------------------------------------ #}
-    <section data-booked-step="service">
+    {# `hidden` like every other step below: nothing shows until the core
+       resolves the real starting step (renderer.syncInitial()) — otherwise this
+       one flashes empty on load whenever auto-select skips straight past it
+       (single service, or one preselected via config/deep link). #}
+    <section data-booked-step="service" hidden>
         <h2 data-booked-step-heading>{{ labels.selectService }}</h2>
         <template data-booked-template="service-card">
             <button type="button" data-booked-action="select-service" class="booked-card">
