@@ -66,11 +66,11 @@
                                     <span class="light">({{ 'customers.cancelledCount'|t('booked', { count: customer.cancelledBookings }) }})</span>
                                 {% endif %}
                             </td>
-                            <td>{{ customer.upcomingBookings ?: '—' }}</td>
+                            <td>{{ customer.upcomingBookings }}</td>
                             <td>{{ customer.lastBooking ? customer.lastBooking|date('medium') : '—' }}</td>
                             <td>
                                 {%- if customer.paidMinorUnits -%}
-                                    {{ (customer.paidMinorUnits / 100)|currency(customer.currency) }}
+                                    {{ customer.paidAmount|currency(customer.currency) }}
                                 {%- else -%}
                                     —
                                 {%- endif -%}

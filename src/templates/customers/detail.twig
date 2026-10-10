@@ -33,6 +33,8 @@
                 <div class="value">
                     {%- if linkedUser -%}
                         <a href="{{ linkedUser.cpEditUrl }}">{{ linkedUser.friendlyName ?: linkedUser.email }}</a>
+                    {%- elseif hasLinkedAccount -%}
+                        <span class="light">{{ 'customers.hasAccount'|t('booked') }}</span>
                     {%- else -%}
                         <span class="light">{{ 'customers.noAccount'|t('booked') }}</span>
                     {%- endif -%}
@@ -62,7 +64,7 @@
                 <h5 class="heading">{{ 'customers.totalPaid'|t('booked') }}</h5>
                 <div class="value">
                     {%- if customer.paidMinorUnits -%}
-                        {{ (customer.paidMinorUnits / 100)|currency(customer.currency) }}
+                        {{ customer.paidAmount|currency(customer.currency) }}
                     {%- else -%}
                         —
                     {%- endif -%}

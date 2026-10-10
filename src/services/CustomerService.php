@@ -25,7 +25,7 @@ use yii\base\Component;
  */
 class CustomerService extends Component
 {
-    public const SORTABLE = ['name', 'email', 'totalBookings', 'lastBooking', 'firstBooking'];
+    public const SORTABLE = ['name', 'email', 'totalBookings', 'lastBooking'];
 
     /**
      * One page of customers, newest booking first by default.
@@ -119,6 +119,25 @@ class CustomerService extends Component
     }
 
     /**
+     * The staff employeeId scoping condition, or null for no restriction.
+     *
+     * Every query that reads a reservation to build a customer row — the base
+     * list, the latest-booking lookup, the spend sum — has to apply this, or a
+     * staff member scoped to one employee sees a customer's name, phone,
+     * linked account, or spend pulled from a booking made with a *different*
+     * employee they have no permission to view.
+     */
+    private function employeeScopeCondition(string $column): array|string|null
+    {
+        $employeeIds = Booked::getInstance()->getPermission()->getStaffEmployeeIds();
+        if ($employeeIds === null) {
+            return null;
+        }
+
+        return $employeeIds === [] ? '0=1' : [$column => $employeeIds];
+    }
+
+    /**
      * Reservations the current user is allowed to see, before grouping.
      */
     private function baseQuery(string $search): Query
@@ -126,9 +145,8 @@ class CustomerService extends Component
         $query = (new Query())->from(['r' => ReservationRecord::tableName()]);
 
         // Staff see only the employees they manage, matching the bookings index.
-        $employeeIds = Booked::getInstance()->getPermission()->getStaffEmployeeIds();
-        if ($employeeIds !== null) {
-            $query->andWhere($employeeIds === [] ? '0=1' : ['r.[[employeeId]]' => $employeeIds]);
+        if (($scope = $this->employeeScopeCondition('r.[[employeeId]]')) !== null) {
+            $query->andWhere($scope);
         }
 
         $search = trim($search);
@@ -170,7 +188,10 @@ class CustomerService extends Component
                 ),
                 'upcomingBookings' => new \yii\db\Expression(
                     'SUM(CASE WHEN r.[[bookingDate]] >= :today AND r.[[status]] <> :cancelledToo THEN 1 ELSE 0 END)',
-                    [':today' => (new \DateTime('today'))->format('Y-m-d'), ':cancelledToo' => ReservationRecord::STATUS_CANCELLED],
+                    [
+                        ':today' => (new \DateTime('today', new \DateTimeZone(Craft::$app->getTimeZone())))->format('Y-m-d'),
+                        ':cancelledToo' => ReservationRecord::STATUS_CANCELLED,
+                    ],
                 ),
                 'firstBooking' => 'MIN(r.[[bookingDate]])',
                 'lastBooking' => 'MAX(r.[[bookingDate]])',
@@ -183,11 +204,15 @@ class CustomerService extends Component
     }
 
     /**
-     * Fills in the name and phone from each customer's most recent booking.
+     * Fills in the name and phone from each customer's most recently entered
+     * booking.
      *
      * An aggregate cannot answer "the name they used last" — MIN() gives the
      * alphabetically first, which is how a customer ends up displayed under a
-     * name they used once, years ago.
+     * name they used once, years ago. "Last" is ordered by when the booking
+     * was made (dateCreated), not by the appointment date it books — a
+     * correction entered today for a date next month is more current than an
+     * untouched booking made last week for a date next year.
      *
      * @param list<array<string, mixed>> $rows
      * @return list<array<string, mixed>>
@@ -201,13 +226,19 @@ class CustomerService extends Component
         $keys = array_column($rows, 'emailKey');
 
         $latest = (new Query())
-            ->select(['[[userEmail]]', '[[userName]]', '[[userPhone]]', '[[userId]]', '[[bookingDate]]', '[[dateCreated]]'])
+            ->select(['[[userEmail]]', '[[userName]]', '[[userPhone]]', '[[userId]]', '[[dateCreated]]'])
             ->from(ReservationRecord::tableName())
-            ->where(['IN', new \yii\db\Expression('LOWER([[userEmail]])'), $keys])
-            ->orderBy(['[[bookingDate]]' => SORT_ASC, '[[dateCreated]]' => SORT_ASC])
-            ->all();
+            ->where(['IN', new \yii\db\Expression('LOWER([[userEmail]])'), $keys]);
+
+        if (($scope = $this->employeeScopeCondition('employeeId')) !== null) {
+            $latest->andWhere($scope);
+        }
 
         // Ordered ascending, so the last write per key wins — the newest booking.
+        // The id tiebreaker makes ties (e.g. a bulk import sharing one
+        // dateCreated) deterministic instead of left to the database.
+        $latest = $latest->orderBy(['[[dateCreated]]' => SORT_ASC, '[[id]]' => SORT_ASC])->all();
+
         $byKey = [];
         foreach ($latest as $row) {
             $byKey[mb_strtolower((string)$row['userEmail'])] = $row;
@@ -232,7 +263,11 @@ class CustomerService extends Component
      * Adds what each customer has actually paid, net of refunds.
      *
      * Only settled payments count — a pending intent is not money received.
-     * Amounts are minor units, as stored.
+     * Amounts are minor units, as stored. Currency is install-wide, like
+     * {@see ReportsService::aggregateDirectPaymentsSum()} — summing payments
+     * across currencies into one minor-units total would be meaningless, so a
+     * stray legacy row in a different currency is excluded rather than
+     * silently summed under whichever currency happens to sort first.
      *
      * @param list<array<string, mixed>> $rows
      * @return list<array<string, mixed>>
@@ -244,19 +279,24 @@ class CustomerService extends Component
         }
 
         $keys = array_column($rows, 'emailKey');
+        $currency = Booked::getInstance()->reports->getCurrency();
 
         $spend = (new Query())
             ->select([
                 'emailKey' => 'LOWER(r.[[userEmail]])',
                 'paid' => 'SUM(p.[[amount]] - p.[[refundedAmount]])',
-                'currency' => 'MIN(p.[[currency]])',
             ])
             ->from(['p' => PaymentRecord::tableName()])
             ->innerJoin(['r' => ReservationRecord::tableName()], 'r.[[id]] = p.[[reservationId]]')
             ->where(['p.[[status]]' => [PaymentRecord::STATUS_PAID, PaymentRecord::STATUS_PARTIALLY_REFUNDED]])
-            ->andWhere(['IN', new \yii\db\Expression('LOWER(r.[[userEmail]])'), $keys])
-            ->groupBy(['LOWER(r.[[userEmail]])'])
-            ->all();
+            ->andWhere(['p.[[currency]]' => $currency])
+            ->andWhere(['IN', new \yii\db\Expression('LOWER(r.[[userEmail]])'), $keys]);
+
+        if (($scope = $this->employeeScopeCondition('r.[[employeeId]]')) !== null) {
+            $spend->andWhere($scope);
+        }
+
+        $spend = $spend->groupBy(['LOWER(r.[[userEmail]])'])->all();
 
         $byKey = [];
         foreach ($spend as $row) {
@@ -265,9 +305,13 @@ class CustomerService extends Component
 
         foreach ($rows as $i => $row) {
             $match = $byKey[$row['emailKey']] ?? null;
-            $rows[$i]['paidMinorUnits'] = (int)($match['paid'] ?? 0);
-            $rows[$i]['currency'] = $match['currency']
-                ?? Booked::getInstance()->getSettings()->defaultCurrency;
+            $paidMinorUnits = (int)($match['paid'] ?? 0);
+            $rows[$i]['paidMinorUnits'] = $paidMinorUnits;
+            // Converted here, not in the template: a template-side `/ 100` is
+            // wrong for zero-decimal currencies (JPY, KRW, …), where the minor
+            // unit already is the major unit — see fromMinorUnits().
+            $rows[$i]['paidAmount'] = PaymentService::fromMinorUnits($paidMinorUnits, $currency);
+            $rows[$i]['currency'] = $currency;
         }
 
         return $rows;

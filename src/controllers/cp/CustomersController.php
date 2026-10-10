@@ -74,10 +74,19 @@ class CustomersController extends Controller
             throw new NotFoundHttpException(Craft::t('booked', 'customers.notFound'));
         }
 
+        // Linking to a Craft user's name, email and edit page is new exposure
+        // this view adds beyond what booked-viewBookings grants elsewhere —
+        // gate it on the Users-section permission rather than handing every
+        // viewer of bookings a deep link into the Users CP area.
+        $user = Craft::$app->getUser()->getIdentity();
+        $canViewAccount = $user && ($user->admin || $user->can('editUsers'));
+        $linkedUser = $canViewAccount ? $this->customers()->linkedUser($customer['userId'] ?? null) : null;
+
         return $this->renderTemplate('booked/customers/detail', [
             'customer' => $customer,
             'bookings' => $this->customers()->bookingsFor($email),
-            'linkedUser' => $this->customers()->linkedUser($customer['userId'] ?? null),
+            'linkedUser' => $linkedUser,
+            'hasLinkedAccount' => (bool)($customer['userId'] ?? null),
         ]);
     }
 
