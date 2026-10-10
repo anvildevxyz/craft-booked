@@ -16,102 +16,98 @@
 } %}
 
 {% block content %}
-<div class="booked-customer-detail">
-    <div class="booking-card">
-        <div class="booking-row">
-            <div class="booking-item">
-                <span class="booking-label">{{ 'labels.email'|t('booked') }}</span>
-                <span class="booking-value"><code>{{ customer.email }}</code></span>
+    <div class="booked-customer-summary">
+        <div class="meta read-only">
+            <div class="data">
+                <h5 class="heading">{{ 'labels.email'|t('booked') }}</h5>
+                <div class="value"><code>{{ customer.email }}</code></div>
             </div>
             {% if customer.phone %}
-                <div class="booking-item">
-                    <span class="booking-label">{{ 'labels.phone'|t('booked') }}</span>
-                    <span class="booking-value">{{ customer.phone }}</span>
+                <div class="data">
+                    <h5 class="heading">{{ 'labels.phone'|t('booked') }}</h5>
+                    <div class="value">{{ customer.phone }}</div>
                 </div>
             {% endif %}
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.account'|t('booked') }}</span>
-                <span class="booking-value">
+            <div class="data">
+                <h5 class="heading">{{ 'customers.account'|t('booked') }}</h5>
+                <div class="value">
                     {%- if linkedUser -%}
                         <a href="{{ linkedUser.cpEditUrl }}">{{ linkedUser.friendlyName ?: linkedUser.email }}</a>
                     {%- else -%}
                         <span class="light">{{ 'customers.noAccount'|t('booked') }}</span>
                     {%- endif -%}
-                </span>
+                </div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.bookings'|t('booked') }}</span>
-                <span class="booking-value">{{ customer.totalBookings }}</span>
+            <div class="data">
+                <h5 class="heading">{{ 'customers.bookings'|t('booked') }}</h5>
+                <div class="value">{{ customer.totalBookings }}</div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.upcoming'|t('booked') }}</span>
-                <span class="booking-value">{{ customer.upcomingBookings }}</span>
+            <div class="data">
+                <h5 class="heading">{{ 'customers.upcoming'|t('booked') }}</h5>
+                <div class="value">{{ customer.upcomingBookings }}</div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.cancelled'|t('booked') }}</span>
-                <span class="booking-value">{{ customer.cancelledBookings }}</span>
+            <div class="data">
+                <h5 class="heading">{{ 'customers.cancelled'|t('booked') }}</h5>
+                <div class="value">{{ customer.cancelledBookings }}</div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.noShows'|t('booked') }}</span>
-                <span class="booking-value">{{ customer.noShowBookings }}</span>
+            <div class="data">
+                <h5 class="heading">{{ 'customers.noShows'|t('booked') }}</h5>
+                <div class="value">{{ customer.noShowBookings }}</div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.firstBooking'|t('booked') }}</span>
-                <span class="booking-value">{{ customer.firstBooking ? customer.firstBooking|date('medium') : '—' }}</span>
+            <div class="data">
+                <h5 class="heading">{{ 'customers.firstBooking'|t('booked') }}</h5>
+                <div class="value">{{ customer.firstBooking ? customer.firstBooking|date('medium') : '—' }}</div>
             </div>
-            <div class="booking-item">
-                <span class="booking-label">{{ 'customers.totalPaid'|t('booked') }}</span>
-                <span class="booking-value">
+            <div class="data">
+                <h5 class="heading">{{ 'customers.totalPaid'|t('booked') }}</h5>
+                <div class="value">
                     {%- if customer.paidMinorUnits -%}
                         {{ (customer.paidMinorUnits / 100)|currency(customer.currency) }}
                     {%- else -%}
                         —
                     {%- endif -%}
-                </span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="booking-history">
-        <h2>{{ 'customers.history'|t('booked') }}</h2>
+    <h2>{{ 'customers.history'|t('booked') }}</h2>
 
-        {% if bookings|length %}
-            <div class="tableview">
-                <table class="data fullwidth">
-                    <thead>
+    {% if bookings|length %}
+        <div class="tableview">
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ 'labels.date'|t('booked') }}</th>
+                        <th>{{ 'labels.time'|t('booked') }}</th>
+                        <th>{{ 'labels.service'|t('booked') }}</th>
+                        <th>{{ 'labels.staff'|t('booked') }}</th>
+                        <th>{{ 'labels.status'|t('booked') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
                         <tr>
-                            <th>{{ 'labels.date'|t('booked') }}</th>
-                            <th>{{ 'labels.time'|t('booked') }}</th>
-                            <th>{{ 'labels.service'|t('booked') }}</th>
-                            <th>{{ 'labels.staff'|t('booked') }}</th>
-                            <th>{{ 'labels.status'|t('booked') }}</th>
+                            <td>
+                                <a href="{{ url('booked/bookings/' ~ booking.getId() ~ '/view') }}">
+                                    {{ booking.getBookingDate()|date('medium') }}
+                                </a>
+                            </td>
+                            <td>{{ booking.getStartTime() ? booking.getStartTime()|slice(0, 5) : '—' }}</td>
+                            <td>{{ booking.getService() ? booking.getService().title : '—' }}</td>
+                            <td>{{ booking.getEmployee() ? booking.getEmployee().title : '—' }}</td>
+                            <td>
+                                <span class="status {{ statusColors[booking.getStatus()] ?? '' }}"></span>
+                                {{ booking.getStatusLabel() }}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for booking in bookings %}
-                            <tr>
-                                <td>
-                                    <a href="{{ url('booked/bookings/' ~ booking.getId() ~ '/view') }}">
-                                        {{ booking.getBookingDate()|date('medium') }}
-                                    </a>
-                                </td>
-                                <td>{{ booking.getStartTime() ? booking.getStartTime()|slice(0, 5) : '—' }}</td>
-                                <td>{{ booking.getService() ? booking.getService().title : '—' }}</td>
-                                <td>{{ booking.getEmployee() ? booking.getEmployee().title : '—' }}</td>
-                                <td>
-                                    <span class="status {{ statusColors[booking.getStatus()] ?? '' }}"></span>
-                                    {{ booking.getStatusLabel() }}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="zilch">
-                <p>{{ 'customers.noBookings'|t('booked') }}</p>
-            </div>
-        {% endif %}
-    </div>
-</div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'customers.noBookings'|t('booked') }}</p>
+        </div>
+    {% endif %}
 {% endblock %}
