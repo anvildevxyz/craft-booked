@@ -224,4 +224,34 @@ describe('reviewStep', () => {
     reviewStep.render(region, wizard);
     expect(region.querySelector('[data-booked-payment-notice]').hidden).toBe(false);
   });
+
+  it('shows the event title and its own location, and hides the employee row, for an event picked from the merged calendar (#132)', async () => {
+    document.body.innerHTML = `
+      <section>
+        <dl>
+          <dt data-dt="service">Service</dt><dd data-booked-summary="service"></dd>
+          <dt data-dt="employee">Employee</dt><dd data-booked-summary="employee"></dd>
+          <dt data-dt="location">Location</dt><dd data-booked-summary="location"></dd>
+        </dl>
+      </section>`;
+    const region = document.body.firstElementChild;
+    const wizard = await startedWizard({
+      employees: vi.fn(async () => ({ employees: [{ id: 4, name: 'Ada' }], locations: [{ id: 1, name: 'Main Studio' }], serviceHasSchedule: false })),
+      eventDates: vi.fn(async () => ({ eventDates: [{ id: 77, title: 'Yoga', price: 25, locationId: 1 }] })),
+      createEventLock: vi.fn(async () => ({ success: true, token: 'evt-lock', expiresIn: 300 })),
+    });
+    await wizard.selectService(12);
+    wizard.selectEmployee(4); // browsed an employee before switching to the event
+    wizard.goNext(); // datetime
+    await wizard.loadEventDates();
+    await wizard.selectEventDate(77);
+    reviewStep.render(region, wizard);
+
+    expect(region.querySelector('[data-booked-summary="service"]').textContent).toBe('Yoga');
+    // Events are never employee-dependent — the earlier employee pick must not show.
+    expect(region.querySelector('[data-booked-summary="employee"]').hidden).toBe(true);
+    // The event's own location, resolved from the loaded locations list — not
+    // necessarily the location the customer was browsing beforehand.
+    expect(region.querySelector('[data-booked-summary="location"]').textContent).toBe('Main Studio');
+  });
 });

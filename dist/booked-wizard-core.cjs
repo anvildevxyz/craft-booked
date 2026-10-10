@@ -345,8 +345,14 @@ var Context = class {
     this.reservation = initial.reservation ?? null;
   }
   // ---- Computed: extras ================================================
-  /** Σ extra.price × quantity over selected add-ons. */
+  /**
+   * Σ extra.price × quantity over selected add-ons. Zero once an event date is
+   * the active selection — extras are a service concept, and a leftover
+   * selection from a service browsed before switching to an event must not
+   * inflate the event's price (or get submitted; see Wizard#_buildBookingBody).
+   */
   get extrasTotal() {
+    if (this.eventDateId != null) return 0;
     let total = 0;
     for (const [extraId, quantity] of Object.entries(this.selectedExtras)) {
       const extra = this.extras.find((e) => e.id === parseInt(extraId, 10));
@@ -410,6 +416,7 @@ var Context = class {
     this.selectedEmployee = null;
     this.locationId = null;
     this.selectedLocation = null;
+    this.eventDateId = null;
     this.date = null;
     this.time = null;
     this.endDate = null;
@@ -894,6 +901,7 @@ var DEFAULTS = Object.freeze({
   "calendar.prevMonth": "Previous month",
   "calendar.nextMonth": "Next month",
   "slot.seatsAvailable": "{count} available",
+  "slot.eventLabel": "Event",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -974,7 +982,7 @@ function canLeaveStep(stepId, ctx, opts = {}) {
     case "service":
       return { ok: ctx.serviceId != null, errors: ctx.serviceId != null ? {} : { service: "validation.serviceRequired" } };
     case "datetime": {
-      const ok = ctx.lock != null || (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
+      const ok = ctx.lock != null || ctx.eventDateId != null || (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
       return { ok, errors: ok ? {} : { datetime: "validation.slotRequired" } };
     }
     case "event": {
@@ -1309,6 +1317,7 @@ var Wizard = class {
   }
   // ---- Slot / range / event selection (acquire lock) ==================
   async selectSlot({ date, time, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = date;
     this._ctx.time = time;
     this._ctx.slotQuantity = quantity;
@@ -1317,6 +1326,7 @@ var Wizard = class {
     return this._acquire("slot", body, () => this._emitter.emit("slot:selected", { date, time, quantity }));
   }
   async selectRange({ startDate, endDate, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
@@ -1326,6 +1336,8 @@ var Wizard = class {
   }
   async selectEventDate(rawId, { quantity = 1 } = {}) {
     const id = toId(rawId);
+    this._ctx.date = null;
+    this._ctx.time = null;
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
     this._ctx.quantity = quantity;
@@ -1364,13 +1376,13 @@ var Wizard = class {
       this._syncLockAfterFailure();
       if (bestEffort) {
         onSuccess();
-      } else {
-        this._emitter.emit("error", {
-          message: res.message || this._i18n.t("error.slotReserved"),
-          code: "slot_reserved",
-          recoverable: true
-        });
+        return { ...res, bestEffort: true };
       }
+      this._emitter.emit("error", {
+        message: res.message || this._i18n.t("error.slotReserved"),
+        code: "slot_reserved",
+        recoverable: true
+      });
     }
     return res;
   }
@@ -1476,11 +1488,21 @@ var Wizard = class {
     if (data === null) return null;
     return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
-  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
+  /**
+   * Event dates, stored on the context. A month-scoped call (the booking flow's
+   * merged calendar) must not drop the already-selected event just because it
+   * falls outside the newly-loaded month — `selectedEvent`/`unitPrice`/the
+   * review step all resolve it by looking it up in this list. Emits `data:loaded`.
+   */
   async loadEventDates(query = {}) {
     const data = await this._load(() => this._api.eventDates(this._pruned(query)));
     if (data === null) return null;
     const eventDates = data.eventDates || [];
+    const selectedId = this._ctx.eventDateId;
+    if (selectedId != null && !eventDates.some((e) => e.id === selectedId)) {
+      const previouslySelected = this._ctx.eventDates.find((e) => e.id === selectedId);
+      if (previouslySelected) eventDates.push(previouslySelected);
+    }
     this._ctx.eventDates = eventDates;
     this._emitter.emit("data:loaded", { kind: "eventDates", items: eventDates });
     return eventDates;
@@ -1695,18 +1717,7 @@ var Wizard = class {
     return res || { paid: false };
   }
   _buildBookingBody(fields, addToCart) {
-    const extras = {};
-    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
-      if (qty > 0) extras[id] = qty;
-    }
-    const body = this._pruned({
-      serviceId: this._ctx.serviceId,
-      eventDateId: this._ctx.eventDateId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      date: this._ctx.date,
-      time: this._ctx.time,
-      quantity: this._ctx.quantity,
+    const customer = {
       customerName: this._ctx.customer.name,
       customerEmail: this._ctx.customer.email,
       customerPhone: this._ctx.customer.phone,
@@ -1714,6 +1725,23 @@ var Wizard = class {
       softLockToken: this._lock.token,
       addToCart: addToCart ? "1" : "0",
       siteHandle: this._config.siteHandle || ""
+    };
+    if (this._ctx.eventDateId != null) {
+      const body2 = this._pruned({ eventDateId: this._ctx.eventDateId, quantity: this._ctx.quantity, ...customer });
+      return { ...body2, ...fields };
+    }
+    const extras = {};
+    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
+      if (qty > 0) extras[id] = qty;
+    }
+    const body = this._pruned({
+      serviceId: this._ctx.serviceId,
+      employeeId: this._ctx.employeeId,
+      locationId: this._ctx.locationId,
+      date: this._ctx.date,
+      time: this._ctx.time,
+      quantity: this._ctx.quantity,
+      ...customer
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
     if (this._ctx.isDayService && this._ctx.endDate) {

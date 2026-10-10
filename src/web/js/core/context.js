@@ -73,8 +73,14 @@ export class Context {
 
   // ---- Computed: extras ================================================
 
-  /** Σ extra.price × quantity over selected add-ons. */
+  /**
+   * Σ extra.price × quantity over selected add-ons. Zero once an event date is
+   * the active selection — extras are a service concept, and a leftover
+   * selection from a service browsed before switching to an event must not
+   * inflate the event's price (or get submitted; see Wizard#_buildBookingBody).
+   */
   get extrasTotal() {
+    if (this.eventDateId != null) return 0;
     let total = 0;
     for (const [extraId, quantity] of Object.entries(this.selectedExtras)) {
       const extra = this.extras.find((e) => e.id === parseInt(extraId, 10));
@@ -143,12 +149,15 @@ export class Context {
   setService(service) {
     this.selectedService = service ?? null;
     this.serviceId = service?.id ?? null;
-    // Selecting a service invalidates downstream selections.
+    // Selecting a service invalidates downstream selections, including an
+    // event picked earlier in the same datetime step (merged calendar) — it
+    // must not survive a service change and get booked instead of this one.
     this.selectedExtras = {};
     this.employeeId = null;
     this.selectedEmployee = null;
     this.locationId = null;
     this.selectedLocation = null;
+    this.eventDateId = null;
     this.date = null;
     this.time = null;
     this.endDate = null;

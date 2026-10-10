@@ -1913,6 +1913,7 @@ return [
     'calendar.prevMonth' => 'Previous month',
     'calendar.nextMonth' => 'Next month',
     'slot.seatsAvailable' => '{count} available',
+    'slot.eventLabel' => 'Event',
     'error.generic' => 'Something went wrong. Please try again.',
     'error.booking' => 'Your booking could not be completed.',
     'error.slotReserved' => 'That time was just taken. Please choose another.',

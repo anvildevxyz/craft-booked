@@ -27,6 +27,11 @@ describe('Context — extras math', () => {
     const c = new Context({ extras, selectedExtras: { '1': 1 } });
     expect(c.extrasTotal).toBe(10);
   });
+
+  it('zeroes out once an event date is selected, even with extras left over from an abandoned service', () => {
+    const c = new Context({ extras, selectedExtras: { 1: 2, 2: 1 }, eventDateId: 77 });
+    expect(c.extrasTotal).toBe(0);
+  });
 });
 
 describe('Context — duration days', () => {
@@ -132,6 +137,14 @@ describe('Context — mutators', () => {
     c.setService({ id: 7, price: 40, durationType: 'minutes' });
     expect(c.isDayService).toBe(false);
     expect(c.isFlexibleDayService).toBe(false);
+  });
+
+  it('setService clears an event picked earlier in the same datetime step (#132 follow-up)', () => {
+    // Otherwise the stale event, not the newly chosen service, gets booked.
+    const c = new Context({ eventDateId: 77, eventDates: [{ id: 77, price: 25 }] });
+    c.setService({ id: 7, price: 40, durationType: 'minutes' });
+    expect(c.eventDateId).toBeNull();
+    expect(c.selectedEvent).toBeNull();
   });
 
   it('setExtraQuantity adds and removes', () => {

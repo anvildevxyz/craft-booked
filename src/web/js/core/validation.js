@@ -52,8 +52,13 @@ export function canLeaveStep(stepId, ctx, opts = {}) {
     case 'service':
       return { ok: ctx.serviceId != null, errors: ctx.serviceId != null ? {} : { service: 'validation.serviceRequired' } };
     case 'datetime': {
-      // A held lock (slot or range) means a valid selection was made.
-      const ok = ctx.lock != null || (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
+      // A held lock (slot or range) means a valid selection was made. An event
+      // picked from the merged calendar (booking flow) counts too, even
+      // without a lock — event locks are best-effort (see Wizard#selectEventDate).
+      const ok =
+        ctx.lock != null ||
+        ctx.eventDateId != null ||
+        (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
       return { ok, errors: ok ? {} : { datetime: 'validation.slotRequired' } };
     }
     case 'event': {

@@ -74,13 +74,26 @@ This works identically to the propagation system on Services and Service Extras.
 
 ## Frontend Booking Flow
 
-When customers book through the frontend, they can select from available events:
+Customers can book an event in two ways.
+
+### The dedicated event wizard
+
+Embed `{% include 'booked/frontend/event-wizard' %}` on its own page. Customers browse a list of upcoming events and pick one:
 
 1. **Step 1**: Customer views available events
 2. **Step 2**: Customer selects an event to book
 3. **Step 3+**: Continue with the booking flow (customer details, confirmation, etc.)
 
-The event's date and time are automatically used for the booking, so customers don't need to select a date/time manually.
+### Merged into the regular booking wizard
+
+The regular `{% include 'booked/frontend/wizard' %}` embed also surfaces events on its calendar step, labeled "Event" and shown apart from a regular time slot. A site that only embeds the appointment wizard still lets customers find and book an event — no second embed needed.
+
+- Only the single-date calendar shows events. Multi-day (`days` / `flexible_days`) services never merge events.
+- An event with a **Location** set shows only when that location is the one the customer picked in the wizard. An event with no location always shows.
+- A sold-out event drops off the merged calendar entirely — its day goes back to unavailable, the same as a fully-booked regular day. There is no waitlist option here. A customer who wants to join the waitlist for a full event needs the dedicated event wizard.
+- Picking an event this way books it exactly like the dedicated wizard does: no employee is assigned, and the reservation carries no service, employee, or location of its own.
+
+In both cases, the event's date and time are automatically used for the booking, so customers don't need to select a date/time manually.
 
 ## Managing Event Dates
 
@@ -285,6 +298,7 @@ $reservation = $bookingService->createBooking([
 - Verify the event date is in the future
 - Check that the event hasn't reached capacity
 - On multi-site installations, check the event's **propagation method** — if set to "Only save to the site it was created in", it won't appear on other sites
+- If it's missing specifically from the *regular* booking wizard's calendar (not the dedicated event wizard), check the event's **Location** — it only shows there when it matches the location currently selected in that wizard. Leave Location empty to make it show regardless of location.
 
 ### Capacity Not Updating
 

@@ -315,6 +315,25 @@
   outline-offset: -2px;
 }
 
+/* Event-date marker: a small dot under any day with at least one event, so a
+   day is visibly worth opening even when the regular schedule alone wouldn't
+   make it bookable. */
+.booked-calendar td[data-has-event='true'] {
+  position: relative;
+}
+
+.booked-calendar td[data-has-event='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 0.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--booked-success);
+}
+
 /* --- Slot listbox ------------------------------------------------------- */
 
 .booked-slots {
@@ -356,6 +375,37 @@
   display: block;
   font-size: 0.75em;
   font-weight: 400;
+  opacity: 0.75;
+}
+
+/* An event option, in the same listbox as regular time slots — stacked and
+   badged so it reads as a different kind of thing, not a coincidental time. */
+.booked-slots [data-booked-event-id] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+}
+
+.booked-slot__event-badge {
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--booked-tracking);
+  color: var(--booked-success);
+}
+
+.booked-slots [data-booked-event-id][aria-selected='true'] .booked-slot__event-badge {
+  color: var(--booked-on-primary);
+}
+
+.booked-slot__event-title {
+  font-weight: 600;
+}
+
+.booked-slot__event-time {
+  font-size: 0.8em;
   opacity: 0.75;
 }
 

@@ -55,8 +55,18 @@ Key hooks:
 | `[data-booked-action="next\|back\|submit\|select-service\|select-location\|select-employee\|select-event\|extra-increment\|extra-decrement\|join-waitlist"]` | Delegated actions |
 | `[data-booked-field="…"]` | Card/summary field slots and info inputs |
 | `[data-booked-calendar]` / `[data-booked-slots]` | Calendar mount / slot listbox |
+| `[data-has-event]` (on a calendar day cell) | Day has a matching event — booking flow's single-date calendar only |
+| `[data-booked-time]` / `[data-booked-event-id]` (options inside `[data-booked-slots]`) | A regular time vs. an event — the booking flow's calendar step lists matching events alongside regular slots, labeled apart from a time (see [EVENT_BOOKINGS.md](../EVENT_BOOKINGS.md#merged-into-the-regular-booking-wizard)) |
 | `[data-booked-progress]`, `[data-booked-live]`, `[data-booked-error]`, `[data-booked-loading]` | Chrome |
 | `[data-booked-honeypot]`, `[data-booked-captcha-token]` | Anti-spam fields sent with submit |
+
+The booking flow's `datetime` step is the only step that renders both kinds of
+option — an event is never shown on the multi-day (`days` / `flexible_days`)
+range calendar. Clicking an event option calls `selectEventDate()`, exactly
+like the dedicated event flow's `event` step does; clicking a time option
+calls `selectSlot()`. The two are mutually exclusive — picking one clears the
+other — so a template that restyles `[data-booked-slots]` should expect either
+kind of option to appear there, not just `[data-booked-time]`.
 
 ---
 
@@ -102,7 +112,10 @@ const result = await wizard.submit();  // { confirmed } | { paying, redirectUrl 
 
 Availability loaders (for custom calendars): `loadCalendar({year,month})`,
 `loadSlots({date})`, `loadDates({month})`, `loadEndDates({startDate})`,
-`loadRangeCapacity({startDate,endDate})`, `loadEventDates()`.
+`loadRangeCapacity({startDate,endDate})`, `loadEventDates({dateFrom,dateTo})`.
+`loadEventDates()` works in the `'booking'` flow too, not just `'event'` — a
+custom calendar can call it alongside `loadCalendar()` and merge the results
+itself, the way the shipped vanilla renderer does.
 
 ### Events
 

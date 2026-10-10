@@ -299,8 +299,14 @@ var Context = class {
     this.reservation = initial.reservation ?? null;
   }
   // ---- Computed: extras ================================================
-  /** Σ extra.price × quantity over selected add-ons. */
+  /**
+   * Σ extra.price × quantity over selected add-ons. Zero once an event date is
+   * the active selection — extras are a service concept, and a leftover
+   * selection from a service browsed before switching to an event must not
+   * inflate the event's price (or get submitted; see Wizard#_buildBookingBody).
+   */
   get extrasTotal() {
+    if (this.eventDateId != null) return 0;
     let total = 0;
     for (const [extraId, quantity] of Object.entries(this.selectedExtras)) {
       const extra = this.extras.find((e) => e.id === parseInt(extraId, 10));
@@ -364,6 +370,7 @@ var Context = class {
     this.selectedEmployee = null;
     this.locationId = null;
     this.selectedLocation = null;
+    this.eventDateId = null;
     this.date = null;
     this.time = null;
     this.endDate = null;
@@ -848,6 +855,7 @@ var DEFAULTS = Object.freeze({
   "calendar.prevMonth": "Previous month",
   "calendar.nextMonth": "Next month",
   "slot.seatsAvailable": "{count} available",
+  "slot.eventLabel": "Event",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -921,7 +929,7 @@ function canLeaveStep(stepId, ctx, opts = {}) {
     case "service":
       return { ok: ctx.serviceId != null, errors: ctx.serviceId != null ? {} : { service: "validation.serviceRequired" } };
     case "datetime": {
-      const ok = ctx.lock != null || (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
+      const ok = ctx.lock != null || ctx.eventDateId != null || (ctx.isDayService ? !!ctx.date && !!ctx.endDate : !!ctx.date && !!ctx.time);
       return { ok, errors: ok ? {} : { datetime: "validation.slotRequired" } };
     }
     case "event": {
@@ -1256,6 +1264,7 @@ var Wizard = class {
   }
   // ---- Slot / range / event selection (acquire lock) ==================
   async selectSlot({ date, time, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = date;
     this._ctx.time = time;
     this._ctx.slotQuantity = quantity;
@@ -1264,6 +1273,7 @@ var Wizard = class {
     return this._acquire("slot", body, () => this._emitter.emit("slot:selected", { date, time, quantity }));
   }
   async selectRange({ startDate, endDate, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
@@ -1273,6 +1283,8 @@ var Wizard = class {
   }
   async selectEventDate(rawId, { quantity = 1 } = {}) {
     const id = toId(rawId);
+    this._ctx.date = null;
+    this._ctx.time = null;
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
     this._ctx.quantity = quantity;
@@ -1311,13 +1323,13 @@ var Wizard = class {
       this._syncLockAfterFailure();
       if (bestEffort) {
         onSuccess();
-      } else {
-        this._emitter.emit("error", {
-          message: res.message || this._i18n.t("error.slotReserved"),
-          code: "slot_reserved",
-          recoverable: true
-        });
+        return { ...res, bestEffort: true };
       }
+      this._emitter.emit("error", {
+        message: res.message || this._i18n.t("error.slotReserved"),
+        code: "slot_reserved",
+        recoverable: true
+      });
     }
     return res;
   }
@@ -1423,11 +1435,21 @@ var Wizard = class {
     if (data === null) return null;
     return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
-  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
+  /**
+   * Event dates, stored on the context. A month-scoped call (the booking flow's
+   * merged calendar) must not drop the already-selected event just because it
+   * falls outside the newly-loaded month — `selectedEvent`/`unitPrice`/the
+   * review step all resolve it by looking it up in this list. Emits `data:loaded`.
+   */
   async loadEventDates(query = {}) {
     const data = await this._load(() => this._api.eventDates(this._pruned(query)));
     if (data === null) return null;
     const eventDates = data.eventDates || [];
+    const selectedId = this._ctx.eventDateId;
+    if (selectedId != null && !eventDates.some((e) => e.id === selectedId)) {
+      const previouslySelected = this._ctx.eventDates.find((e) => e.id === selectedId);
+      if (previouslySelected) eventDates.push(previouslySelected);
+    }
     this._ctx.eventDates = eventDates;
     this._emitter.emit("data:loaded", { kind: "eventDates", items: eventDates });
     return eventDates;
@@ -1642,18 +1664,7 @@ var Wizard = class {
     return res || { paid: false };
   }
   _buildBookingBody(fields, addToCart) {
-    const extras = {};
-    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
-      if (qty > 0) extras[id] = qty;
-    }
-    const body = this._pruned({
-      serviceId: this._ctx.serviceId,
-      eventDateId: this._ctx.eventDateId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      date: this._ctx.date,
-      time: this._ctx.time,
-      quantity: this._ctx.quantity,
+    const customer = {
       customerName: this._ctx.customer.name,
       customerEmail: this._ctx.customer.email,
       customerPhone: this._ctx.customer.phone,
@@ -1661,6 +1672,23 @@ var Wizard = class {
       softLockToken: this._lock.token,
       addToCart: addToCart ? "1" : "0",
       siteHandle: this._config.siteHandle || ""
+    };
+    if (this._ctx.eventDateId != null) {
+      const body2 = this._pruned({ eventDateId: this._ctx.eventDateId, quantity: this._ctx.quantity, ...customer });
+      return { ...body2, ...fields };
+    }
+    const extras = {};
+    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
+      if (qty > 0) extras[id] = qty;
+    }
+    const body = this._pruned({
+      serviceId: this._ctx.serviceId,
+      employeeId: this._ctx.employeeId,
+      locationId: this._ctx.locationId,
+      date: this._ctx.date,
+      time: this._ctx.time,
+      quantity: this._ctx.quantity,
+      ...customer
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
     if (this._ctx.isDayService && this._ctx.endDate) {
@@ -2310,6 +2338,7 @@ var Calendar = class {
    * @param {string} [opts.max]         latest selectable 'YYYY-MM-DD'
    * @param {number} [opts.firstDay]    0=Sunday, 1=Monday (default 1)
    * @param {(date: string) => boolean} [opts.isAvailable]
+   * @param {(date: string) => boolean} [opts.hasEvent]  marks a day with `data-has-event` (purely cosmetic; callers decide what "event" means)
    * @param {(date: string) => void} [opts.onSelect]
    * @param {(ym: {year:number, month:number}) => void} [opts.onMonthChange]
    * @param {Object} [opts.labels]
@@ -2321,6 +2350,7 @@ var Calendar = class {
     this._max = opts.max ?? null;
     this._firstDay = opts.firstDay ?? 1;
     this._isAvailable = typeof opts.isAvailable === "function" ? opts.isAvailable : () => true;
+    this._hasEvent = typeof opts.hasEvent === "function" ? opts.hasEvent : null;
     this._onSelect = opts.onSelect ?? (() => {
     });
     this._onMonthChange = opts.onMonthChange ?? (() => {
@@ -2485,6 +2515,7 @@ var Calendar = class {
     }
     td.setAttribute("aria-selected", isSelected ? "true" : "false");
     if (!selectable) td.setAttribute("aria-disabled", "true");
+    if (this._hasEvent && this._hasEvent(date)) td.setAttribute("data-has-event", "true");
     td.tabIndex = isFocused ? 0 : -1;
     return td;
   }
@@ -2626,6 +2657,9 @@ var state = /* @__PURE__ */ new WeakMap();
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
+function lastDayOfMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
 function calendarLabels(wizard) {
   return {
     prevMonth: wizard.t("calendar.prevMonth"),
@@ -2643,6 +2677,8 @@ var datetimeStep = {
     const slotList = qs("[data-booked-slots]", region);
     const s = {
       calMap: {},
+      eventsByDate: /* @__PURE__ */ new Map(),
+      // 'YYYY-MM-DD' → EventDate[], single-slot calendar only
       availSet: /* @__PURE__ */ new Set(),
       validEndSet: /* @__PURE__ */ new Set(),
       pickingEnd: false,
@@ -2670,6 +2706,25 @@ var datetimeStep = {
           s.qtyMax = Number(el.getAttribute("data-booked-capacity")) || 1;
           s.qtyValue = 1;
           s.reacquire = (quantity) => wizard.selectSlot({ date: s.selectedDate, time, quantity });
+          this._renderQuantity(region, s);
+        }
+      });
+      delegate(slotList, "click", "[data-booked-event-id]", async (event, el) => {
+        if (el.getAttribute("aria-disabled") === "true") return;
+        const id = Number(el.getAttribute("data-booked-event-id"));
+        if (!Number.isInteger(id)) return;
+        const res = await wizard.selectEventDate(id, { quantity: 1 });
+        if (res && (res.acquired || res.bestEffort)) {
+          for (const opt of slotList.querySelectorAll('[role="option"]')) {
+            opt.setAttribute(
+              "aria-selected",
+              opt.getAttribute("data-booked-event-id") === String(id) ? "true" : "false"
+            );
+          }
+          const evt = (s.eventsByDate.get(s.selectedDate) || []).find((e) => e.id === id);
+          s.qtyMax = evt && evt.remainingCapacity > 1 ? evt.remainingCapacity : 1;
+          s.qtyValue = 1;
+          s.reacquire = (quantity) => wizard.selectEventDate(id, { quantity });
           this._renderQuantity(region, s);
         }
       });
@@ -2721,35 +2776,69 @@ var datetimeStep = {
     }
   },
   _buildSingleCalendar(region, wizard, s, calContainer, initialMonth, iy, im) {
+    const isAvailable = (date) => s.calMap[date] && s.calMap[date].isBookable === true || s.eventsByDate.has(date);
     const cal = new Calendar(calContainer, {
       month: initialMonth,
       mode: "single",
       locale: wizard.getState()?.context?.locale,
       labels: calendarLabels(wizard),
-      isAvailable: (date) => s.calMap[date] && s.calMap[date].isBookable === true,
+      isAvailable,
+      hasEvent: (date) => s.eventsByDate.has(date),
       onMonthChange: async ({ year, month }) => {
-        const map = await wizard.loadCalendar({ year, month });
-        if (map) {
-          s.calMap = map;
-          cal.setAvailability((d) => s.calMap[d] && s.calMap[d].isBookable === true);
-        }
+        const [map, eventsUpdated] = await Promise.all([
+          wizard.loadCalendar({ year, month }),
+          this._loadEventsForMonth(wizard, s, year, month)
+        ]);
+        if (map) s.calMap = map;
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       },
       onSelect: async (date) => {
         s.selectedDate = date;
         const res = await wizard.loadSlots({ date });
         if (res) {
           s.waitlistAvailable = res.waitlistAvailable;
-          this._renderSlots(region, res.slots, s, wizard);
+          this._renderSlots(region, res.slots, s.eventsByDate.get(date) || [], s, wizard);
         }
       }
     });
     s.cal = cal;
-    wizard.loadCalendar({ year: iy, month: im }).then((map) => {
-      if (map) {
-        s.calMap = map;
-        cal.setAvailability((d) => s.calMap[d] && s.calMap[d].isBookable === true);
+    Promise.all([wizard.loadCalendar({ year: iy, month: im }), this._loadEventsForMonth(wizard, s, iy, im)]).then(
+      ([map, eventsUpdated]) => {
+        if (map) s.calMap = map;
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       }
-    });
+    );
+  },
+  /**
+   * Load event dates for a month into `s.eventsByDate` ('YYYY-MM-DD' → EventDate[]),
+   * kept only when they match the currently selected location (or have none) and
+   * still have a spot — a sold-out event must not keep a day looking bookable,
+   * same as a fully-booked regular day reports `isBookable: false` server-side
+   * (AvailabilityService::filterByCapacity). The merged calendar offers no
+   * per-event waitlist, so there is nothing useful left to show once it's full.
+   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`
+   * — and returns false then, so the caller knows not to force a re-render.
+   *
+   * A location-less event always passes the location check; a located event
+   * needs an exact match, which correctly excludes it when the wizard has no
+   * selected location at all (a zero-location service never sets one) rather
+   * than letting every location's events leak in.
+   */
+  async _loadEventsForMonth(wizard, s, year, month) {
+    const dateFrom = `${year}-${pad2(month)}-01`;
+    const dateTo = `${year}-${pad2(month)}-${pad2(lastDayOfMonth(year, month))}`;
+    const events = await wizard.loadEventDates({ dateFrom, dateTo });
+    if (events === null) return false;
+    const locationId = wizard.getState().context.locationId;
+    const byDate = /* @__PURE__ */ new Map();
+    for (const evt of events) {
+      if (evt.isFullyBooked) continue;
+      if (evt.locationId != null && evt.locationId !== locationId) continue;
+      if (!byDate.has(evt.date)) byDate.set(evt.date, []);
+      byDate.get(evt.date).push(evt);
+    }
+    s.eventsByDate = byDate;
+    return true;
   },
   _buildDayCalendar(region, wizard, s, calContainer, initialMonth, iy, im, isFlexible) {
     const startAvailability = (d) => s.availSet.has(d);
@@ -2843,12 +2932,16 @@ var datetimeStep = {
     this._renderQuantity(region, s);
     await s.reacquire(next);
   },
-  _renderSlots(region, slots, s, wizard) {
+  _renderSlots(region, slots, events, s, wizard) {
     const list2 = qs("[data-booked-slots]", region);
     if (!list2) return;
     list2.replaceChildren();
     s.reacquire = null;
     this._renderQuantity(region, s);
+    const selectedEventId = wizard.getState().context.eventDateId;
+    for (const evt of events) {
+      list2.appendChild(this._eventOption(evt, selectedEventId, wizard));
+    }
     const selectedTime = wizard.getState().context.time;
     for (const slot of slots) {
       const opt = document.createElement("button");
@@ -2879,6 +2972,28 @@ var datetimeStep = {
         setHidden(qs("[data-booked-waitlist-success]", region), true);
       }
     }
+  },
+  /** Build one event option for the slot listbox — visually and semantically distinct from a time slot. */
+  _eventOption(evt, selectedEventId, wizard) {
+    const opt = document.createElement("button");
+    opt.type = "button";
+    opt.setAttribute("role", "option");
+    opt.setAttribute("data-booked-event-id", String(evt.id));
+    opt.setAttribute("aria-selected", evt.id === selectedEventId ? "true" : "false");
+    if (evt.isFullyBooked) opt.setAttribute("aria-disabled", "true");
+    const badge = document.createElement("span");
+    badge.className = "booked-slot__event-badge";
+    badge.textContent = wizard.t("slot.eventLabel");
+    opt.appendChild(badge);
+    const title = document.createElement("span");
+    title.className = "booked-slot__event-title";
+    title.textContent = evt.title || "";
+    opt.appendChild(title);
+    const time = document.createElement("span");
+    time.className = "booked-slot__event-time";
+    time.textContent = evt.formattedTimeRange || evt.startTime || "";
+    opt.appendChild(time);
+    return opt;
   }
 };
 
@@ -3068,8 +3183,9 @@ var reviewStep = {
     const evt = context.selectedEvent || null;
     const currencySymbol = context.commerce?.currencySymbol;
     setRow(region, "service", evt ? evt.title ?? "" : svc.title ?? "");
-    setRow(region, "employee", context.selectedEmployee?.name ?? "");
-    setRow(region, "location", context.selectedLocation?.name ?? "");
+    setRow(region, "employee", evt ? "" : context.selectedEmployee?.name ?? "");
+    const evtLocationName = evt?.locationId != null ? (context.locations || []).find((l) => l.id === evt.locationId)?.name ?? "" : "";
+    setRow(region, "location", evt ? evtLocationName : context.selectedLocation?.name ?? "");
     const isRange = context.isDayService && context.endDate;
     setRow(region, "date", isRange ? "" : context.date ?? (evt ? evt.formattedDate ?? evt.date ?? "" : ""));
     setRow(region, "time", isRange ? "" : context.time ?? (evt ? evt.formattedTimeRange ?? evt.startTime ?? "" : ""));
