@@ -1800,7 +1800,8 @@
     padding-right: 8px;
 }
 
-#bookings-filter-form {
+#bookings-filter-form,
+#customers-filter-form {
     margin-bottom: 14px;
 }
 
@@ -1844,13 +1845,15 @@
 }
 
 /* Booking details card */
-.booked-booking-edit #booking-details {
+.booked-booking-edit #booking-details,
+.booked-customer-detail #booking-history {
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid var(--gray-200);
 }
 
-.booked-booking-edit #booking-details h2 {
+.booked-booking-edit #booking-details h2,
+.booked-customer-detail #booking-history h2 {
     font-size: 14px;
     font-weight: 600;
     color: var(--gray-500);
@@ -1859,21 +1862,24 @@
     margin: 0 0 16px 0;
 }
 
-.booked-booking-edit .booking-card {
+.booked-booking-edit .booking-card,
+.booked-customer-detail .booking-card {
     background: var(--gray-050);
     border: 1px solid var(--gray-200);
     border-radius: 8px;
     overflow: hidden;
 }
 
-.booked-booking-edit .booking-row {
+.booked-booking-edit .booking-row,
+.booked-customer-detail .booking-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1px;
     background: var(--gray-200);
 }
 
-.booked-booking-edit .booking-item {
+.booked-booking-edit .booking-item,
+.booked-customer-detail .booking-item {
     background: var(--gray-050);
     padding: 16px;
     display: flex;
@@ -1881,7 +1887,8 @@
     gap: 4px;
 }
 
-.booked-booking-edit .booking-label {
+.booked-booking-edit .booking-label,
+.booked-customer-detail .booking-label {
     font-size: 11px;
     font-weight: 600;
     color: var(--gray-500);
@@ -1889,7 +1896,8 @@
     letter-spacing: 0.3px;
 }
 
-.booked-booking-edit .booking-value {
+.booked-booking-edit .booking-value,
+.booked-customer-detail .booking-value {
     font-size: 14px;
     font-weight: 500;
     color: var(--text-color);

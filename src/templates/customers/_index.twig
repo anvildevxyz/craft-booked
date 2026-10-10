@@ -15,26 +15,26 @@
 {% endmacro %}
 
 {% block content %}
-    <form method="get" action="{{ url('booked/customers') }}" class="booked-customers-search">
-        <div class="toolbar flex flex-nowrap">
-            <div class="flex-grow texticon search icon clearable">
-                <input type="text"
-                       name="search"
-                       id="search-input"
-                       class="text fullwidth"
-                       placeholder="{{ 'customers.searchPlaceholder'|t('booked') }}"
-                       value="{{ search }}"
-                       autocomplete="off">
+    <div class="tableview" id="customers-tableview">
+        <form method="get" action="{{ url('booked/customers') }}" id="customers-filter-form">
+            <div class="toolbar flex flex-nowrap">
+                <div class="flex-grow texticon search icon clearable">
+                    <input type="text"
+                           name="search"
+                           id="search-input"
+                           class="text fullwidth"
+                           placeholder="{{ 'customers.searchPlaceholder'|t('booked') }}"
+                           value="{{ search }}"
+                           autocomplete="off">
+                </div>
+                <button type="submit" class="btn">{{ 'labels.filter'|t('booked') }}</button>
+                {% if search %}
+                    <a class="btn" href="{{ url('booked/customers') }}">{{ 'buttons.clear'|t('booked') }}</a>
+                {% endif %}
             </div>
-            <button type="submit" class="btn">{{ 'labels.filter'|t('booked') }}</button>
-            {% if search %}
-                <a class="btn" href="{{ url('booked/customers') }}">{{ 'buttons.clear'|t('booked') }}</a>
-            {% endif %}
-        </div>
-    </form>
+        </form>
 
-    {% if customers|length %}
-        <div class="tableview">
+        {% if customers|length %}
             <table class="data fullwidth">
                 <thead>
                     <tr>
@@ -79,29 +79,29 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
 
-        {% if totalPages > 1 %}
-            <div class="booked-pagination">
-                {% set pageParams = search ? { search: search, sort: sort, dir: dir } : { sort: sort, dir: dir } %}
-                {% if page > 1 %}
-                    <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page - 1 })) }}">
-                        {{ 'calendar.previous'|t('booked') }}
-                    </a>
-                {% endif %}
-                <span class="light">{{ 'customers.pageOf'|t('booked', { page: page, total: totalPages }) }}</span>
-                {% if page < totalPages %}
-                    <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page + 1 })) }}">
-                        {{ 'calendar.next'|t('booked') }}
-                    </a>
-                {% endif %}
+            {% if totalPages > 1 %}
+                <div class="booked-pagination">
+                    {% set pageParams = search ? { search: search, sort: sort, dir: dir } : { sort: sort, dir: dir } %}
+                    {% if page > 1 %}
+                        <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page - 1 })) }}">
+                            {{ 'calendar.previous'|t('booked') }}
+                        </a>
+                    {% endif %}
+                    <span class="light">{{ 'customers.pageOf'|t('booked', { page: page, total: totalPages }) }}</span>
+                    {% if page < totalPages %}
+                        <a class="btn" href="{{ url('booked/customers', pageParams|merge({ page: page + 1 })) }}">
+                            {{ 'calendar.next'|t('booked') }}
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <p class="light">{{ 'customers.totalCount'|t('booked', { count: total }) }}</p>
+        {% else %}
+            <div class="zilch">
+                <p>{{ search ? 'customers.noneMatching'|t('booked') : 'customers.none'|t('booked') }}</p>
             </div>
         {% endif %}
-
-        <p class="light">{{ 'customers.totalCount'|t('booked', { count: total }) }}</p>
-    {% else %}
-        <div class="zilch">
-            <p>{{ search ? 'customers.noneMatching'|t('booked') : 'customers.none'|t('booked') }}</p>
-        </div>
-    {% endif %}
+    </div>
 {% endblock %}
