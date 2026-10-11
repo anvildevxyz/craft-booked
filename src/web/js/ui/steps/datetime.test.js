@@ -83,6 +83,28 @@ describe('datetimeStep — calendar', () => {
   });
 });
 
+describe('datetimeStep — times heading names the service', () => {
+  it('shows "Available Times — {service}" on a day with no event', async () => {
+    const { region } = await setup({
+      services: vi.fn(async () => ({ services: [{ id: 12, title: 'Studio Session', price: 35, durationType: 'minutes' }] })),
+    });
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull());
+    const heading = region.querySelector('.booked-slots__group-heading');
+    expect(heading.textContent).toBe('Available Times — Studio Session');
+  });
+
+  it('falls back to plain "Available Times" when the service has no title', async () => {
+    const { region } = await setup();
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull());
+    const heading = region.querySelector('.booked-slots__group-heading');
+    expect(heading.textContent).toBe('Available Times');
+  });
+});
+
 describe('datetimeStep — slots', () => {
   it('selecting an available day loads and renders the slot listbox', async () => {
     const { region } = await setup();
@@ -296,6 +318,37 @@ describe('datetimeStep — merged events (#132)', () => {
     expect(wizard.getState().context.eventDateId).toBeNull();
   });
 
+  it('labels the two groups with a divider when a day has both an event and regular slots', async () => {
+    const { region } = await setup(eventOverrides());
+    await vi.waitFor(() => expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-11').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-event-id="77"]')).not.toBeNull());
+    // The fixture's slots mock returns the same slots for every date, so
+    // 2026-08-11 has both the event and regular slots — a mixed day.
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull());
+
+    const list = region.querySelector('[data-booked-slots]');
+    const headings = Array.from(list.querySelectorAll('.booked-slots__group-heading')).map((h) => h.textContent);
+    expect(headings).toEqual(['Events', 'Available Times']);
+    expect(list.querySelector('.booked-slots__divider')).not.toBeNull();
+    // Both headings precede their own group: Events before the event card,
+    // the divider + Times heading between the event card and the first slot.
+    const eventOpt = region.querySelector('[data-booked-event-id="77"]');
+    const firstSlot = slot(region, '10:00');
+    expect(eventOpt.compareDocumentPosition(firstSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('omits the group headings and divider on an event-only day (no regular slots)', async () => {
+    const { region } = await setup(eventOverrides({ slots: vi.fn(async () => ({ slots: [] })) }));
+    await vi.waitFor(() => expect(day(region, '2026-08-11').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-11').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-event-id="77"]')).not.toBeNull());
+
+    const list = region.querySelector('[data-booked-slots]');
+    expect(list.querySelectorAll('.booked-slots__group-heading')).toHaveLength(0);
+    expect(list.querySelector('.booked-slots__divider')).toBeNull();
+  });
+
   it('excludes an event whose location does not match the one currently selected', async () => {
     const { region } = await setup(
       eventOverrides({
@@ -308,6 +361,23 @@ describe('datetimeStep — merged events (#132)', () => {
     );
     // Default setup auto-selects locationId 1 (a lone location) — 999 doesn't match.
     await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
+    expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
+  });
+
+  it('does not merge events once the customer explicitly chose a service from a list of several', async () => {
+    const eventDatesSpy = eventOverrides().eventDates;
+    const { region } = await setup({
+      services: vi.fn(async () => ({
+        services: [
+          { id: 12, name: 'Cut', price: 40, durationType: 'minutes' },
+          { id: 13, name: 'Color', price: 80, durationType: 'minutes' },
+        ],
+      })),
+      eventDates: eventDatesSpy,
+    });
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    expect(eventDatesSpy).not.toHaveBeenCalled();
     expect(day(region, '2026-08-11').getAttribute('aria-disabled')).toBe('true');
     expect(day(region, '2026-08-11').hasAttribute('data-has-event')).toBe(false);
   });

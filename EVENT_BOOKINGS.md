@@ -88,6 +88,7 @@ Embed `{% include 'booked/frontend/event-wizard' %}` on its own page. Customers 
 
 The regular `{% include 'booked/frontend/wizard' %}` embed also surfaces events on its calendar step, labeled "Event" and shown apart from a regular time slot. A site that only embeds the appointment wizard still lets customers find and book an event — no second embed needed.
 
+- Events only merge in when the customer never made an explicit choice among services: one enabled service, or one preselected by the integrator (e.g. a deep link). Once the customer picks a specific service from a list of several, the calendar shows only that service's own slots, with no events mixed in. A customer who wants to browse events in that case needs the dedicated event wizard.
 - Only the single-date calendar shows events. Multi-day (`days` / `flexible_days`) services never merge events.
 - An event with a **Location** set shows only when that location is the one the customer picked in the wizard. An event with no location always shows.
 - A sold-out event drops off the merged calendar entirely — its day goes back to unavailable, the same as a fully-booked regular day. There is no waitlist option here. A customer who wants to join the waitlist for a full event needs the dedicated event wizard.
@@ -299,6 +300,7 @@ $reservation = $bookingService->createBooking([
 - Check that the event hasn't reached capacity
 - On multi-site installations, check the event's **propagation method** — if set to "Only save to the site it was created in", it won't appear on other sites
 - If it's missing specifically from the *regular* booking wizard's calendar (not the dedicated event wizard), check the event's **Location** — it only shows there when it matches the location currently selected in that wizard. Leave Location empty to make it show regardless of location.
+- Also check whether the customer picked a service from a list of several enabled services — in that case the merged calendar never shows events, by design. It only merges events when there was no real service choice to make (one enabled service, or one preselected by the integrator).
 
 ### Capacity Not Updating
 

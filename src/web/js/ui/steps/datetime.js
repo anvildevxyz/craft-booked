@@ -10,13 +10,18 @@
  *    (`loadEndDates`) and constrains the calendar, the end pick `selectRange`s.
  *
  * The single-date calendar also surfaces event dates (`EventDate` elements)
- * alongside regular slots — labeled distinctly — so a customer browsing the
- * ordinary appointment calendar can also book a one-off event without a
- * separate embed. Day/range services never merge events: multi-day ranges and
- * fixed-date events are different enough concepts that conflating them would
- * risk real bugs for no real benefit. An event with a location only shows when
- * it matches the currently selected location (or has none — a standalone event
- * is location-agnostic, matching EVENT_BOOKINGS.md).
+ * alongside regular slots — labeled distinctly — so a customer dropped onto
+ * the calendar with no real service choice to make (one enabled service, or
+ * one preselected via a deep link) can still discover and book a one-off
+ * event. Once the customer explicitly picks a service from a list of several,
+ * that choice is respected: the calendar shows only that service's own slots,
+ * no events. (The dedicated event wizard remains the route for someone who
+ * wants to browse events instead of a service.) Day/range services never
+ * merge events either way: multi-day ranges and fixed-date events are
+ * different enough concepts that conflating them would risk real bugs for no
+ * real benefit. An event with a location only shows when it matches the
+ * currently selected location (or has none — a standalone event is
+ * location-agnostic, matching EVENT_BOOKINGS.md).
  *
  * Step renderers are shared singletons, so per-mount state lives in a WeakMap
  * keyed by the region. The calendar is (re)built whenever the service type
@@ -34,6 +39,18 @@ function pad(n) {
 /** Last day-of-month for a 1-based month, computed in UTC to avoid tz drift. */
 function lastDayOfMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Whether events should merge into this calendar at all: only when the
+ * customer never made an explicit choice among services (one enabled
+ * service, or one preselected via a deep link) — the #132 scenario where the
+ * calendar is the only screen they see. Once they pick a specific service
+ * from a list of several, that choice is respected and events stay out.
+ */
+function eventsEligible(wizard) {
+  const { servicePreselected, services } = wizard.getState().context;
+  return !!servicePreselected || (Array.isArray(services) && services.length === 1);
 }
 
 /** Translated aria-labels for the calendar's month-navigation buttons. */
@@ -220,8 +237,16 @@ export const datetimeStep = {
    * needs an exact match, which correctly excludes it when the wizard has no
    * selected location at all (a zero-location service never sets one) rather
    * than letting every location's events leak in.
+   *
+   * Skips the request entirely when the customer explicitly picked this
+   * service from a list of several — see `eventsEligible`.
    */
   async _loadEventsForMonth(wizard, s, year, month) {
+    if (!eventsEligible(wizard)) {
+      if (s.eventsByDate.size === 0) return false;
+      s.eventsByDate = new Map();
+      return true;
+    }
     const dateFrom = `${year}-${pad(month)}-01`;
     const dateTo = `${year}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
     const events = await wizard.loadEventDates({ dateFrom, dateTo });
@@ -350,9 +375,33 @@ export const datetimeStep = {
     s.reacquire = null;
     this._renderQuantity(region, s);
 
+    // When a day has both, label the two groups and split them with a rule —
+    // otherwise an event card reads as a stray, unexplained first "slot".
+    const mixed = events.length > 0 && slots.length > 0;
+
     const selectedEventId = wizard.getState().context.eventDateId;
-    for (const evt of events) {
-      list.appendChild(this._eventOption(evt, selectedEventId, wizard));
+    if (events.length > 0) {
+      if (mixed) list.appendChild(this._groupHeading(wizard.t('slot.eventsHeading')));
+      for (const evt of events) {
+        list.appendChild(this._eventOption(evt, selectedEventId, wizard));
+      }
+    }
+
+    if (slots.length > 0) {
+      if (mixed) {
+        const divider = document.createElement('hr');
+        divider.className = 'booked-slots__divider';
+        divider.setAttribute('aria-hidden', 'true');
+        list.appendChild(divider);
+      }
+      // Named every time a day has slots, not just when mixed with an event —
+      // a bare time option carries no service info on its own, unlike an
+      // event card, which names itself right on the card.
+      const serviceName = wizard.getState().context.selectedService?.title;
+      const timesHeading = serviceName
+        ? wizard.t('slot.timesHeadingForService', { service: serviceName })
+        : wizard.t('slot.timesHeading');
+      list.appendChild(this._groupHeading(timesHeading));
     }
 
     const selectedTime = wizard.getState().context.time;
@@ -419,5 +468,20 @@ export const datetimeStep = {
     opt.appendChild(time);
 
     return opt;
+  },
+
+  /**
+   * A purely visual label between the event and time groups in the slot
+   * listbox. `aria-hidden` because a listbox's accessible children are its
+   * options — a stray labeled node between them is not a standard listbox
+   * grouping construct, so screen-reader users get the same list a plain
+   * reading of the options already gives them, not a confusing extra stop.
+   */
+  _groupHeading(text) {
+    const h = document.createElement('div');
+    h.className = 'booked-slots__group-heading';
+    h.setAttribute('aria-hidden', 'true');
+    h.textContent = text;
+    return h;
   },
 };

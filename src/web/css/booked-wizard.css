@@ -396,6 +396,7 @@
   color: var(--booked-muted);
 }
 
+.booked-slots [data-booked-event-id]:hover:not([aria-disabled='true']) .booked-slot__event-badge,
 .booked-slots [data-booked-event-id][aria-selected='true'] .booked-slot__event-badge {
   color: var(--booked-on-primary);
 }
@@ -407,6 +408,26 @@
 .booked-slot__event-time {
   font-size: 0.8em;
   opacity: 0.75;
+}
+
+/* Group heading + divider between the event cards and the regular time
+   options, shown only on a day that has both — `.booked-slots` is a flex-wrap
+   row, so these take a full row of their own via flex-basis: 100%. */
+.booked-slots__group-heading {
+  flex: 1 0 100%;
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--booked-tracking);
+  color: var(--booked-muted);
+}
+
+.booked-slots__divider {
+  flex: 1 0 100%;
+  width: 100%;
+  border: none;
+  border-top: var(--booked-border-width) solid var(--booked-border-light);
+  margin: 0.25rem 0;
 }
 
 /* --- Waitlist branch ---------------------------------------------------- */

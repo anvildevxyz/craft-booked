@@ -856,6 +856,9 @@ var DEFAULTS = Object.freeze({
   "calendar.nextMonth": "Next month",
   "slot.seatsAvailable": "{count} available",
   "slot.eventLabel": "Event",
+  "slot.eventsHeading": "Events",
+  "slot.timesHeading": "Available Times",
+  "slot.timesHeadingForService": "Available Times \u2014 {service}",
   "error.generic": "Something went wrong. Please try again.",
   "error.booking": "Your booking could not be completed.",
   "error.slotReserved": "That time was just taken. Please choose another.",
@@ -2660,6 +2663,10 @@ function pad2(n) {
 function lastDayOfMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
+function eventsEligible(wizard) {
+  const { servicePreselected, services } = wizard.getState().context;
+  return !!servicePreselected || Array.isArray(services) && services.length === 1;
+}
 function calendarLabels(wizard) {
   return {
     prevMonth: wizard.t("calendar.prevMonth"),
@@ -2823,8 +2830,16 @@ var datetimeStep = {
    * needs an exact match, which correctly excludes it when the wizard has no
    * selected location at all (a zero-location service never sets one) rather
    * than letting every location's events leak in.
+   *
+   * Skips the request entirely when the customer explicitly picked this
+   * service from a list of several — see `eventsEligible`.
    */
   async _loadEventsForMonth(wizard, s, year, month) {
+    if (!eventsEligible(wizard)) {
+      if (s.eventsByDate.size === 0) return false;
+      s.eventsByDate = /* @__PURE__ */ new Map();
+      return true;
+    }
     const dateFrom = `${year}-${pad2(month)}-01`;
     const dateTo = `${year}-${pad2(month)}-${pad2(lastDayOfMonth(year, month))}`;
     const events = await wizard.loadEventDates({ dateFrom, dateTo });
@@ -2938,9 +2953,24 @@ var datetimeStep = {
     list2.replaceChildren();
     s.reacquire = null;
     this._renderQuantity(region, s);
+    const mixed = events.length > 0 && slots.length > 0;
     const selectedEventId = wizard.getState().context.eventDateId;
-    for (const evt of events) {
-      list2.appendChild(this._eventOption(evt, selectedEventId, wizard));
+    if (events.length > 0) {
+      if (mixed) list2.appendChild(this._groupHeading(wizard.t("slot.eventsHeading")));
+      for (const evt of events) {
+        list2.appendChild(this._eventOption(evt, selectedEventId, wizard));
+      }
+    }
+    if (slots.length > 0) {
+      if (mixed) {
+        const divider = document.createElement("hr");
+        divider.className = "booked-slots__divider";
+        divider.setAttribute("aria-hidden", "true");
+        list2.appendChild(divider);
+      }
+      const serviceName = wizard.getState().context.selectedService?.title;
+      const timesHeading = serviceName ? wizard.t("slot.timesHeadingForService", { service: serviceName }) : wizard.t("slot.timesHeading");
+      list2.appendChild(this._groupHeading(timesHeading));
     }
     const selectedTime = wizard.getState().context.time;
     for (const slot of slots) {
@@ -2994,6 +3024,20 @@ var datetimeStep = {
     time.textContent = evt.formattedTimeRange || evt.startTime || "";
     opt.appendChild(time);
     return opt;
+  },
+  /**
+   * A purely visual label between the event and time groups in the slot
+   * listbox. `aria-hidden` because a listbox's accessible children are its
+   * options — a stray labeled node between them is not a standard listbox
+   * grouping construct, so screen-reader users get the same list a plain
+   * reading of the options already gives them, not a confusing extra stop.
+   */
+  _groupHeading(text) {
+    const h = document.createElement("div");
+    h.className = "booked-slots__group-heading";
+    h.setAttribute("aria-hidden", "true");
+    h.textContent = text;
+    return h;
   }
 };
 
