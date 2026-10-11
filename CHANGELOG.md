@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0 - 2026-10-11
+
+### Added
+- **Customers can reschedule their own booking from the manage link.** ([#90](https://github.com/anvildevxyz/craft-booked/issues/90)) The backend already supported it, but nothing in any UI could reach it — the legacy manage page's docblock claimed otherwise, but had no reschedule form. The vanilla `?manage=<token>` wizard now gets a calendar + time-slot picker (reusing the same accessible calendar component the booking wizard uses), shown whenever the booking is eligible to move. Along the way, closed a real policy bypass: the reschedule endpoint only ever checked whether the booking was past or cancelled, so a customer inside the no-cancellation window could still move a booking to any open slot — defeating the exact policy that would block their cancel. `canBeRescheduled()` now mirrors `canBeCancelled()` exactly, and never grants more. Event bookings, multi-day bookings, and bookings already marked no-show are excluded — only a regular, single-day, still-reschedulable booking gets the picker. A rescheduled booking now also re-syncs an already-connected Google/Outlook calendar event (previously only a quantity change did this), and the confirmation email that follows gets the same ICS attachment every other date-changing email already carries. ([#135](https://github.com/anvildevxyz/craft-booked/pull/135))
+
 ## 1.6.0 - 2026-10-11
 
 ### Added
