@@ -545,6 +545,72 @@ class BookingServiceTest extends TestCase
         );
     }
 
+    public function testUpdateReservationCapturesPreviousDateTimeBeforeOverwriting(): void
+    {
+        // Must read $reservation->bookingDate/startTime BEFORE the field-copy
+        // loop overwrites them with the new values, or "previous" would just
+        // equal "new" by the time the event fires (#136).
+        $source = file_get_contents(
+            dirname(__DIR__, 3) . '/src/services/BookingService.php'
+        );
+        $methodStart = strpos($source, 'function updateReservation');
+        $this->assertNotFalse($methodStart, 'updateReservation method must exist');
+
+        $methodSource = substr($source, $methodStart, 5000);
+        $previousDatePos = strpos($methodSource, '$previousBookingDate = $reservation->bookingDate');
+        $previousTimePos = strpos($methodSource, '$previousStartTime = $reservation->startTime');
+        $fieldLoopPos = strpos($methodSource, 'foreach ([\'userName\'');
+
+        $this->assertNotFalse($previousDatePos, 'Must capture $previousBookingDate from the reservation');
+        $this->assertNotFalse($previousTimePos, 'Must capture $previousStartTime from the reservation');
+        $this->assertNotFalse($fieldLoopPos, 'The field-copy loop must exist');
+        $this->assertLessThan($fieldLoopPos, $previousDatePos, 'previousBookingDate must be captured before the field-copy loop overwrites it');
+        $this->assertLessThan($fieldLoopPos, $previousTimePos, 'previousStartTime must be captured before the field-copy loop overwrites it');
+    }
+
+    public function testUpdateReservationPassesRescheduleContextToTheEvent(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 3) . '/src/services/BookingService.php'
+        );
+        $methodStart = strpos($source, 'function updateReservation');
+        $this->assertNotFalse($methodStart, 'updateReservation method must exist');
+
+        $methodSource = substr($source, $methodStart, 5000);
+        foreach (["'isReschedule' => \$isReschedule", "'previousBookingDate' => \$previousBookingDate", "'previousStartTime' => \$previousStartTime"] as $needle) {
+            $this->assertStringContainsString(
+                $needle,
+                $methodSource,
+                "updateReservation must pass {$needle} to AfterBookingSaveEvent, so shared listeners (notification, calendar sync) can react to an actual reschedule"
+            );
+        }
+    }
+
+    public function testIsRescheduleDetectionCoversEveryFieldThatMovesTheSlot(): void
+    {
+        // A customer or CP caller can reschedule by changing any one of these —
+        // missing one here would silently stop that caller's updates from
+        // notifying the customer or re-syncing the calendar.
+        $source = file_get_contents(
+            dirname(__DIR__, 3) . '/src/services/BookingService.php'
+        );
+        $methodStart = strpos($source, 'function updateReservation');
+        $this->assertNotFalse($methodStart, 'updateReservation method must exist');
+
+        $methodSource = substr($source, $methodStart, 2000);
+        $isReschedulePos = strpos($methodSource, '$isReschedule =');
+        $this->assertNotFalse($isReschedulePos, '$isReschedule must be computed');
+        $line = substr($methodSource, $isReschedulePos, 400);
+
+        foreach (['bookingDate', 'startTime', 'endTime', 'employeeId', 'locationId'] as $field) {
+            $this->assertStringContainsString(
+                "isset(\$data['{$field}'])",
+                $line,
+                "\$isReschedule must check isset(\\\$data['{$field}'])"
+            );
+        }
+    }
+
     // =====================================================
     // Midnight Crossing Bug Fix Tests
     // =====================================================

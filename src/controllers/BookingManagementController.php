@@ -493,11 +493,12 @@ class BookingManagementController extends Controller
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
-        // Captured before the update, which overwrites them on the reservation.
-        $previousDate = $reservation->getBookingDate();
-        $previousStartTime = $reservation->getStartTime();
-
         try {
+            // The rescheduled notification is queued from a shared
+            // EVENT_AFTER_BOOKING_SAVE listener (see registerWebhookListeners()),
+            // not here — so a staff drag-reschedule in the CP calendar, which
+            // also calls updateReservation(), notifies the customer the same way
+            // this does, instead of only this entry point remembering to (#136).
             $updated = $this->bookingService->updateReservation($reservation->getId(), [
                 'bookingDate' => $newDate,
                 'startTime' => $newStartTime,
@@ -506,21 +507,6 @@ class BookingManagementController extends Controller
         } catch (\anvildev\booked\exceptions\BookingException $e) {
             $msg = $e->getMessage();
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
-        }
-
-        // The booking has moved either way, so a failure to queue the email must
-        // not read to the customer as a failed reschedule.
-        try {
-            Booked::getInstance()->bookingNotification->queueRescheduledNotification(
-                $updated->getId(),
-                $previousDate,
-                $previousStartTime,
-            );
-        } catch (\Throwable $e) {
-            Craft::error(
-                "Reschedule succeeded but the notification could not be queued for #{$updated->getId()}: " . $e->getMessage(),
-                __METHOD__,
-            );
         }
 
         if ($isJson) {

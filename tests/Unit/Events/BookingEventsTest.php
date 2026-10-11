@@ -82,6 +82,32 @@ class BookingEventsTest extends TestCase
         $this->assertTrue($event->success);
         $this->assertEquals([], $event->errors);
         $this->assertTrue($event->isNew);
+        // A listener must not assume a reschedule from the mere presence of
+        // the event — defaults must be false/null, matching a plain save.
+        $this->assertFalse($event->isReschedule);
+        $this->assertNull($event->previousBookingDate);
+        $this->assertNull($event->previousStartTime);
+    }
+
+    public function testAfterBookingSaveEventCarriesRescheduleContext(): void
+    {
+        // What a shared EVENT_AFTER_BOOKING_SAVE listener (#136) needs to
+        // decide whether to send a rescheduled notification, and with what
+        // "previous time" — regardless of which of the three updateReservation()
+        // callers (customer manage link, CP drag calendar, CP status update)
+        // triggered the save.
+        $reservation = Mockery::mock(ReservationInterface::class);
+        $event = new AfterBookingSaveEvent([
+            'reservation' => $reservation,
+            'isNew' => false,
+            'isReschedule' => true,
+            'previousBookingDate' => '2026-10-14',
+            'previousStartTime' => '10:00:00',
+        ]);
+
+        $this->assertTrue($event->isReschedule);
+        $this->assertSame('2026-10-14', $event->previousBookingDate);
+        $this->assertSame('10:00:00', $event->previousStartTime);
     }
 
     public function testAfterBookingSaveEventWithErrors(): void
