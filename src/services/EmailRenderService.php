@@ -228,6 +228,18 @@ class EmailRenderService extends Component
         );
     }
 
+    public function renderRescheduledEmail(
+        ReservationInterface $reservation,
+        Settings $settings,
+        string $previousDate,
+        string $previousStartTime,
+    ): string {
+        return $this->renderReservationEmail('booked/emails/rescheduled', $reservation, $settings, [
+            'previousDate' => $previousDate,
+            'previousStartTime' => $previousStartTime,
+        ]);
+    }
+
     public function renderQuantityChangedEmail(
         ReservationInterface $reservation,
         Settings $settings,

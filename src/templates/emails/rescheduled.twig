@@ -1,0 +1,77 @@
+{% extends 'booked/emails/_base' %}
+
+{% set title = 'emails.rescheduled.title'|t('booked') %}
+{% set headerIcon = '⟳' %}
+{% set headerColor = '#000000' %}
+{% set preheader = 'emails.rescheduled.preheader'|t('booked', { dateTime: formattedDateTime }) %}
+
+{% block header %}
+	<div class="email-header">
+		<div class="header-badge">
+			⟳
+			{{ 'emails.rescheduled.badge'|t('booked') }}
+		</div>
+		<h1 class="header-title">{{ title }}</h1>
+		<p class="header-subtitle">{{ siteName }}</p>
+	</div>
+{% endblock %}
+
+{% block content %}
+	<p style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">
+		{{ 'emails.hello'|t('booked', { name: userName }) }}
+	</p>
+	<p>
+		{{ 'emails.rescheduled.intro'|t('booked') }}
+	</p>
+
+	<div class="highlight-box">
+		<div class="highlight-primary">📅
+			{{ formattedDateTime }}
+		</div>
+		{% if serviceName is defined and serviceName %}
+			<div class="highlight-secondary">{{ serviceName }}</div>
+		{% endif %}
+		<div style="margin-top: 16px;">
+			<span class="badge badge-primary">{{ 'element.booking'|t('booked') }}
+				#{{ bookingId }}</span>
+		</div>
+	</div>
+
+	<div class="section">
+		<div class="section-title">{{ 'emails.rescheduled.details'|t('booked') }}</div>
+		<div class="info-grid">
+			{% if previousDate is defined and previousDate %}
+				<div class="info-row">
+					<span class="info-label">{{ 'emails.rescheduled.previousTime'|t('booked') }}</span>
+					<span class="info-value" style="text-decoration: line-through;">
+						{{ previousDate }}{% if previousStartTime is defined and previousStartTime %}
+							{{ previousStartTime }}
+						{% endif %}
+					</span>
+				</div>
+			{% endif %}
+			<div class="info-row">
+				<span class="info-label">{{ 'emails.rescheduled.newTime'|t('booked') }}</span>
+				<span class="info-value" style="font-weight: 900;">{{ formattedDateTime }}</span>
+			</div>
+			{% if employeeName is defined and employeeName %}
+				<div class="info-row">
+					<span class="info-label">{{ 'labels.staff'|t('booked') }}</span>
+					<span class="info-value">{{ employeeName }}</span>
+				</div>
+			{% endif %}
+			{% if locationName is defined and locationName %}
+				<div class="info-row">
+					<span class="info-label">{{ 'labels.location'|t('booked') }}</span>
+					<span class="info-value">{{ locationName }}</span>
+				</div>
+			{% endif %}
+		</div>
+	</div>
+
+	{% if managementUrl is defined and managementUrl %}
+		<div class="btn-container">
+			<a href="{{ managementUrl }}" class="btn btn-primary">{{ 'emails.common.manageBooking'|t('booked') }}</a>
+		</div>
+	{% endif %}
+{% endblock %}

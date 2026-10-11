@@ -75,6 +75,24 @@ class BookingNotificationService extends Component
         $this->queueBookingEmail($reservationId, 'cancellation', null, $priority);
     }
 
+    public function queueRescheduledNotification(
+        int $reservationId,
+        string $previousDate,
+        string $previousStartTime,
+        int $priority = 1024,
+    ): void {
+        Craft::$app->getQueue()->priority($priority)->push(new SendBookingEmailJob([
+            'reservationId' => $reservationId,
+            'emailType' => 'rescheduled',
+            'previousDate' => $previousDate,
+            'previousStartTime' => $previousStartTime,
+        ]));
+        Craft::info(
+            "Queued rescheduled email for reservation #{$reservationId} ({$previousDate} {$previousStartTime} -> new slot)",
+            __METHOD__,
+        );
+    }
+
     public function queueQuantityChangedEmail(
         int $reservationId,
         int $previousQuantity,

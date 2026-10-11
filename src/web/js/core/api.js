@@ -286,4 +286,7 @@ export class BookedApi {
   manageIncrease(body) {
     return this.post('manage/increase', { body });
   }
+  manageReschedule(body) {
+    return this.post('manage/reschedule', { body });
+  }
 }

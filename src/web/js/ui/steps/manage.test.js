@@ -19,6 +19,9 @@ function fakeApi(overrides = {}) {
     manageCancel: vi.fn(async () => ({ success: true })),
     manageReduce: vi.fn(async () => ({ success: true })),
     manageIncrease: vi.fn(async () => ({ success: true })),
+    manageReschedule: vi.fn(async () => ({ success: true })),
+    calendar: vi.fn(async () => ({ success: true, calendar: { '2026-08-10': { isBookable: true } } })),
+    slots: vi.fn(async () => ({ success: true, slots: [{ time: '10:00', endTime: '10:30', availableCapacity: 1 }] })),
     abortAll: vi.fn(),
     beaconRelease: vi.fn(),
     ...overrides,
@@ -82,6 +85,41 @@ describe('Wizard — management mode (core)', () => {
     await wizard.manageIncrease(3);
     expect(api.manageIncrease).toHaveBeenCalledWith({ id: 55, token: 'mtok', increaseBy: 3 });
   });
+
+  it('reschedule posts id + token + the new date/time', async () => {
+    const { wizard, api } = manageWizard();
+    await wizard.start();
+    await wizard.manageReschedule({ date: '2026-08-11', startTime: '14:00', endTime: '14:30' });
+    expect(api.manageReschedule).toHaveBeenCalledWith({
+      id: 55,
+      token: 'mtok',
+      newDate: '2026-08-11',
+      newStartTime: '14:00',
+      newEndTime: '14:30',
+    });
+  });
+
+  it('manageLoadCalendar/manageLoadSlots pass the manage token, never the booking flow\'s selection params', async () => {
+    const { wizard, api } = manageWizard();
+    await wizard.start();
+    const calendar = await wizard.manageLoadCalendar({ year: 2026, month: 8 });
+    expect(api.calendar).toHaveBeenCalledWith({ year: 2026, month: 8, manageToken: 'mtok' });
+    expect(calendar).toEqual({ '2026-08-10': { isBookable: true } });
+
+    const slots = await wizard.manageLoadSlots({ date: '2026-08-10' });
+    expect(api.slots).toHaveBeenCalledWith({ date: '2026-08-10', manageToken: 'mtok' });
+    expect(slots.slots).toHaveLength(1);
+  });
+
+  it('manageLoadSlots fails soft — a rejected request returns null, not a wizard-wide error', async () => {
+    const { wizard } = manageWizard({ slots: vi.fn(async () => { throw new Error('boom'); }) });
+    await wizard.start();
+    const onError = vi.fn();
+    wizard.on('error', onError);
+    const result = await wizard.manageLoadSlots({ date: '2026-08-10' });
+    expect(result).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+  });
 });
 
 const MARKUP = `
@@ -141,5 +179,153 @@ describe('manageStep (DOM)', () => {
     await wizard.start();
     manageStep.render(region, wizard);
     expect(region.querySelector('[data-booked-action="manage-reduce"]').disabled).toBe(true);
+  });
+});
+
+const RESCHEDULE_MARKUP = `
+  <div data-booked-wizard>
+    <section data-booked-step="manage">
+      <h2 data-booked-step-heading>Manage</h2>
+      <dd data-booked-manage="service"></dd>
+      <dd data-booked-manage="datetime"></dd>
+      <dd data-booked-manage="status"></dd>
+      <dd data-booked-manage="quantity"></dd>
+      <div data-booked-manage-reschedule hidden>
+        <div data-booked-manage-reschedule-calendar data-booked-initial-month="2026-08"></div>
+        <p data-booked-manage-reschedule-empty hidden>No times</p>
+        <div data-booked-manage-reschedule-slots></div>
+        <button data-booked-action="manage-reschedule-submit" disabled>Confirm</button>
+      </div>
+      <div data-booked-manage-actions hidden>
+        <button data-booked-action="manage-reduce">−</button>
+        <button data-booked-action="manage-increase">+</button>
+        <button data-booked-action="manage-cancel">Cancel</button>
+      </div>
+      <p data-booked-manage-cancelled hidden>Cancelled</p>
+    </section>
+  </div>`;
+
+async function mountReschedule(apiOverrides = {}, loadOverrides = {}) {
+  document.body.innerHTML = RESCHEDULE_MARKUP;
+  const region = document.querySelector('[data-booked-step="manage"]');
+  const api = fakeApi({
+    manageLoad: vi.fn(async () => ({
+      success: true,
+      id: 55,
+      serviceName: 'Haircut',
+      formattedDateTime: 'Aug 1, 2026 · 10:00',
+      status: 'confirmed',
+      statusLabel: 'Confirmed',
+      quantity: 1,
+      customerName: 'Ada',
+      canCancel: true,
+      canReschedule: true,
+      ...loadOverrides,
+    })),
+    ...apiOverrides,
+  });
+  const wizard = new Wizard({ apiClient: api, mode: 'manage', manageToken: 'mtok' });
+  manageStep.mount(region, wizard);
+  await wizard.start();
+  manageStep.render(region, wizard);
+  await vi.waitFor(() => expect(api.calendar).toHaveBeenCalled());
+  return { region, wizard, api };
+}
+
+const day = (region, d) => region.querySelector(`[data-booked-date="${d}"]`);
+
+describe('manageStep — reschedule (DOM)', () => {
+  it('keeps the panel hidden when the reservation cannot be rescheduled', async () => {
+    document.body.innerHTML = RESCHEDULE_MARKUP;
+    const region = document.querySelector('[data-booked-step="manage"]');
+    const api = fakeApi({
+      manageLoad: vi.fn(async () => ({
+        success: true, id: 55, quantity: 1, canCancel: true, canReschedule: false, status: 'confirmed', statusLabel: 'x',
+      })),
+    });
+    const wizard = new Wizard({ apiClient: api, mode: 'manage', manageToken: 'mtok' });
+    manageStep.mount(region, wizard);
+    await wizard.start();
+    manageStep.render(region, wizard);
+    expect(region.querySelector('[data-booked-manage-reschedule]').hidden).toBe(true);
+    expect(api.calendar).not.toHaveBeenCalled();
+  });
+
+  it('shows the panel and loads the calendar scoped to the manage token when reschedulable', async () => {
+    const { region, api } = await mountReschedule();
+    expect(region.querySelector('[data-booked-manage-reschedule]').hidden).toBe(false);
+    expect(api.calendar).toHaveBeenCalledWith(expect.objectContaining({ manageToken: 'mtok' }));
+    expect(day(region, '2026-08-10')).not.toBeNull();
+  });
+
+  it('picking an available day loads and renders its slots', async () => {
+    const { region, api } = await mountReschedule();
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(api.slots).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-08-10', manageToken: 'mtok' })));
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+    expect(region.querySelector('[data-booked-reschedule-slot]').textContent).toBe('10:00');
+  });
+
+  it('picking a slot enables submit, which reschedules to that date/time', async () => {
+    const { region, api } = await mountReschedule();
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+
+    const submit = region.querySelector('[data-booked-action="manage-reschedule-submit"]');
+    expect(submit.disabled).toBe(true);
+    region.querySelector('[data-booked-reschedule-slot]').click();
+    expect(submit.disabled).toBe(false);
+
+    submit.click();
+    await vi.waitFor(() =>
+      expect(api.manageReschedule).toHaveBeenCalledWith({
+        id: 55,
+        token: 'mtok',
+        newDate: '2026-08-10',
+        newStartTime: '10:00',
+        newEndTime: '10:30',
+      }),
+    );
+  });
+
+  it('a disabled (fully booked) slot cannot be selected', async () => {
+    const { region } = await mountReschedule({
+      slots: vi.fn(async () => ({ success: true, slots: [{ time: '10:00', endTime: '10:30', availableCapacity: 0 }] })),
+    });
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+    const opt = region.querySelector('[data-booked-reschedule-slot]');
+    expect(opt.getAttribute('aria-disabled')).toBe('true');
+    opt.click();
+    expect(opt.getAttribute('aria-selected')).toBe('false');
+    expect(region.querySelector('[data-booked-action="manage-reschedule-submit"]').disabled).toBe(true);
+  });
+
+  it('resets the picker once the reschedule actually moves the booking', async () => {
+    let loads = 0;
+    const { region, api } = await mountReschedule({
+      manageLoad: vi.fn(async () => {
+        loads += 1;
+        return {
+          success: true,
+          id: 55,
+          quantity: 1,
+          canCancel: true,
+          canReschedule: true,
+          status: 'confirmed',
+          statusLabel: 'x',
+          formattedDateTime: loads === 1 ? 'Aug 1, 2026 · 10:00' : 'Aug 10, 2026 · 10:00',
+        };
+      }),
+    });
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+    region.querySelector('[data-booked-reschedule-slot]').click();
+
+    const submit = region.querySelector('[data-booked-action="manage-reschedule-submit"]');
+    submit.click();
+    await vi.waitFor(() => expect(api.manageReschedule).toHaveBeenCalled());
+    await vi.waitFor(() => expect(submit.disabled).toBe(true));
+    expect(region.querySelector('[data-booked-reschedule-slot]')).toBeNull();
   });
 });

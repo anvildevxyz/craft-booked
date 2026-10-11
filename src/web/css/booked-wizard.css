@@ -660,6 +660,42 @@
   font-weight: 700;
 }
 
+.booked-manage-section-title {
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--booked-tracking);
+  color: var(--booked-muted);
+  margin-top: var(--booked-space);
+  margin-bottom: 0.5rem;
+}
+
+.booked-manage-notice {
+  color: var(--booked-muted);
+  margin-bottom: var(--booked-space);
+}
+
+.booked-manage-reschedule-submit {
+  padding: 10px 20px;
+  border-radius: var(--booked-radius);
+  border: var(--booked-border-width) solid var(--booked-primary);
+  background: var(--booked-primary);
+  color: var(--booked-on-primary);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: var(--booked-tracking);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.booked-manage-reschedule-submit:disabled {
+  background: var(--booked-bg);
+  color: var(--booked-disabled);
+  border-color: var(--booked-border-light);
+  cursor: default;
+}
+
 .booked-wizard button:focus-visible {
   outline: var(--booked-border-width) solid var(--booked-accent);
   outline-offset: 2px;

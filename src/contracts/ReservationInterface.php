@@ -104,6 +104,7 @@ interface ReservationInterface
     public function cancel(): bool;
     public function markAsNoShow(): bool;
     public function canBeCancelled(): bool;
+    public function canBeRescheduled(): bool;
     public function getFormattedDateTime(): string;
     public function getDurationMinutes(): int;
     public function conflictsWith(ReservationInterface $other): bool;

@@ -261,8 +261,11 @@ return [
     'booking.rescheduleFailed' => 'Failed to reschedule booking.',
     'booking.cannotReschedulePast' => 'Past bookings cannot be rescheduled.',
     'booking.cannotRescheduleStatus' => 'This booking cannot be rescheduled because it has been cancelled or completed.',
+    'booking.cannotReschedulePolicy' => 'This booking is too close to its appointment time to be rescheduled.',
+    'booking.cannotRescheduleEvent' => 'Event bookings cannot be rescheduled.',
     'booking.invalidDateFormat' => 'Invalid date format.',
     'booking.invalidTimeFormat' => 'Invalid time format.',
+    'booking.unauthorized' => 'You are not authorized to make this change.',
     'booking.rateLimit' => 'You have made too many bookings. Please try again later.',
     'booking.conflict' => 'The selected time slot is no longer available. Please choose another appointment.',
     'booking.validationError' => 'Validation error in booking.',
@@ -421,6 +424,7 @@ return [
     'emails.subject.cancellation' => 'Booking Cancelled',
     'emails.subject.quantityChanged' => 'Your Booking Quantity Has Been Updated',
     'emails.quantityChanged.body' => 'Your booking quantity has been changed from {previousQuantity} to {newQuantity}.',
+    'emails.subject.rescheduled' => 'Your Booking Has Been Rescheduled',
 
     // Email Templates - Common
     'emails.hello' => 'Hello {name},',
@@ -481,6 +485,15 @@ return [
     'emails.quantityChanged.previousQuantity' => 'Previous Quantity',
     'emails.quantityChanged.newQuantity' => 'New Quantity',
     'emails.quantityChanged.refundAmount' => 'Refund Amount',
+
+    // Emails - Rescheduled
+    'emails.rescheduled.title' => 'Your Booking Has Been Rescheduled',
+    'emails.rescheduled.preheader' => 'Your booking has moved to {dateTime}',
+    'emails.rescheduled.badge' => 'Rescheduled',
+    'emails.rescheduled.intro' => 'Your booking has been moved to a new time. Please see the details below.',
+    'emails.rescheduled.details' => 'Reschedule Details',
+    'emails.rescheduled.previousTime' => 'Previous Time',
+    'emails.rescheduled.newTime' => 'New Time',
 
     // Multi-Site / Propagation
     'multiSite.redirectNotice' => 'This service does not exist on {site}. Redirected to {existingSite}.',
@@ -1757,6 +1770,10 @@ return [
     'wizard.manageIncreaseBtn' => 'Increase Quantity',
     'wizard.manageChangeAmount' => 'Change amount',
     'wizard.manageCancelled' => 'This booking has been cancelled.',
+    'wizard.rescheduleTitle' => 'Change Date & Time',
+    'wizard.rescheduleChooseTime' => 'Choose a new time',
+    'wizard.rescheduleNoSlots' => 'No times available on this day.',
+    'wizard.rescheduleSubmit' => 'Confirm New Time',
     'wizard.confirmCancel' => 'Are you sure you want to cancel this booking?',
     'wizard.cancelSuccess' => 'Booking cancelled successfully.',
 

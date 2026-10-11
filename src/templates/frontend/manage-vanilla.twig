@@ -45,6 +45,14 @@
             <dt>{{ 'labels.customer'|t('booked') }}</dt><dd data-booked-manage="customer"></dd>
         </dl>
 
+        <div class="booked-manage-reschedule" data-booked-manage-reschedule hidden>
+            <div class="booked-manage-section-title">{{ 'wizard.rescheduleTitle'|t('booked') }}</div>
+            <div class="booked-calendar" data-booked-manage-reschedule-calendar></div>
+            <p class="booked-manage-notice" data-booked-manage-reschedule-empty hidden>{{ 'wizard.rescheduleNoSlots'|t('booked') }}</p>
+            <div class="booked-slots" data-booked-manage-reschedule-slots role="group" aria-label="{{ 'wizard.rescheduleChooseTime'|t('booked') }}"></div>
+            <button type="button" class="booked-manage-reschedule-submit" data-booked-action="manage-reschedule-submit" disabled>{{ 'wizard.rescheduleSubmit'|t('booked') }}</button>
+        </div>
+
         <div class="booked-manage-actions" data-booked-manage-actions hidden>
             <div class="booked-quantity">
                 <span id="booked-manage-qty">{{ 'wizard.manageChangeAmount'|t('booked') }}</span>

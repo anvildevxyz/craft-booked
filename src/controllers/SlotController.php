@@ -8,6 +8,7 @@ use anvildev\booked\controllers\traits\HandlesExceptionsTrait;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
 use anvildev\booked\elements\EventDate;
 use anvildev\booked\elements\Service;
+use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\helpers\DateHelper;
 use anvildev\booked\helpers\SiteHelper;
 use anvildev\booked\services\MultiDayAvailabilityService;
@@ -72,14 +73,29 @@ class SlotController extends Controller
             throw new BadRequestHttpException(Craft::t('booked', 'booking.invalidDate'));
         }
 
-        $quantity = $this->normalizeQuantity((int)(Craft::$app->request->getBodyParam('quantity') ?? 1));
-        $employeeId = $this->normalizeId(Craft::$app->request->getBodyParam('employeeId'));
-        $locationId = $this->normalizeId(Craft::$app->request->getBodyParam('locationId'));
-        $serviceId = $this->normalizeId(Craft::$app->request->getBodyParam('serviceId'));
-        $extrasDuration = max(0, (int)(Craft::$app->request->getBodyParam('extrasDuration') ?? 0));
+        $excludeReservationId = null;
+        $manageToken = Craft::$app->request->getBodyParam('manageToken');
+        if ($manageToken) {
+            $manageContext = $this->resolveManageTokenContext((string) $manageToken);
+            if ($manageContext === null) {
+                return $this->jsonError(Craft::t('booked', 'errors.bookingNotFound'));
+            }
+            ['serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId,
+                'quantity' => $quantity, 'excludeReservationId' => $excludeReservationId] = $manageContext;
+            $extrasDuration = 0;
+        } else {
+            $quantity = $this->normalizeQuantity((int)(Craft::$app->request->getBodyParam('quantity') ?? 1));
+            $employeeId = $this->normalizeId(Craft::$app->request->getBodyParam('employeeId'));
+            $locationId = $this->normalizeId(Craft::$app->request->getBodyParam('locationId'));
+            $serviceId = $this->normalizeId(Craft::$app->request->getBodyParam('serviceId'));
+            $extrasDuration = max(0, (int)(Craft::$app->request->getBodyParam('extrasDuration') ?? 0));
+        }
 
         return $this->jsonSuccess('', [
-            'slots' => $this->availabilityService->getAvailableSlots($date, $employeeId, $locationId, $serviceId, $quantity, null, null, $extrasDuration),
+            'slots' => $this->availabilityService->getAvailableSlots(
+                $date, $employeeId, $locationId, $serviceId, $quantity, null, null, $extrasDuration,
+                excludeReservationId: $excludeReservationId,
+            ),
             'waitlistAvailable' => $this->isWaitlistAvailable($serviceId, $date, $employeeId),
         ]);
     }
@@ -334,21 +350,33 @@ class SlotController extends Controller
             $endDate = $end->format('Y-m-d');
         }
 
-        $employeeId = $request->getParam('employeeId') ?: $request->getParam('entryId');
-        $locationId = $request->getParam('locationId');
-        $serviceId = $request->getParam('serviceId');
-        $quantity = $this->normalizeQuantity((int)($request->getParam('quantity') ?? 1));
-        $extrasDuration = max(0, (int)($request->getParam('extrasDuration') ?? 0));
+        $excludeReservationId = null;
+        $manageToken = $request->getParam('manageToken');
+        if ($manageToken) {
+            $manageContext = $this->resolveManageTokenContext((string) $manageToken);
+            if ($manageContext === null) {
+                return $this->jsonError(Craft::t('booked', 'errors.bookingNotFound'));
+            }
+            ['serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId,
+                'quantity' => $quantity, 'excludeReservationId' => $excludeReservationId] = $manageContext;
+            $extrasDuration = 0;
+        } else {
+            $employeeId = $request->getParam('employeeId') ?: $request->getParam('entryId');
+            $locationId = $request->getParam('locationId');
+            $serviceId = $request->getParam('serviceId');
+            $quantity = $this->normalizeQuantity((int)($request->getParam('quantity') ?? 1));
+            $extrasDuration = max(0, (int)($request->getParam('extrasDuration') ?? 0));
+        }
 
         $blackoutService = Booked::getInstance()->getBlackoutDate();
         $cache = Craft::$app->getCache();
 
         $site = SiteHelper::getSiteForRequest($request);
         $cacheKey = 'booked_avail_cal_' . md5(json_encode([
-            $site->id, $startDate, $endDate, $employeeId, $locationId, $serviceId, $quantity, $extrasDuration,
+            $site->id, $startDate, $endDate, $employeeId, $locationId, $serviceId, $quantity, $extrasDuration, $excludeReservationId,
         ]));
 
-        $calendar = $cache->getOrSet($cacheKey, function() use ($current, $end, $employeeId, $locationId, $serviceId, $quantity, $extrasDuration, $blackoutService) {
+        $calendar = $cache->getOrSet($cacheKey, function() use ($current, $end, $employeeId, $locationId, $serviceId, $quantity, $extrasDuration, $excludeReservationId, $blackoutService) {
             $calendar = [];
 
             while ($current <= $end) {
@@ -363,7 +391,8 @@ class SlotController extends Controller
                     $quantity,
                     null,
                     null,
-                    $extrasDuration
+                    $extrasDuration,
+                    excludeReservationId: $excludeReservationId,
                 ));
 
                 $calendar[$dateStr] = [
@@ -648,5 +677,32 @@ class SlotController extends Controller
         return Booked::getInstance()->scheduleResolver->hasScheduleForDay(
             $serviceId, $employeeId, $date, (int)$dateObj->format('N')
         );
+    }
+
+    /**
+     * Resolves a manage-flow reschedule request's own service/employee/location
+     * and quantity from its token, instead of trusting whatever the client sends
+     * — a customer rescheduling never gets to query availability for a service
+     * other than the one they already booked. Also returns the reservation's own
+     * id to exclude from capacity, so its own slot doesn't read as taken by
+     * itself. Null means the token didn't resolve to a reschedulable booking
+     * (not found, or an event booking, which has no slot grid to move within).
+     *
+     * @return array{serviceId: ?int, employeeId: ?int, locationId: ?int, quantity: int, excludeReservationId: int}|null
+     */
+    private function resolveManageTokenContext(string $manageToken): ?array
+    {
+        $reservation = ReservationFactory::findByToken($manageToken);
+        if (!$reservation || $reservation->getEventDateId() !== null) {
+            return null;
+        }
+
+        return [
+            'serviceId' => $reservation->getServiceId(),
+            'employeeId' => $reservation->getEmployeeId(),
+            'locationId' => $reservation->getLocationId(),
+            'quantity' => $reservation->getQuantity(),
+            'excludeReservationId' => $reservation->getId(),
+        ];
     }
 }

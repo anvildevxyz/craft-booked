@@ -710,6 +710,9 @@ var BookedApi = class {
   manageIncrease(body) {
     return this.post("manage/increase", { body });
   }
+  manageReschedule(body) {
+    return this.post("manage/reschedule", { body });
+  }
 };
 
 // src/web/js/core/lock.js
@@ -1541,6 +1544,40 @@ var Wizard = class {
   }
   manageIncrease(increaseBy = 1) {
     return this._manageAction((res) => this._api.manageIncrease({ id: res.id, token: this._manageToken, increaseBy }), "manage:updated");
+  }
+  /** Reschedule the managed booking to a different date/time. */
+  manageReschedule({ date, startTime, endTime } = {}) {
+    return this._manageAction(
+      (res) => this._api.manageReschedule({ id: res.id, token: this._manageToken, newDate: date, newStartTime: startTime, newEndTime: endTime }),
+      "manage:updated"
+    );
+  }
+  /**
+   * Month availability for the reschedule picker — scoped to the managed
+   * reservation's own service/employee/location server-side (via the manage
+   * token, never trusted from this call), and excluding the reservation's own
+   * slot so it doesn't read as unavailable against itself. Returns null on a
+   * superseded or failed request; unlike loadCalendar(), a failure here does
+   * not flip the whole manage view into an error state — reschedule is one
+   * optional panel among several, not something the rest of the page depends
+   * on being available.
+   */
+  async manageLoadCalendar({ year, month } = {}) {
+    try {
+      const data = await this._api.calendar({ year, month, manageToken: this._manageToken });
+      return data && data.success !== false ? data.calendar || {} : null;
+    } catch (err) {
+      return err && err.aborted ? null : null;
+    }
+  }
+  /** Bookable time slots for a reschedule date, scoped the same way as manageLoadCalendar(). */
+  async manageLoadSlots({ date } = {}) {
+    try {
+      const data = await this._api.slots({ date, manageToken: this._manageToken });
+      return data && data.success !== false ? { slots: data.slots || [] } : null;
+    } catch {
+      return null;
+    }
   }
   /** Run a management mutation on the loaded reservation, then reload and emit `event`. */
   async _manageAction(call, event) {

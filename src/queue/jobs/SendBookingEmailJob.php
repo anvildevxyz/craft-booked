@@ -21,6 +21,8 @@ class SendBookingEmailJob extends BaseJob
     public ?int $previousQuantity = null;
     public ?int $newQuantity = null;
     public float $refundAmount = 0.0;
+    public ?string $previousDate = null;
+    public ?string $previousStartTime = null;
 
     public function execute($queue): void
     {
@@ -105,6 +107,7 @@ class SendBookingEmailJob extends BaseJob
                 )(),
                 'reminder_24h', 'reminder_1h' => $settings->getEffectiveReminderEmailSubject(),
                 'quantity_changed' => Craft::t('booked', 'emails.subject.quantityChanged'),
+                'rescheduled' => Craft::t('booked', 'emails.subject.rescheduled'),
                 default => throw new \Exception("Unknown email type: {$this->emailType}"),
             };
         } finally {
@@ -124,6 +127,12 @@ class SendBookingEmailJob extends BaseJob
                 $this->previousQuantity ?? 0,
                 $this->newQuantity ?? $reservation->quantity,
                 $this->refundAmount,
+            ),
+            'rescheduled' => $emailRender->renderRescheduledEmail(
+                $reservation,
+                $settings,
+                $this->previousDate ?? '',
+                $this->previousStartTime ?? '',
             ),
             default => throw new \Exception("Unknown email type: {$this->emailType}"),
         };
