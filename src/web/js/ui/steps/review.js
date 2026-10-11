@@ -32,11 +32,18 @@ export const reviewStep = {
     const evt = context.selectedEvent || null;
     const currencySymbol = context.commerce?.currencySymbol;
 
-    // Service (appointment) or event title (event flow).
+    // Service (appointment) or event title (event flow, or an event picked
+    // from the booking flow's merged calendar).
     setRow(region, 'service', evt ? evt.title ?? '' : svc.title ?? '');
-    // Only shown when actually chosen (mirrors the Alpine summary).
-    setRow(region, 'employee', context.selectedEmployee?.name ?? '');
-    setRow(region, 'location', context.selectedLocation?.name ?? '');
+    // Events are never employee-dependent (EVENT_BOOKINGS.md), so any employee
+    // browsed before switching to an event is irrelevant and must not show.
+    setRow(region, 'employee', evt ? '' : context.selectedEmployee?.name ?? '');
+    // An event's own location (if any) — never the appointment location the
+    // customer may have browsed before picking the event instead.
+    const evtLocationName = evt?.locationId != null
+      ? (context.locations || []).find((l) => l.id === evt.locationId)?.name ?? ''
+      : '';
+    setRow(region, 'location', evt ? evtLocationName : context.selectedLocation?.name ?? '');
 
     // Single date+time, or a date range with day count for day services.
     const isRange = context.isDayService && context.endDate;
@@ -45,8 +52,9 @@ export const reviewStep = {
     setRow(region, 'date-range', isRange ? `${context.date} – ${context.endDate}` : '');
     setRow(region, 'duration', isRange ? context.durationDays : '');
 
-    // Quantity only when more than one seat; extras only when some were added.
-    setRow(region, 'quantity', context.quantity > 1 ? context.quantity : '');
+    // Quantity: always for an event (a ticket count is worth confirming even
+    // at 1), only above 1 for a regular appointment. Extras only when added.
+    setRow(region, 'quantity', evt || context.quantity > 1 ? context.quantity : '');
     setRow(region, 'extras-total', context.extrasTotal > 0 ? formatPrice(context.extrasTotal, currencySymbol) : '');
 
     setRow(region, 'customer-name', context.customer?.name ?? '');

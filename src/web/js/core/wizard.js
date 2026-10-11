@@ -399,6 +399,9 @@ export class Wizard {
   // ---- Slot / range / event selection (acquire lock) ==================
 
   async selectSlot({ date, time, quantity = 1 } = {}) {
+    // Supersedes any event picked earlier in the same datetime step (booking
+    // flow's merged calendar) — the two selections are mutually exclusive.
+    this._ctx.eventDateId = null;
     this._ctx.date = date;
     this._ctx.time = time;
     // Both counts track the picked quantity: `slotQuantity` drives lock/availability,
@@ -410,6 +413,7 @@ export class Wizard {
   }
 
   async selectRange({ startDate, endDate, quantity = 1 } = {}) {
+    this._ctx.eventDateId = null;
     this._ctx.date = startDate;
     this._ctx.endDate = endDate;
     this._ctx.slotQuantity = quantity;
@@ -422,6 +426,10 @@ export class Wizard {
     // The fourth selector, normalised like the other three: an integrator can
     // pass this straight from a URL, where it is a string.
     const id = toId(rawId);
+    // Supersedes any slot/range picked earlier in the same datetime step
+    // (booking flow's merged calendar) — the two selections are mutually exclusive.
+    this._ctx.date = null;
+    this._ctx.time = null;
     this._ctx.eventDateId = id;
     this._ctx.slotQuantity = quantity;
     this._ctx.quantity = quantity;
@@ -470,13 +478,16 @@ export class Wizard {
       this._syncLockAfterFailure();
       if (bestEffort) {
         onSuccess();
-      } else {
-        this._emitter.emit('error', {
-          message: res.message || this._i18n.t('error.slotReserved'),
-          code: 'slot_reserved',
-          recoverable: true,
-        });
+        // Flag it like the catch branch above does — callers (the merged
+        // calendar's click handler) key their UI update off `bestEffort`,
+        // not just `acquired`, since the selection stands either way.
+        return { ...res, bestEffort: true };
       }
+      this._emitter.emit('error', {
+        message: res.message || this._i18n.t('error.slotReserved'),
+        code: 'slot_reserved',
+        recoverable: true,
+      });
     }
     return res;
   }
@@ -595,11 +606,21 @@ export class Wizard {
     return { remainingCapacity: data.remainingCapacity, startDate: data.startDate, endDate: data.endDate };
   }
 
-  /** Event dates for the event flow, stored on the context. Emits `data:loaded`. */
+  /**
+   * Event dates, stored on the context. A month-scoped call (the booking flow's
+   * merged calendar) must not drop the already-selected event just because it
+   * falls outside the newly-loaded month — `selectedEvent`/`unitPrice`/the
+   * review step all resolve it by looking it up in this list. Emits `data:loaded`.
+   */
   async loadEventDates(query = {}) {
     const data = await this._load(() => this._api.eventDates(this._pruned(query)));
     if (data === null) return null;
     const eventDates = data.eventDates || [];
+    const selectedId = this._ctx.eventDateId;
+    if (selectedId != null && !eventDates.some((e) => e.id === selectedId)) {
+      const previouslySelected = this._ctx.eventDates.find((e) => e.id === selectedId);
+      if (previouslySelected) eventDates.push(previouslySelected);
+    }
     this._ctx.eventDates = eventDates;
     this._emitter.emit('data:loaded', { kind: 'eventDates', items: eventDates });
     return eventDates;
@@ -848,18 +869,7 @@ export class Wizard {
   }
 
   _buildBookingBody(fields, addToCart) {
-    const extras = {};
-    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
-      if (qty > 0) extras[id] = qty;
-    }
-    const body = this._pruned({
-      serviceId: this._ctx.serviceId,
-      eventDateId: this._ctx.eventDateId,
-      employeeId: this._ctx.employeeId,
-      locationId: this._ctx.locationId,
-      date: this._ctx.date,
-      time: this._ctx.time,
-      quantity: this._ctx.quantity,
+    const customer = {
       customerName: this._ctx.customer.name,
       customerEmail: this._ctx.customer.email,
       customerPhone: this._ctx.customer.phone,
@@ -867,6 +877,29 @@ export class Wizard {
       softLockToken: this._lock.token,
       addToCart: addToCart ? '1' : '0',
       siteHandle: this._config.siteHandle || '',
+    };
+
+    // An event booking carries no service, employee, location, date, time, or
+    // extras. Context may still hold these from browsing a service first. Keep
+    // them out of the body — the backend reads date, time, and location from
+    // the EventDate record instead.
+    if (this._ctx.eventDateId != null) {
+      const body = this._pruned({ eventDateId: this._ctx.eventDateId, quantity: this._ctx.quantity, ...customer });
+      return { ...body, ...fields };
+    }
+
+    const extras = {};
+    for (const [id, qty] of Object.entries(this._ctx.selectedExtras)) {
+      if (qty > 0) extras[id] = qty;
+    }
+    const body = this._pruned({
+      serviceId: this._ctx.serviceId,
+      employeeId: this._ctx.employeeId,
+      locationId: this._ctx.locationId,
+      date: this._ctx.date,
+      time: this._ctx.time,
+      quantity: this._ctx.quantity,
+      ...customer,
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
     if (this._ctx.isDayService && this._ctx.endDate) {

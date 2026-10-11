@@ -93,6 +93,7 @@ export class Calendar {
    * @param {string} [opts.max]         latest selectable 'YYYY-MM-DD'
    * @param {number} [opts.firstDay]    0=Sunday, 1=Monday (default 1)
    * @param {(date: string) => boolean} [opts.isAvailable]
+   * @param {(date: string) => boolean} [opts.hasEvent]  marks a day with `data-has-event` (purely cosmetic; callers decide what "event" means)
    * @param {(date: string) => void} [opts.onSelect]
    * @param {(ym: {year:number, month:number}) => void} [opts.onMonthChange]
    * @param {Object} [opts.labels]
@@ -104,6 +105,7 @@ export class Calendar {
     this._max = opts.max ?? null;
     this._firstDay = opts.firstDay ?? 1;
     this._isAvailable = typeof opts.isAvailable === 'function' ? opts.isAvailable : () => true;
+    this._hasEvent = typeof opts.hasEvent === 'function' ? opts.hasEvent : null;
     this._onSelect = opts.onSelect ?? (() => {});
     this._onMonthChange = opts.onMonthChange ?? (() => {});
     // Localized month/weekday names are derived from the locale via Intl when
@@ -305,6 +307,7 @@ export class Calendar {
 
     td.setAttribute('aria-selected', isSelected ? 'true' : 'false');
     if (!selectable) td.setAttribute('aria-disabled', 'true');
+    if (this._hasEvent && this._hasEvent(date)) td.setAttribute('data-has-event', 'true');
     // Roving tabindex: exactly one focusable cell.
     td.tabIndex = isFocused ? 0 : -1;
     return td;

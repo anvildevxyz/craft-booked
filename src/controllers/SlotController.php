@@ -257,6 +257,11 @@ class SlotController extends Controller
         $globalWaitlistEnabled = Booked::getInstance()->getSettings()->enableWaitlist;
 
         if ($dateFrom || $dateTo) {
+            // This is the public booking wizard, so a range query must never surface
+            // a past date — nobody can book one (EventDate::isAvailable() rejects it
+            // at submit time regardless), and the booking flow's merged calendar
+            // queries whole months, which may start before today.
+            $dateFrom = max($dateFrom ?? DateHelper::today(), DateHelper::today());
             $events = $eventDateService->getEventDates($dateFrom, $dateTo, $siteId);
         } else {
             // Include fully booked events when waitlist is available so users can join

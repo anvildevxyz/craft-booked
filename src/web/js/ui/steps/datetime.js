@@ -9,6 +9,20 @@
  *  - flexible-day services: range mode; the start pick loads valid end dates
  *    (`loadEndDates`) and constrains the calendar, the end pick `selectRange`s.
  *
+ * The single-date calendar also surfaces event dates (`EventDate` elements)
+ * alongside regular slots — labeled distinctly — so a customer dropped onto
+ * the calendar with no real service choice to make (one enabled service, or
+ * one preselected via a deep link) can still discover and book a one-off
+ * event. Once the customer explicitly picks a service from a list of several,
+ * that choice is respected: the calendar shows only that service's own slots,
+ * no events. (The dedicated event wizard remains the route for someone who
+ * wants to browse events instead of a service.) Day/range services never
+ * merge events either way: multi-day ranges and fixed-date events are
+ * different enough concepts that conflating them would risk real bugs for no
+ * real benefit. An event with a location only shows when it matches the
+ * currently selected location (or has none — a standalone event is
+ * location-agnostic, matching EVENT_BOOKINGS.md).
+ *
  * Step renderers are shared singletons, so per-mount state lives in a WeakMap
  * keyed by the region. The calendar is (re)built whenever the service type
  * changes, so switching services mid-flow reconfigures it correctly.
@@ -20,6 +34,23 @@ const state = new WeakMap();
 
 function pad(n) {
   return String(n).padStart(2, '0');
+}
+
+/** Last day-of-month for a 1-based month, computed in UTC to avoid tz drift. */
+function lastDayOfMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Whether events should merge into this calendar at all: only when the
+ * customer never made an explicit choice among services (one enabled
+ * service, or one preselected via a deep link) — the #132 scenario where the
+ * calendar is the only screen they see. Once they pick a specific service
+ * from a list of several, that choice is respected and events stay out.
+ */
+function eventsEligible(wizard) {
+  const { servicePreselected, services } = wizard.getState().context;
+  return !!servicePreselected || (Array.isArray(services) && services.length === 1);
 }
 
 /** Translated aria-labels for the calendar's month-navigation buttons. */
@@ -43,6 +74,7 @@ export const datetimeStep = {
     const slotList = qs('[data-booked-slots]', region);
     const s = {
       calMap: {},
+      eventsByDate: new Map(), // 'YYYY-MM-DD' → EventDate[], single-slot calendar only
       availSet: new Set(),
       validEndSet: new Set(),
       pickingEnd: false,
@@ -72,6 +104,29 @@ export const datetimeStep = {
           s.qtyMax = Number(el.getAttribute('data-booked-capacity')) || 1;
           s.qtyValue = 1;
           s.reacquire = (quantity) => wizard.selectSlot({ date: s.selectedDate, time, quantity });
+          this._renderQuantity(region, s);
+        }
+      });
+
+      // Event selection: an event option in the same listbox, picked instead of
+      // a regular slot. The event lock is best-effort (see Wizard#selectEventDate),
+      // so the selection stands even when `acquired` is false.
+      delegate(slotList, 'click', '[data-booked-event-id]', async (event, el) => {
+        if (el.getAttribute('aria-disabled') === 'true') return;
+        const id = Number(el.getAttribute('data-booked-event-id'));
+        if (!Number.isInteger(id)) return;
+        const res = await wizard.selectEventDate(id, { quantity: 1 });
+        if (res && (res.acquired || res.bestEffort)) {
+          for (const opt of slotList.querySelectorAll('[role="option"]')) {
+            opt.setAttribute(
+              'aria-selected',
+              opt.getAttribute('data-booked-event-id') === String(id) ? 'true' : 'false',
+            );
+          }
+          const evt = (s.eventsByDate.get(s.selectedDate) || []).find((e) => e.id === id);
+          s.qtyMax = evt && evt.remainingCapacity > 1 ? evt.remainingCapacity : 1;
+          s.qtyValue = 1;
+          s.reacquire = (quantity) => wizard.selectEventDate(id, { quantity });
           this._renderQuantity(region, s);
         }
       });
@@ -133,35 +188,79 @@ export const datetimeStep = {
   },
 
   _buildSingleCalendar(region, wizard, s, calContainer, initialMonth, iy, im) {
+    const isAvailable = (date) => (s.calMap[date] && s.calMap[date].isBookable === true) || s.eventsByDate.has(date);
+
     const cal = new Calendar(calContainer, {
       month: initialMonth,
       mode: 'single',
       locale: wizard.getState()?.context?.locale,
       labels: calendarLabels(wizard),
-      isAvailable: (date) => s.calMap[date] && s.calMap[date].isBookable === true,
+      isAvailable,
+      hasEvent: (date) => s.eventsByDate.has(date),
       onMonthChange: async ({ year, month }) => {
-        const map = await wizard.loadCalendar({ year, month });
-        if (map) {
-          s.calMap = map;
-          cal.setAvailability((d) => s.calMap[d] && s.calMap[d].isBookable === true);
-        }
+        const [map, eventsUpdated] = await Promise.all([
+          wizard.loadCalendar({ year, month }),
+          this._loadEventsForMonth(wizard, s, year, month),
+        ]);
+        if (map) s.calMap = map;
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
       },
       onSelect: async (date) => {
         s.selectedDate = date;
         const res = await wizard.loadSlots({ date });
         if (res) {
           s.waitlistAvailable = res.waitlistAvailable;
-          this._renderSlots(region, res.slots, s, wizard);
+          this._renderSlots(region, res.slots, s.eventsByDate.get(date) || [], s, wizard);
         }
       },
     });
     s.cal = cal;
-    wizard.loadCalendar({ year: iy, month: im }).then((map) => {
-      if (map) {
-        s.calMap = map;
-        cal.setAvailability((d) => s.calMap[d] && s.calMap[d].isBookable === true);
-      }
-    });
+    Promise.all([wizard.loadCalendar({ year: iy, month: im }), this._loadEventsForMonth(wizard, s, iy, im)]).then(
+      ([map, eventsUpdated]) => {
+        if (map) s.calMap = map;
+        if (map || eventsUpdated) cal.setAvailability(isAvailable);
+      },
+    );
+  },
+
+  /**
+   * Load event dates for a month into `s.eventsByDate` ('YYYY-MM-DD' → EventDate[]),
+   * kept only when they match the currently selected location (or have none) and
+   * still have a spot — a sold-out event must not keep a day looking bookable,
+   * same as a fully-booked regular day reports `isBookable: false` server-side
+   * (AvailabilityService::filterByCapacity). The merged calendar offers no
+   * per-event waitlist, so there is nothing useful left to show once it's full.
+   * Leaves the map untouched on a superseded/failed request, same as `loadCalendar`
+   * — and returns false then, so the caller knows not to force a re-render.
+   *
+   * A location-less event always passes the location check; a located event
+   * needs an exact match, which correctly excludes it when the wizard has no
+   * selected location at all (a zero-location service never sets one) rather
+   * than letting every location's events leak in.
+   *
+   * Skips the request entirely when the customer explicitly picked this
+   * service from a list of several — see `eventsEligible`.
+   */
+  async _loadEventsForMonth(wizard, s, year, month) {
+    if (!eventsEligible(wizard)) {
+      if (s.eventsByDate.size === 0) return false;
+      s.eventsByDate = new Map();
+      return true;
+    }
+    const dateFrom = `${year}-${pad(month)}-01`;
+    const dateTo = `${year}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
+    const events = await wizard.loadEventDates({ dateFrom, dateTo });
+    if (events === null) return false;
+    const locationId = wizard.getState().context.locationId;
+    const byDate = new Map();
+    for (const evt of events) {
+      if (evt.isFullyBooked) continue;
+      if (evt.locationId != null && evt.locationId !== locationId) continue;
+      if (!byDate.has(evt.date)) byDate.set(evt.date, []);
+      byDate.get(evt.date).push(evt);
+    }
+    s.eventsByDate = byDate;
+    return true;
   },
 
   _buildDayCalendar(region, wizard, s, calContainer, initialMonth, iy, im, isFlexible) {
@@ -268,13 +367,43 @@ export const datetimeStep = {
     await s.reacquire(next);
   },
 
-  _renderSlots(region, slots, s, wizard) {
+  _renderSlots(region, slots, events, s, wizard) {
     const list = qs('[data-booked-slots]', region);
     if (!list) return;
     list.replaceChildren();
     // A fresh slot list means no active selection yet — hide the quantity picker.
     s.reacquire = null;
     this._renderQuantity(region, s);
+
+    // When a day has both, label the two groups and split them with a rule —
+    // otherwise an event card reads as a stray, unexplained first "slot".
+    const mixed = events.length > 0 && slots.length > 0;
+
+    const selectedEventId = wizard.getState().context.eventDateId;
+    if (events.length > 0) {
+      if (mixed) list.appendChild(this._groupHeading(wizard.t('slot.eventsHeading')));
+      for (const evt of events) {
+        list.appendChild(this._eventOption(evt, selectedEventId, wizard));
+      }
+    }
+
+    if (slots.length > 0) {
+      if (mixed) {
+        const divider = document.createElement('hr');
+        divider.className = 'booked-slots__divider';
+        divider.setAttribute('aria-hidden', 'true');
+        list.appendChild(divider);
+      }
+      // Named every time a day has slots, not just when mixed with an event —
+      // a bare time option carries no service info on its own, unlike an
+      // event card, which names itself right on the card.
+      const serviceName = wizard.getState().context.selectedService?.title;
+      const timesHeading = serviceName
+        ? wizard.t('slot.timesHeadingForService', { service: serviceName })
+        : wizard.t('slot.timesHeading');
+      list.appendChild(this._groupHeading(timesHeading));
+    }
+
     const selectedTime = wizard.getState().context.time;
     for (const slot of slots) {
       const opt = document.createElement('button');
@@ -312,5 +441,47 @@ export const datetimeStep = {
         setHidden(qs('[data-booked-waitlist-success]', region), true);
       }
     }
+  },
+
+  /** Build one event option for the slot listbox — visually and semantically distinct from a time slot. */
+  _eventOption(evt, selectedEventId, wizard) {
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.setAttribute('role', 'option');
+    opt.setAttribute('data-booked-event-id', String(evt.id));
+    opt.setAttribute('aria-selected', evt.id === selectedEventId ? 'true' : 'false');
+    if (evt.isFullyBooked) opt.setAttribute('aria-disabled', 'true');
+
+    const badge = document.createElement('span');
+    badge.className = 'booked-slot__event-badge';
+    badge.textContent = wizard.t('slot.eventLabel');
+    opt.appendChild(badge);
+
+    const title = document.createElement('span');
+    title.className = 'booked-slot__event-title';
+    title.textContent = evt.title || '';
+    opt.appendChild(title);
+
+    const time = document.createElement('span');
+    time.className = 'booked-slot__event-time';
+    time.textContent = evt.formattedTimeRange || evt.startTime || '';
+    opt.appendChild(time);
+
+    return opt;
+  },
+
+  /**
+   * A purely visual label between the event and time groups in the slot
+   * listbox. `aria-hidden` because a listbox's accessible children are its
+   * options — a stray labeled node between them is not a standard listbox
+   * grouping construct, so screen-reader users get the same list a plain
+   * reading of the options already gives them, not a confusing extra stop.
+   */
+  _groupHeading(text) {
+    const h = document.createElement('div');
+    h.className = 'booked-slots__group-heading';
+    h.setAttribute('aria-hidden', 'true');
+    h.textContent = text;
+    return h;
   },
 };

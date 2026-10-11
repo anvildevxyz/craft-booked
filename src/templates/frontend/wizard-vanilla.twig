@@ -50,6 +50,10 @@
     'calendar.prevMonth': 'calendar.prevMonth'|t('booked'),
     'calendar.nextMonth': 'calendar.nextMonth'|t('booked'),
     'slot.seatsAvailable': 'slot.seatsAvailable'|t('booked'),
+    'slot.eventLabel': 'slot.eventLabel'|t('booked'),
+    'slot.eventsHeading': 'slot.eventsHeading'|t('booked'),
+    'slot.timesHeading': 'slot.timesHeading'|t('booked'),
+    'slot.timesHeadingForService': 'slot.timesHeadingForService'|t('booked'),
     'error.generic': 'error.generic'|t('booked'),
     'error.booking': 'error.booking'|t('booked'),
     'error.slotReserved': 'error.slotReserved'|t('booked'),
@@ -124,7 +128,11 @@
     <div class="booked-sr-only" aria-live="polite" data-booked-live></div>
 
     {# --- Steps ------------------------------------------------------------ #}
-    <section data-booked-step="service">
+    {# `hidden` like every other step below: nothing shows until the core
+       resolves the real starting step (renderer.syncInitial()) — otherwise this
+       one flashes empty on load whenever auto-select skips straight past it
+       (single service, or one preselected via config/deep link). #}
+    <section data-booked-step="service" hidden>
         <h2 data-booked-step-heading>{{ labels.selectService }}</h2>
         <template data-booked-template="service-card">
             <button type="button" data-booked-action="select-service" class="booked-card">
@@ -274,6 +282,7 @@
                 <dt>{{ 'wizard.successStatus'|t('booked') }}</dt><dd data-booked-summary="status"></dd>
                 <dt>{{ 'wizard.successBookingId'|t('booked') }}</dt><dd>#<span data-booked-summary="booking-id"></span></dd>
                 <dt>{{ 'wizard.successAppointment'|t('booked') }}</dt><dd data-booked-summary="appointment"></dd>
+                <dt>{{ 'wizard.summaryQuantity'|t('booked') }}</dt><dd data-booked-summary="quantity"></dd>
             </dl>
             <p class="booked-success__note">
                 {{ 'wizard.successNextSteps'|t('booked') }}
