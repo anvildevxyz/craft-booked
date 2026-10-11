@@ -228,6 +228,22 @@ class EmailRenderService extends Component
         );
     }
 
+    public function renderRescheduledEmail(
+        ReservationInterface $reservation,
+        Settings $settings,
+        string $previousDate,
+        string $previousStartTime,
+    ): string {
+        // Formatted to match every other date/time in this email (getFormattedDateTime()
+        // on the "new time" side) — a raw "2026-10-15 14:30:00" next to "Thursday,
+        // October 15, 2026 at 2:30 PM" would read as a rendering bug, not a feature.
+        $previousTime = DateHelper::parseTime($previousStartTime);
+        return $this->renderReservationEmail('booked/emails/rescheduled', $reservation, $settings, [
+            'previousDate' => DateHelper::formatDateLocale($previousDate),
+            'previousStartTime' => $previousTime ? DateHelper::formatTimeLocale($previousTime) : $previousStartTime,
+        ]);
+    }
+
     public function renderQuantityChangedEmail(
         ReservationInterface $reservation,
         Settings $settings,

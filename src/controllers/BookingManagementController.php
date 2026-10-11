@@ -31,6 +31,7 @@ class BookingManagementController extends Controller
         'download-ics',
         'reduce-quantity',
         'increase-quantity',
+        'reschedule-booking',
     ];
 
     public $enableCsrfValidation = true;
@@ -143,6 +144,16 @@ class BookingManagementController extends Controller
                 'notes' => $reservation->getNotes(),
                 'formattedDateTime' => $reservation->getFormattedDateTime(),
                 'canCancel' => $reservation->canBeCancelled(),
+                // Mirrors handleRescheduleAction()'s guards exactly, so the UI
+                // never offers a picker the write path would then reject: not an
+                // event (fixed date/time, no slot grid), not multi-day (a date
+                // range, not a single start/end time this flow can write), not
+                // already closed out as a no-show, and within the cancellation
+                // policy the same way a cancel would be.
+                'canReschedule' => $reservation->getEventDateId() === null
+                    && !$reservation->isMultiDay()
+                    && $reservation->getStatus() !== \anvildev\booked\records\ReservationRecord::STATUS_NO_SHOW
+                    && $reservation->canBeRescheduled(),
                 'isPast' => $this->isBookingPast($reservation),
                 'isEventBooking' => $reservation->getEventDateId() !== null,
                 'eventDateId' => $reservation->getEventDateId(),
@@ -350,6 +361,31 @@ class BookingManagementController extends Controller
         return $this->redirectToPostedUrl();
     }
 
+    /**
+     * Reschedule a booking by ID (requires confirmation token, same IDOR guard
+     * as reduce/increase quantity). Used by the vanilla wizard's `?manage=` flow;
+     * shares its guards and update path with handleRescheduleAction() below,
+     * which the legacy manage-booking page's single-dispatch form still uses.
+     */
+    public function actionRescheduleBooking(): Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+
+        $id = (int) Craft::$app->request->getRequiredBodyParam('id');
+        $token = (string) Craft::$app->request->getRequiredBodyParam('token');
+
+        $reservation = ReservationFactory::find()->id($id)->one();
+
+        if (!$reservation || !hash_equals($reservation->getConfirmationToken(), $token)) {
+            Craft::warning("Unauthorized reschedule attempt for ID: {$id}", __METHOD__);
+            Booked::getInstance()->getAudit()->logAuthFailure('invalid_reschedule_token', ['reservationId' => $id]);
+            return $this->jsonError(Craft::t('booked', 'booking.unauthorized'));
+        }
+
+        return $this->handleRescheduleAction($reservation);
+    }
+
     private function handleCancelAction(ReservationInterface $reservation): Response
     {
         $isJson = Craft::$app->getRequest()->getAcceptsJson();
@@ -389,10 +425,37 @@ class BookingManagementController extends Controller
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
-        // Guard: only active bookings can be rescheduled
+        // Guard: only active bookings can be rescheduled. The status list names
+        // every terminal ReservationRecord status (pending/confirmed/cancelled/
+        // no_show are the only ones that exist) — a no-show staff already closed
+        // out must not be revivable by the customer rescheduling it, the same
+        // way a cancelled one can't be.
         $status = $reservation->getStatus();
-        if (in_array($status, ['cancelled', 'completed'], true)) {
+        if (in_array($status, ['cancelled', 'no_show'], true)) {
             $msg = Craft::t('booked', 'booking.cannotRescheduleStatus');
+            return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
+        }
+
+        // Guard: an event's date/time is fixed by staff, not a slot grid the
+        // customer picks from a schedule.
+        if ($reservation->getEventDateId() !== null) {
+            $msg = Craft::t('booked', 'booking.cannotRescheduleEvent');
+            return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
+        }
+
+        // Guard: a multi-day booking has a date range (bookingDate..endDate),
+        // not a single start/end time — this flow only ever writes those three
+        // columns, which would corrupt the range rather than move it.
+        if ($reservation->isMultiDay()) {
+            $msg = Craft::t('booked', 'booking.cannotRescheduleMultiDay');
+            return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
+        }
+
+        // Guard: the cancellation policy. Without this a customer inside the
+        // no-cancellation window could still move the booking to any open slot,
+        // which defeats the policy entirely.
+        if (!$reservation->canBeRescheduled()) {
+            $msg = Craft::t('booked', 'booking.cannotReschedulePolicy');
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
@@ -416,14 +479,23 @@ class BookingManagementController extends Controller
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
+        // The reservation being moved must not be counted against itself. Without
+        // excluding it, its own slot — and, on a service with buffers, the slots
+        // its buffer overlaps — read as taken, so the customer is refused the very
+        // slot the reschedule panel just offered them.
         if (!$this->availabilityService->isSlotAvailable(
             $newDate, $newStartTime, $newEndTime,
             $reservation->getEmployeeId(), $reservation->getLocationId(),
-            $reservation->getServiceId(), $reservation->getQuantity()
+            $reservation->getServiceId(), $reservation->getQuantity(),
+            excludeReservationId: $reservation->getId(),
         )) {
             $msg = Craft::t('booked', 'booking.slotNotAvailable');
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
+
+        // Captured before the update, which overwrites them on the reservation.
+        $previousDate = $reservation->getBookingDate();
+        $previousStartTime = $reservation->getStartTime();
 
         try {
             $updated = $this->bookingService->updateReservation($reservation->getId(), [
@@ -434,6 +506,21 @@ class BookingManagementController extends Controller
         } catch (\anvildev\booked\exceptions\BookingException $e) {
             $msg = $e->getMessage();
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
+        }
+
+        // The booking has moved either way, so a failure to queue the email must
+        // not read to the customer as a failed reschedule.
+        try {
+            Booked::getInstance()->bookingNotification->queueRescheduledNotification(
+                $updated->getId(),
+                $previousDate,
+                $previousStartTime,
+            );
+        } catch (\Throwable $e) {
+            Craft::error(
+                "Reschedule succeeded but the notification could not be queued for #{$updated->getId()}: " . $e->getMessage(),
+                __METHOD__,
+            );
         }
 
         if ($isJson) {

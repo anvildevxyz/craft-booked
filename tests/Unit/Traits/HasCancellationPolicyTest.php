@@ -90,6 +90,27 @@ class HasCancellationPolicyTest extends TestCase
         $this->assertFalse($r->canBeCancelled());
     }
 
+    public function testCanBeRescheduledMirrorsCanBeCancelledWhenAllowed(): void
+    {
+        $r = $this->makeReservation([
+            'bookingDate' => (new \DateTime('+30 days'))->format('Y-m-d'),
+        ]);
+        $this->assertTrue($r->canBeRescheduled());
+    }
+
+    public function testCanBeRescheduledNeverGrantsMoreThanCanBeCancelled(): void
+    {
+        // Inside the entity's own no-cancellation window — rescheduling must be
+        // blocked too, or the policy is trivially defeated by moving the booking
+        // out to a far-off date instead of cancelling it.
+        $r = $this->makeReservation([
+            'bookingDate' => (new \DateTime('+2 days'))->format('Y-m-d'),
+            'policyOverride' => 720,
+        ]);
+        $this->assertFalse($r->canBeCancelled());
+        $this->assertFalse($r->canBeRescheduled());
+    }
+
     public function testNullEntityPolicyFallsBackToGlobal(): void
     {
         // policyOverride = -1 → resolveCancellationPolicyHours returns null → use global

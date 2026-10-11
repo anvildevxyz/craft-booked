@@ -106,4 +106,20 @@ trait HasCancellationPolicy
 
         return $bookingDateTime->getTimestamp() > $cutoffTime->getTimestamp();
     }
+
+    /**
+     * Whether this booking can be moved to a different slot. A no-cancellation
+     * window a customer cannot cancel inside is a window they must not be able
+     * to move out of either — otherwise the policy is trivially defeated by
+     * rescheduling to a far-off date and never showing up. The same argument
+     * applies to a service with `allowCancellation` switched off.
+     *
+     * This deliberately never grants more than canBeCancelled() does. If
+     * rescheduling should ever be allowed on its own terms, it needs its own
+     * setting rather than a loosening of this.
+     */
+    public function canBeRescheduled(): bool
+    {
+        return $this->canBeCancelled();
+    }
 }

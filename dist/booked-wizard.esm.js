@@ -598,8 +598,8 @@ var BookedApi = class {
   rangeCapacity(query) {
     return this.get("availability/range-capacity", { query, channel: "range-capacity" });
   }
-  calendar(query) {
-    return this.get("availability/calendar", { query, channel: "calendar" });
+  calendar(body) {
+    return this.post("availability/calendar", { body, channel: "calendar" });
   }
   eventDates(query) {
     return this.get("events/dates", { query, channel: "event-dates" });
@@ -663,6 +663,9 @@ var BookedApi = class {
   }
   manageIncrease(body) {
     return this.post("manage/increase", { body });
+  }
+  manageReschedule(body) {
+    return this.post("manage/reschedule", { body });
   }
 };
 
@@ -1489,6 +1492,40 @@ var Wizard = class {
   manageIncrease(increaseBy = 1) {
     return this._manageAction((res) => this._api.manageIncrease({ id: res.id, token: this._manageToken, increaseBy }), "manage:updated");
   }
+  /** Reschedule the managed booking to a different date/time. */
+  manageReschedule({ date, startTime, endTime } = {}) {
+    return this._manageAction(
+      (res) => this._api.manageReschedule({ id: res.id, token: this._manageToken, newDate: date, newStartTime: startTime, newEndTime: endTime }),
+      "manage:updated"
+    );
+  }
+  /**
+   * Month availability for the reschedule picker — scoped to the managed
+   * reservation's own service/employee/location server-side (via the manage
+   * token, never trusted from this call), and excluding the reservation's own
+   * slot so it doesn't read as unavailable against itself. Returns null on a
+   * superseded or failed request; unlike loadCalendar(), a failure here does
+   * not flip the whole manage view into an error state — reschedule is one
+   * optional panel among several, not something the rest of the page depends
+   * on being available.
+   */
+  async manageLoadCalendar({ year, month } = {}) {
+    try {
+      const data = await this._api.calendar({ year, month, manageToken: this._manageToken });
+      return data && data.success !== false ? data.calendar || {} : null;
+    } catch {
+      return null;
+    }
+  }
+  /** Bookable time slots for a reschedule date, scoped the same way as manageLoadCalendar(). */
+  async manageLoadSlots({ date } = {}) {
+    try {
+      const data = await this._api.slots({ date, manageToken: this._manageToken });
+      return data && data.success !== false ? { slots: data.slots || [] } : null;
+    } catch {
+      return null;
+    }
+  }
   /** Run a management mutation on the loaded reservation, then reload and emit `event`. */
   async _manageAction(call, event) {
     const res = this._ctx.reservation;
@@ -1918,13 +1955,13 @@ var Renderer = class {
     return qs(`[data-booked-step="${stepId}"]`, this._root);
   }
   _updateProgress() {
-    const state3 = this._wizard.getState();
+    const state4 = this._wizard.getState();
     const progress = qs(SEL.progress, this._root);
     if (!progress) return;
-    setText(qs(SEL.progressCurrent, progress), state3.position);
-    setText(qs(SEL.progressTotal, progress), state3.total);
-    progress.setAttribute("aria-valuenow", String(state3.position));
-    progress.setAttribute("aria-valuemax", String(state3.total));
+    setText(qs(SEL.progressCurrent, progress), state4.position);
+    setText(qs(SEL.progressTotal, progress), state4.total);
+    progress.setAttribute("aria-valuenow", String(state4.position));
+    progress.setAttribute("aria-valuemax", String(state4.total));
   }
   _setLoading(isLoading) {
     const el = qs(SEL.loading, this._root);
@@ -3271,15 +3308,39 @@ var successStep = {
 
 // src/web/js/ui/steps/manage.js
 var cleanups2 = /* @__PURE__ */ new WeakMap();
+var state3 = /* @__PURE__ */ new WeakMap();
+function pad3(n) {
+  return String(n).padStart(2, "0");
+}
+function calendarLabels2(wizard) {
+  return {
+    prevMonth: wizard.t("calendar.prevMonth"),
+    nextMonth: wizard.t("calendar.nextMonth")
+  };
+}
 var manageStep = {
   mount(region, wizard) {
+    const s = { cal: null, calMap: {}, selectedDate: null, selected: null };
+    state3.set(region, s);
     const rerender = () => this.render(region, wizard);
     const offs = [
       wizard.on("manage:loaded", rerender),
       wizard.on("manage:updated", rerender),
-      wizard.on("manage:cancelled", rerender)
+      wizard.on("manage:cancelled", rerender),
+      delegate(region, "click", "[data-booked-reschedule-slot]", (e, el) => {
+        this._selectSlot(region, s, el);
+      }),
+      delegate(region, "click", '[data-booked-action="manage-reschedule-submit"]', async (e, el) => {
+        if (!s.selected || el.disabled) return;
+        el.disabled = true;
+        const result = await wizard.manageReschedule(s.selected);
+        if (!result.ok) el.disabled = false;
+      })
     ];
-    cleanups2.set(region, () => offs.forEach((off) => off()));
+    cleanups2.set(region, () => {
+      offs.forEach((off) => off());
+      s.cal?.destroy();
+    });
   },
   unmount(region) {
     const off = cleanups2.get(region);
@@ -3287,6 +3348,7 @@ var manageStep = {
       off();
       cleanups2.delete(region);
     }
+    state3.delete(region);
   },
   render(region, wizard) {
     const r = wizard.getState().context.reservation;
@@ -3301,6 +3363,107 @@ var manageStep = {
     setHidden(qs("[data-booked-manage-cancelled]", region), !cancelled);
     const dec = qs('[data-booked-action="manage-reduce"]', region);
     if (dec) dec.disabled = !(r.quantity > 1);
+    const reschedulePanel = qs("[data-booked-manage-reschedule]", region);
+    if (reschedulePanel) {
+      setHidden(reschedulePanel, !r.canReschedule);
+      if (r.canReschedule) this._ensureCalendar(region, wizard, reschedulePanel);
+    }
+    const s = state3.get(region);
+    if (s && s.lastDateTime != null && s.lastDateTime !== r.formattedDateTime) {
+      this._resetPicker(region, s);
+    }
+    if (s) s.lastDateTime = r.formattedDateTime;
+  },
+  /** Builds the reschedule calendar once; a re-render after a successful
+   * reschedule reuses it rather than rebuilding, so the panel just shows the
+   * new current month with the slot list cleared. */
+  _ensureCalendar(region, wizard, panel) {
+    const s = state3.get(region);
+    if (s.cal) return;
+    const calContainer = qs("[data-booked-manage-reschedule-calendar]", panel);
+    if (!calContainer) return;
+    const isAvailable = (date) => s.calMap[date]?.isBookable === true;
+    const now = /* @__PURE__ */ new Date();
+    const initialMonth = calContainer.getAttribute("data-booked-initial-month") || `${now.getFullYear()}-${pad3(now.getMonth() + 1)}`;
+    const [iy, im] = initialMonth.split("-").map(Number);
+    const cal = new Calendar(calContainer, {
+      month: initialMonth,
+      mode: "single",
+      locale: wizard.getState()?.context?.locale,
+      labels: calendarLabels2(wizard),
+      isAvailable,
+      onMonthChange: async ({ year, month }) => {
+        const map = await wizard.manageLoadCalendar({ year, month });
+        if (map) {
+          s.calMap = map;
+          cal.setAvailability(isAvailable);
+        }
+      },
+      onSelect: async (date) => {
+        s.selectedDate = date;
+        s.selected = null;
+        this._setSubmitEnabled(region, false);
+        const res = await wizard.manageLoadSlots({ date });
+        this._renderSlots(region, res ? res.slots : []);
+      }
+    });
+    s.cal = cal;
+    wizard.manageLoadCalendar({ year: iy, month: im }).then((map) => {
+      if (map) {
+        s.calMap = map;
+        cal.setAvailability(isAvailable);
+      }
+    });
+  },
+  /** Collapses the picker back to its unopened state: no day selected, no
+   * slots shown, submit disabled. Used after a reschedule succeeds. */
+  _resetPicker(region, s) {
+    const list2 = qs("[data-booked-manage-reschedule-slots]", region);
+    const empty = qs("[data-booked-manage-reschedule-empty]", region);
+    list2?.replaceChildren();
+    setHidden(empty, true);
+    s.selected = null;
+    s.selectedDate = null;
+    this._setSubmitEnabled(region, false);
+    s.cal?.setSelected(null);
+  },
+  _renderSlots(region, slots) {
+    const list2 = qs("[data-booked-manage-reschedule-slots]", region);
+    const empty = qs("[data-booked-manage-reschedule-empty]", region);
+    if (!list2) return;
+    list2.replaceChildren();
+    setHidden(empty, slots.length > 0);
+    for (const slot of slots) {
+      const cap = slot.availableCapacity;
+      const unavailable = cap != null && cap < 1;
+      const opt = document.createElement("button");
+      opt.type = "button";
+      opt.setAttribute("role", "option");
+      opt.setAttribute("data-booked-reschedule-slot", "");
+      opt.setAttribute("data-booked-reschedule-start", slot.time);
+      opt.setAttribute("data-booked-reschedule-end", slot.endTime ?? "");
+      opt.setAttribute("aria-selected", "false");
+      if (unavailable) opt.setAttribute("aria-disabled", "true");
+      opt.textContent = slot.time;
+      list2.appendChild(opt);
+    }
+  },
+  _selectSlot(region, s, el) {
+    if (el.getAttribute("aria-disabled") === "true") return;
+    const list2 = el.closest("[data-booked-manage-reschedule-slots]");
+    for (const opt of list2.querySelectorAll("[data-booked-reschedule-slot]")) {
+      opt.setAttribute("aria-selected", opt === el ? "true" : "false");
+    }
+    s.selected = {
+      date: s.selectedDate,
+      startTime: el.getAttribute("data-booked-reschedule-start"),
+      endTime: el.getAttribute("data-booked-reschedule-end")
+    };
+    this._setSubmitEnabled(region, true);
+  },
+  _setSubmitEnabled(region, enabled) {
+    const btn = qs('[data-booked-action="manage-reschedule-submit"]', region);
+    if (btn) btn.disabled = !enabled;
   }
 };
 
@@ -3340,7 +3503,7 @@ function createPaymentStep(opts = {}) {
     const w = getWin();
     (w && w.setTimeout ? w.setTimeout : setTimeout)(resolve, ms);
   });
-  const state3 = { stripe: null, elements: null, started: false, paying: false };
+  const state4 = { stripe: null, elements: null, started: false, paying: false };
   return {
     async mount(region, wizard) {
       const t = (k, p) => wizard.t(k, p);
@@ -3377,8 +3540,8 @@ function createPaymentStep(opts = {}) {
     },
     /** Create the payment, load Stripe, and mount the Payment Element. */
     async _begin(wizard, ui) {
-      if (state3.started) return;
-      state3.started = true;
+      if (state4.started) return;
+      state4.started = true;
       const { t, els, showError, clearError, setStatus, setPayEnabled } = ui;
       clearError();
       setStatus(t("payment.preparing"));
@@ -3388,9 +3551,9 @@ function createPaymentStep(opts = {}) {
         const publishableKey = res.config && res.config.publishableKey;
         if (!publishableKey) throw new Error(t("payment.unavailable"));
         const Stripe = await loadStripeJs(getWin());
-        state3.stripe = Stripe(publishableKey);
-        state3.elements = state3.stripe.elements({ clientSecret: res.clientSecret });
-        const paymentElement = state3.elements.create("payment");
+        state4.stripe = Stripe(publishableKey);
+        state4.elements = state4.stripe.elements({ clientSecret: res.clientSecret });
+        const paymentElement = state4.elements.create("payment");
         paymentElement.mount(els.target || "[data-booked-payment-element]");
         setStatus("");
         setPayEnabled(true);
@@ -3402,8 +3565,8 @@ function createPaymentStep(opts = {}) {
     /** Confirm the payment with Stripe, then poll the server for finalization. */
     async _pay(wizard, ui) {
       const { t, els, showError, clearError, setStatus, setPayEnabled } = ui;
-      if (state3.paying || !state3.stripe || !state3.elements) return;
-      state3.paying = true;
+      if (state4.paying || !state4.stripe || !state4.elements) return;
+      state4.paying = true;
       setPayEnabled(false);
       clearError();
       setStatus(t("payment.processing"));
@@ -3411,8 +3574,8 @@ function createPaymentStep(opts = {}) {
       try {
         const win = getWin();
         const returnUrl = win && win.location ? win.location.href : void 0;
-        const res = await state3.stripe.confirmPayment({
-          elements: state3.elements,
+        const res = await state4.stripe.confirmPayment({
+          elements: state4.elements,
           ...returnUrl ? { confirmParams: { return_url: returnUrl } } : {},
           redirect: "if_required"
         });
@@ -3424,7 +3587,7 @@ function createPaymentStep(opts = {}) {
         setStatus("");
         showError(confirmError.message || t("payment.failed"));
         setPayEnabled(true);
-        state3.paying = false;
+        state4.paying = false;
         return;
       }
       for (let i = 0; i < maxPolls; i++) {

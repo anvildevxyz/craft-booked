@@ -175,7 +175,7 @@ class ControllerSourceTest extends TestCase
             // confirmation token with hash_equals() and audits a failure.
             'BookingManagementController' => ['BookingManagementController.php', [
                 'manage-booking', 'cancel-booking-by-token', 'download-ics',
-                'increase-quantity', 'reduce-quantity',
+                'increase-quantity', 'reduce-quantity', 'reschedule-booking',
             ]],
             'CalendarConnectController' => ['CalendarConnectController.php', [
                 'connect', 'callback', 'success', 'error',

@@ -752,6 +752,7 @@ class Booked extends Plugin
                     'booked/api/v1/manage' => 'booked/booking-management/manage-booking',
                     'booked/api/v1/manage/reduce' => 'booked/booking-management/reduce-quantity',
                     'booked/api/v1/manage/increase' => 'booked/booking-management/increase-quantity',
+                    'booked/api/v1/manage/reschedule' => 'booked/booking-management/reschedule-booking',
                     // Cancel needs its own POST route: a POST to the bare
                     // `manage` rule above does not resolve (Craft site URL rules
                     // route GET only for that pattern), so the headless wizard
@@ -1129,6 +1130,21 @@ class Booked extends Plugin
                             \anvildev\booked\services\WebhookService::EVENT_BOOKING_UPDATED,
                             $event->reservation
                         );
+
+                        // An update can move the reservation's date/time (customer
+                        // self-service reschedule, or a staff drag-reschedule in the
+                        // CP calendar) — an already-synced external calendar event
+                        // needs to follow, the same way a quantity change already
+                        // re-syncs it. Safe to call unconditionally: the job itself
+                        // no-ops when the employee has no connected calendar.
+                        try {
+                            $this->calendarSync->queueCalendarUpdate($event->reservation->getId());
+                        } catch (\Throwable $e) {
+                            Craft::error(
+                                "Failed to queue calendar update for reservation #{$event->reservation->getId()}: " . $e->getMessage(),
+                                __METHOD__,
+                            );
+                        }
                     }
                 }
             }

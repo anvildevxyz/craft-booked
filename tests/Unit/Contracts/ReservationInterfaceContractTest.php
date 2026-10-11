@@ -136,6 +136,7 @@ class ReservationInterfaceContractTest extends TestCase
             // Business Logic
             ['cancel'],
             ['canBeCancelled'],
+            ['canBeRescheduled'],
             ['getFormattedDateTime'],
             ['getDurationMinutes'],
             ['conflictsWith'],
