@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.0 - 2026-10-11
+
+### Fixed
+- **A staff reschedule in the CP calendar never told the customer.** ([#136](https://github.com/anvildevxyz/craft-booked/issues/136)) The customer-facing manage-link reschedule queued a "your booking moved" email itself, but the CP's drag-and-drop calendar reschedule called the same underlying `updateReservation()` method without ever queuing one — so a customer only found out their booking moved if they happened to check back. The notification (and the Google/Outlook calendar re-sync from [#135](https://github.com/anvildevxyz/craft-booked/pull/135)) now fires from a shared event listener keyed off whether the update actually moved the slot, so every reschedule entry point notifies the customer the same way, instead of only the one that remembered to. A status-only edit, like marking a booking complete, still sends no reschedule email. ([#138](https://github.com/anvildevxyz/craft-booked/pull/138))
+
 ## 1.7.0 - 2026-10-11
 
 ### Added
