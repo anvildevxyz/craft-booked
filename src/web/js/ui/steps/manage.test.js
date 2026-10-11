@@ -288,6 +288,37 @@ describe('manageStep — reschedule (DOM)', () => {
     );
   });
 
+  it('disables submit immediately on click, so a double-click cannot fire two reschedules', async () => {
+    let resolveReschedule;
+    const { region, api } = await mountReschedule({
+      manageReschedule: vi.fn(() => new Promise((resolve) => { resolveReschedule = resolve; })),
+    });
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+    region.querySelector('[data-booked-reschedule-slot]').click();
+
+    const submit = region.querySelector('[data-booked-action="manage-reschedule-submit"]');
+    submit.click();
+    expect(submit.disabled).toBe(true);
+    submit.click(); // a second click while the first request is still in flight
+    expect(api.manageReschedule).toHaveBeenCalledTimes(1);
+
+    resolveReschedule({ success: true });
+  });
+
+  it('re-enables submit after a failed reschedule, so the customer can retry', async () => {
+    const { region } = await mountReschedule({
+      manageReschedule: vi.fn(async () => ({ success: false, message: 'That time was just taken.' })),
+    });
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-reschedule-slot]')).not.toBeNull());
+    region.querySelector('[data-booked-reschedule-slot]').click();
+
+    const submit = region.querySelector('[data-booked-action="manage-reschedule-submit"]');
+    submit.click();
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+  });
+
   it('a disabled (fully booked) slot cannot be selected', async () => {
     const { region } = await mountReschedule({
       slots: vi.fn(async () => ({ success: true, slots: [{ time: '10:00', endTime: '10:30', availableCapacity: 0 }] })),

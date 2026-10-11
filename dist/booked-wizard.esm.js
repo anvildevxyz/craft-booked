@@ -598,8 +598,8 @@ var BookedApi = class {
   rangeCapacity(query) {
     return this.get("availability/range-capacity", { query, channel: "range-capacity" });
   }
-  calendar(query) {
-    return this.get("availability/calendar", { query, channel: "calendar" });
+  calendar(body) {
+    return this.post("availability/calendar", { body, channel: "calendar" });
   }
   eventDates(query) {
     return this.get("events/dates", { query, channel: "event-dates" });
@@ -1513,8 +1513,8 @@ var Wizard = class {
     try {
       const data = await this._api.calendar({ year, month, manageToken: this._manageToken });
       return data && data.success !== false ? data.calendar || {} : null;
-    } catch (err) {
-      return err && err.aborted ? null : null;
+    } catch {
+      return null;
     }
   }
   /** Bookable time slots for a reschedule date, scoped the same way as manageLoadCalendar(). */
@@ -3330,9 +3330,11 @@ var manageStep = {
       delegate(region, "click", "[data-booked-reschedule-slot]", (e, el) => {
         this._selectSlot(region, s, el);
       }),
-      delegate(region, "click", '[data-booked-action="manage-reschedule-submit"]', () => {
-        if (!s.selected) return;
-        wizard.manageReschedule(s.selected);
+      delegate(region, "click", '[data-booked-action="manage-reschedule-submit"]', async (e, el) => {
+        if (!s.selected || el.disabled) return;
+        el.disabled = true;
+        const result = await wizard.manageReschedule(s.selected);
+        if (!result.ok) el.disabled = false;
       })
     ];
     cleanups2.set(region, () => {

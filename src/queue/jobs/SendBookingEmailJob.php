@@ -63,7 +63,7 @@ class SendBookingEmailJob extends BaseJob
                 ->setSubject($subject)
                 ->setHtmlBody($body);
 
-            if ($this->emailType === 'confirmation' || str_starts_with($this->emailType, 'reminder_')) {
+            if ($this->emailType === 'confirmation' || $this->emailType === 'rescheduled' || str_starts_with($this->emailType, 'reminder_')) {
                 $service = $reservation->getService();
                 $message->attachContent(\anvildev\booked\helpers\IcsHelper::generate($reservation), [
                     'fileName' => 'Booking - ' . ($service?->title ?? 'Appointment') . '.ics',

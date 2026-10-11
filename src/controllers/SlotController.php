@@ -81,8 +81,8 @@ class SlotController extends Controller
                 return $this->jsonError(Craft::t('booked', 'errors.bookingNotFound'));
             }
             ['serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId,
-                'quantity' => $quantity, 'excludeReservationId' => $excludeReservationId] = $manageContext;
-            $extrasDuration = 0;
+                'quantity' => $quantity, 'extrasDuration' => $extrasDuration,
+                'excludeReservationId' => $excludeReservationId] = $manageContext;
         } else {
             $quantity = $this->normalizeQuantity((int)(Craft::$app->request->getBodyParam('quantity') ?? 1));
             $employeeId = $this->normalizeId(Craft::$app->request->getBodyParam('employeeId'));
@@ -321,6 +321,7 @@ class SlotController extends Controller
      */
     public function actionGetAvailabilityCalendar(): Response
     {
+        $this->requirePostRequest();
         $this->requireAcceptsJson();
 
         if (!$this->checkRateLimit('booked_calendar_throttle', 120)) {
@@ -358,8 +359,8 @@ class SlotController extends Controller
                 return $this->jsonError(Craft::t('booked', 'errors.bookingNotFound'));
             }
             ['serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId,
-                'quantity' => $quantity, 'excludeReservationId' => $excludeReservationId] = $manageContext;
-            $extrasDuration = 0;
+                'quantity' => $quantity, 'extrasDuration' => $extrasDuration,
+                'excludeReservationId' => $excludeReservationId] = $manageContext;
         } else {
             $employeeId = $request->getParam('employeeId') ?: $request->getParam('entryId');
             $locationId = $request->getParam('locationId');
@@ -688,12 +689,17 @@ class SlotController extends Controller
      * itself. Null means the token didn't resolve to a reschedulable booking
      * (not found, or an event booking, which has no slot grid to move within).
      *
-     * @return array{serviceId: ?int, employeeId: ?int, locationId: ?int, quantity: int, excludeReservationId: int}|null
+     * @return array{serviceId: ?int, employeeId: ?int, locationId: ?int, quantity: int, extrasDuration: int, excludeReservationId: int}|null
      */
     private function resolveManageTokenContext(string $manageToken): ?array
     {
         $reservation = ReservationFactory::findByToken($manageToken);
-        if (!$reservation || $reservation->getEventDateId() !== null) {
+        if (!$reservation
+            || $reservation->getEventDateId() !== null
+            || $reservation->isMultiDay()
+            || $reservation->getStatus() === \anvildev\booked\records\ReservationRecord::STATUS_NO_SHOW
+            || !$reservation->canBeRescheduled()
+        ) {
             return null;
         }
 
@@ -702,6 +708,9 @@ class SlotController extends Controller
             'employeeId' => $reservation->getEmployeeId(),
             'locationId' => $reservation->getLocationId(),
             'quantity' => $reservation->getQuantity(),
+            // Beyond the service's own duration — getAvailableSlots() adds this on
+            // top of the base slot length, the same as a fresh booking's extras do.
+            'extrasDuration' => $reservation->getTotalDuration() - $reservation->getDurationMinutes(),
             'excludeReservationId' => $reservation->getId(),
         ];
     }

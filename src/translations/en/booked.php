@@ -263,6 +263,7 @@ return [
     'booking.cannotRescheduleStatus' => 'This booking cannot be rescheduled because it has been cancelled or completed.',
     'booking.cannotReschedulePolicy' => 'This booking is too close to its appointment time to be rescheduled.',
     'booking.cannotRescheduleEvent' => 'Event bookings cannot be rescheduled.',
+    'booking.cannotRescheduleMultiDay' => 'Multi-day bookings cannot be rescheduled.',
     'booking.invalidDateFormat' => 'Invalid date format.',
     'booking.invalidTimeFormat' => 'Invalid time format.',
     'booking.unauthorized' => 'You are not authorized to make this change.',

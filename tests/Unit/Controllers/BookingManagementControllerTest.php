@@ -190,13 +190,87 @@ class BookingManagementControllerTest extends TestCase
 
     public function testRescheduleIsProtectedByManagementToken(): void
     {
-        // Reschedule is only accessible through actionManageBooking which requires a valid token
-        // Verify handleRescheduleAction is private (not directly callable as an action)
+        // Reschedule is only reachable through the legacy manage-booking dispatch
+        // or the dedicated actionRescheduleBooking() — both token-gated. Verify
+        // handleRescheduleAction itself is private (not directly callable as an action).
         $reflection = new \ReflectionMethod(BookingManagementController::class, 'handleRescheduleAction');
         $this->assertTrue(
             $reflection->isPrivate(),
-            'handleRescheduleAction must be private (only accessible through token-protected actionManageBooking)'
+            'handleRescheduleAction must be private (only accessible through token-protected callers)'
         );
+    }
+
+    public function testRescheduleActionValidatesTokenWithHashEquals(): void
+    {
+        preg_match('/function actionRescheduleBooking\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertNotEmpty($matches, 'actionRescheduleBooking method should exist');
+        $this->assertStringContainsString(
+            'hash_equals($reservation->getConfirmationToken(), $token)',
+            $matches[0],
+            'actionRescheduleBooking must use hash_equals for token validation'
+        );
+    }
+
+    public function testRescheduleActionLogsAuthFailureOnWrongToken(): void
+    {
+        preg_match('/function actionRescheduleBooking\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertStringContainsString(
+            "logAuthFailure('invalid_reschedule_token'",
+            $matches[0],
+            'actionRescheduleBooking must log auth failure on invalid token'
+        );
+    }
+
+    public function testHandleRescheduleActionExcludesCancelledAndNoShowBookings(): void
+    {
+        // 'completed' is not a real ReservationRecord status — the guard must
+        // name the statuses that actually exist (cancelled, no_show), or a
+        // no-show booking staff already closed out stays reschedulable.
+        preg_match('/function handleRescheduleAction\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertNotEmpty($matches, 'handleRescheduleAction method should exist');
+        $this->assertStringContainsString(
+            "['cancelled', 'no_show']",
+            $matches[0],
+            'handleRescheduleAction must exclude cancelled and no_show bookings'
+        );
+        $this->assertStringNotContainsString(
+            "'completed'",
+            $matches[0],
+            'handleRescheduleAction must not check for a non-existent "completed" status'
+        );
+    }
+
+    public function testHandleRescheduleActionExcludesMultiDayBookings(): void
+    {
+        preg_match('/function handleRescheduleAction\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertStringContainsString(
+            '$reservation->isMultiDay()',
+            $matches[0],
+            'handleRescheduleAction must exclude multi-day bookings, which have no single start/end time to write'
+        );
+    }
+
+    public function testHandleRescheduleActionQueuesRescheduledNotification(): void
+    {
+        preg_match('/function handleRescheduleAction\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertStringContainsString(
+            'queueRescheduledNotification',
+            $matches[0],
+            'handleRescheduleAction must queue a rescheduled notification email on success'
+        );
+    }
+
+    public function testCanRescheduleJsonFlagMirrorsTheWriteGuards(): void
+    {
+        preg_match('/function actionManageBooking\b.*?^    \}/ms', $this->controllerSource, $matches);
+        $this->assertNotEmpty($matches, 'actionManageBooking method should exist');
+        foreach (['isMultiDay()', 'STATUS_NO_SHOW', 'canBeRescheduled()'] as $needle) {
+            $this->assertStringContainsString(
+                $needle,
+                $matches[0],
+                "canReschedule computation must check {$needle}, matching handleRescheduleAction's guards"
+            );
+        }
     }
 
     public function testHandleCancelActionIsPrivate(): void

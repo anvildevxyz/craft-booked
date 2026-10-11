@@ -44,9 +44,14 @@ export const manageStep = {
       delegate(region, 'click', '[data-booked-reschedule-slot]', (e, el) => {
         this._selectSlot(region, s, el);
       }),
-      delegate(region, 'click', '[data-booked-action="manage-reschedule-submit"]', () => {
-        if (!s.selected) return;
-        wizard.manageReschedule(s.selected);
+      delegate(region, 'click', '[data-booked-action="manage-reschedule-submit"]', async (e, el) => {
+        if (!s.selected || el.disabled) return;
+        el.disabled = true;
+        const result = await wizard.manageReschedule(s.selected);
+        // On success the reload re-renders and resets the picker (disabled
+        // again, nothing selected). On failure nothing else re-enables it, so
+        // the customer has to be able to try again without reloading the page.
+        if (!result.ok) el.disabled = false;
       }),
     ];
     cleanups.set(region, () => {

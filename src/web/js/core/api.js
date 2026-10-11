@@ -212,8 +212,11 @@ export class BookedApi {
   rangeCapacity(query) {
     return this.get('availability/range-capacity', { query, channel: 'range-capacity' });
   }
-  calendar(query) {
-    return this.get('availability/calendar', { query, channel: 'calendar' });
+  calendar(body) {
+    // POST, not GET: the manage flow sends `manageToken` here, a secret that
+    // fully controls a customer's booking — it must never ride in a query
+    // string, where it would land in server access logs and browser history.
+    return this.post('availability/calendar', { body, channel: 'calendar' });
   }
   eventDates(query) {
     return this.get('events/dates', { query, channel: 'event-dates' });

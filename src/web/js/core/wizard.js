@@ -686,8 +686,8 @@ export class Wizard {
     try {
       const data = await this._api.calendar({ year, month, manageToken: this._manageToken });
       return data && data.success !== false ? data.calendar || {} : null;
-    } catch (err) {
-      return err && err.aborted ? null : null;
+    } catch {
+      return null;
     }
   }
 

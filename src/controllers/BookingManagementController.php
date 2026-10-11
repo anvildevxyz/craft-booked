@@ -144,10 +144,16 @@ class BookingManagementController extends Controller
                 'notes' => $reservation->getNotes(),
                 'formattedDateTime' => $reservation->getFormattedDateTime(),
                 'canCancel' => $reservation->canBeCancelled(),
-                // An event's date/time is fixed by staff, not a slot grid the
-                // customer picks from a schedule — rescheduling only makes sense
-                // for a regular, service-based booking.
-                'canReschedule' => $reservation->getEventDateId() === null && $reservation->canBeRescheduled(),
+                // Mirrors handleRescheduleAction()'s guards exactly, so the UI
+                // never offers a picker the write path would then reject: not an
+                // event (fixed date/time, no slot grid), not multi-day (a date
+                // range, not a single start/end time this flow can write), not
+                // already closed out as a no-show, and within the cancellation
+                // policy the same way a cancel would be.
+                'canReschedule' => $reservation->getEventDateId() === null
+                    && !$reservation->isMultiDay()
+                    && $reservation->getStatus() !== \anvildev\booked\records\ReservationRecord::STATUS_NO_SHOW
+                    && $reservation->canBeRescheduled(),
                 'isPast' => $this->isBookingPast($reservation),
                 'isEventBooking' => $reservation->getEventDateId() !== null,
                 'eventDateId' => $reservation->getEventDateId(),
@@ -419,9 +425,13 @@ class BookingManagementController extends Controller
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
-        // Guard: only active bookings can be rescheduled
+        // Guard: only active bookings can be rescheduled. The status list names
+        // every terminal ReservationRecord status (pending/confirmed/cancelled/
+        // no_show are the only ones that exist) — a no-show staff already closed
+        // out must not be revivable by the customer rescheduling it, the same
+        // way a cancelled one can't be.
         $status = $reservation->getStatus();
-        if (in_array($status, ['cancelled', 'completed'], true)) {
+        if (in_array($status, ['cancelled', 'no_show'], true)) {
             $msg = Craft::t('booked', 'booking.cannotRescheduleStatus');
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
@@ -430,6 +440,14 @@ class BookingManagementController extends Controller
         // customer picks from a schedule.
         if ($reservation->getEventDateId() !== null) {
             $msg = Craft::t('booked', 'booking.cannotRescheduleEvent');
+            return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
+        }
+
+        // Guard: a multi-day booking has a date range (bookingDate..endDate),
+        // not a single start/end time — this flow only ever writes those three
+        // columns, which would corrupt the range rather than move it.
+        if ($reservation->isMultiDay()) {
+            $msg = Craft::t('booked', 'booking.cannotRescheduleMultiDay');
             return $isJson ? $this->jsonError($msg) : $this->_redirectWithError($msg);
         }
 
