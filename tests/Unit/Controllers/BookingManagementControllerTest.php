@@ -250,13 +250,18 @@ class BookingManagementControllerTest extends TestCase
         );
     }
 
-    public function testHandleRescheduleActionQueuesRescheduledNotification(): void
+    public function testHandleRescheduleActionDoesNotQueueItsOwnNotification(): void
     {
+        // The rescheduled email is queued from a shared EVENT_AFTER_BOOKING_SAVE
+        // listener (see BookedTest), not here — so the CP's drag-reschedule,
+        // which calls updateReservation() directly and never reaches this
+        // method, notifies the customer too (#136). Queuing it here as well
+        // would double-send for the manage-link path.
         preg_match('/function handleRescheduleAction\b.*?^    \}/ms', $this->controllerSource, $matches);
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'queueRescheduledNotification',
             $matches[0],
-            'handleRescheduleAction must queue a rescheduled notification email on success'
+            'handleRescheduleAction must not queue its own rescheduled notification (handled by a shared event listener instead)'
         );
     }
 

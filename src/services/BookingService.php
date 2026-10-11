@@ -761,6 +761,8 @@ class BookingService extends Component
 
             try {
                 $oldStatus = $reservation->status;
+                $previousBookingDate = $reservation->bookingDate;
+                $previousStartTime = $reservation->startTime;
 
                 // Validate status before assignment — pending is reserved for Commerce payment flows
                 if (isset($data['status'])) {
@@ -814,6 +816,9 @@ class BookingService extends Component
                     'reservation' => $reservation,
                     'isNew' => false,
                     'success' => true,
+                    'isReschedule' => $isReschedule,
+                    'previousBookingDate' => $previousBookingDate,
+                    'previousStartTime' => $previousStartTime,
                 ]));
 
                 return $reservation;

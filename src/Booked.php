@@ -1145,6 +1145,28 @@ class Booked extends Plugin
                                 __METHOD__,
                             );
                         }
+
+                        // Customer notification for an actual reschedule — gated on
+                        // isReschedule (not every update: a notes-only or
+                        // status-only edit must not send a "rescheduled" email).
+                        // Fired here rather than from the caller so both reschedule
+                        // entry points — the customer manage link and the CP's drag
+                        // calendar — notify the customer the same way, instead of
+                        // only the one that happened to queue it itself (#136).
+                        if ($event->isReschedule) {
+                            try {
+                                $this->bookingNotification->queueRescheduledNotification(
+                                    $event->reservation->getId(),
+                                    (string) $event->previousBookingDate,
+                                    (string) $event->previousStartTime,
+                                );
+                            } catch (\Throwable $e) {
+                                Craft::error(
+                                    "Failed to queue rescheduled notification for reservation #{$event->reservation->getId()}: " . $e->getMessage(),
+                                    __METHOD__,
+                                );
+                            }
+                        }
                     }
                 }
             }
