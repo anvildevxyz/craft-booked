@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0 - 2026-10-11
+
+### Added
+- **Event dates now show up in the regular booking calendar.** ([#132](https://github.com/anvildevxyz/craft-booked/issues/132)) Events were only ever bookable through the separate event wizard, since `EventDate` carries no `serviceId`/`employeeId` and the regular booking wizard never queried event data at all — a site that only embedded the service-booking widget had no way to show an event, even with a service and employee auto-selected beforehand. The single-slot calendar now loads event dates for the displayed month alongside normal availability, marks a day bookable when it has an event even if the regular schedule doesn't, and lists it in the slot list labeled distinctly by title and time, so it's always clear an event is an event and not a regular slot. Events merge in only when the customer never makes an explicit choice among services — one enabled service, or one preselected via a deep link — matching the reported scenario; once a customer picks a specific service from a list of several, the calendar shows only that service's own times, and the dedicated event wizard remains the route for browsing events. The slot list also now always groups regular times under an "Available Times" heading, named after the service when one is known (e.g. "Available Times — Studio Session"), with events shown above a divider on a day that has both. Picking an event this way reuses the already-shipped event-lock/event-booking path — no backend change was needed. ([#133](https://github.com/anvildevxyz/craft-booked/pull/133))
+
 ## 1.5.4 - 2026-10-10
 
 ### Added
