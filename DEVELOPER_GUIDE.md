@@ -1072,15 +1072,25 @@ These endpoints use **confirmation tokens** for authorization (see [Security & A
 | `token` | string | Yes | Confirmation token |
 | `reason` | string | No | Cancellation reason |
 
-`GET /booking/manage/{token}` — Renders booking management page (view details, reschedule, cancel).
+`GET /booking/manage/{token}` — Renders the legacy booking management page (view details, cancel). Its reschedule endpoint accepts requests, but the page itself has no reschedule form — only the vanilla `?manage=<token>` wizard's calendar + slot picker does.
 
 `GET /booking/cancel/{token}` — Renders cancellation confirmation page.
 
 ### Rescheduling
 
-Rescheduling is handled via the booking management page. Customers access it through the token-based URL in their confirmation email.
+Customers access rescheduling through the token-based URL in their confirmation email — either the legacy management page's form (single-dispatch, below) or the vanilla `?manage=<token>` wizard's own calendar + slot picker, which posts to a dedicated route instead:
 
-`POST /actions/booked/booking-management/manage-booking`
+`POST /booked/api/v1/manage/reschedule` (vanilla wizard)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | int | Yes | Reservation ID |
+| `token` | string | Yes | Confirmation token |
+| `newDate` | string | Yes | New date (YYYY-MM-DD) |
+| `newStartTime` | string | Yes | New start time (HH:MM) |
+| `newEndTime` | string | Yes | New end time (HH:MM) |
+
+`POST /actions/booked/booking-management/manage-booking` (legacy page)
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -1091,11 +1101,16 @@ Rescheduling is handled via the booking management page. Customers access it thr
 | `newStartTime` | string | Yes | New start time (HH:MM) |
 | `newEndTime` | string | Yes | New end time (HH:MM) |
 
+Both routes share the same guard logic (`BookingManagementController::handleRescheduleAction()`).
+
 **Constraints:**
 - Cannot reschedule past bookings
-- Cannot reschedule cancelled or completed bookings
-- The new slot must pass `AvailabilityService::isSlotAvailable()` (same employee, location, service, quantity)
-- The cancellation policy deadline applies to the original booking time
+- Cannot reschedule cancelled or no-show bookings (`ReservationRecord` only defines `pending`/`confirmed`/`cancelled`/`no_show` — there is no `completed` status)
+- Cannot reschedule event bookings (an event's date/time is fixed by staff, not a slot grid the customer picks from a schedule) or multi-day bookings (a date range, not a single start/end time)
+- Subject to the cancellation policy, the same as cancelling: `canBeRescheduled()` never grants more than `canBeCancelled()` does, so a booking inside the no-cancellation window can't be moved out of it either
+- The new slot must pass `AvailabilityService::isSlotAvailable()` (same employee, location, service, quantity, with the reservation's own slot excluded from the capacity check so it doesn't read as taken by itself)
+
+The vanilla wizard's calendar/slot lookups (`POST /booked/api/v1/availability/calendar` and `.../availability/slots`) accept the same `token` as a `manageToken` parameter instead of explicit `serviceId`/`employeeId`/`locationId` — the service/employee/location/quantity/extras-duration are resolved server-side from the reservation itself, so a customer can only ever query availability for the booking they already hold.
 
 **Response:**
 
