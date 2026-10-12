@@ -207,6 +207,9 @@ export const datetimeStep = {
       },
       onSelect: async (date) => {
         s.selectedDate = date;
+        // Clear the previous day's slots/event options right away — otherwise
+        // they sit on screen, looking current, for the whole request round trip.
+        this._clearSlots(region, s);
         const res = await wizard.loadSlots({ date });
         if (res) {
           s.waitlistAvailable = res.waitlistAvailable;
@@ -367,13 +370,21 @@ export const datetimeStep = {
     await s.reacquire(next);
   },
 
-  _renderSlots(region, slots, events, s, wizard) {
+  /** Wipe the slot/event list, quantity picker, and waitlist panel for the day just left. */
+  _clearSlots(region, s) {
     const list = qs('[data-booked-slots]', region);
-    if (!list) return;
-    list.replaceChildren();
+    if (list) list.replaceChildren();
     // A fresh slot list means no active selection yet — hide the quantity picker.
     s.reacquire = null;
     this._renderQuantity(region, s);
+    const waitlist = qs('[data-booked-waitlist]', region);
+    if (waitlist) setHidden(waitlist, true);
+  },
+
+  _renderSlots(region, slots, events, s, wizard) {
+    const list = qs('[data-booked-slots]', region);
+    if (!list) return;
+    this._clearSlots(region, s);
 
     // When a day has both, label the two groups and split them with a rule —
     // otherwise an event card reads as a stray, unexplained first "slot".

@@ -155,6 +155,26 @@ describe('Renderer — announcements & errors', () => {
     const err = root.querySelector('[data-booked-error]');
     expect(err.hidden).toBe(false);
   });
+
+  it('clears a stale error once a fresh request succeeds, without a step change (#139)', async () => {
+    const { wizard, renderer, root } = setup({
+      createSlotLock: vi.fn(async () => ({ success: false, message: 'Already booked' })),
+      calendar: vi.fn(async () => ({ calendar: { '2026-08-10': { isBookable: true } } })),
+      slots: vi.fn(async () => ({ slots: [{ time: '10:00', availableCapacity: 1 }] })),
+    });
+    await wizard.start();
+    renderer.syncInitial();
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+    await wizard.selectSlot({ date: '2026-08-10', time: '10:00' });
+    const err = root.querySelector('[data-booked-error]');
+    expect(err.hidden).toBe(false);
+
+    // Picking a different date re-queries slots — still the same step, no
+    // state:change — but the stale "already booked" message must not linger.
+    await wizard.loadSlots({ date: '2026-08-11' });
+    expect(err.hidden).toBe(true);
+  });
 });
 
 describe('Renderer — anti-spam passthrough', () => {
