@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.1 - 2026-10-12
+
+### Fixed
+- **A reserved-slot error outlived the request that caused it, and the previous day's times stayed on screen while the next day's loaded.** ([#139](https://github.com/anvildevxyz/craft-booked/issues/139)) The booking wizard only cleared its error banner on a full step change or a lifecycle transition to browsing — picking a new calendar date does neither, so a stale "this time slot is temporarily reserved" message from an earlier attempt stuck around through later successful requests. The previous date's time slots were also only replaced once the new date's response came back, so a customer saw yesterday's times for the whole round trip with nothing signalling that new data was loading. The renderer now clears the error on every successful data load, and the datetime step clears the slot list, quantity picker, and waitlist panel immediately when a new date is clicked, before the new data arrives. ([#140](https://github.com/anvildevxyz/craft-booked/pull/140))
+
 ## 1.8.0 - 2026-10-11
 
 ### Fixed
