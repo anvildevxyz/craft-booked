@@ -67,7 +67,12 @@ export class Renderer {
     on('state:change', ({ to }) => this._onState(to));
     on('announce', ({ message, politeness }) => this._live?.announce(message, politeness));
     on('error', (payload) => this._showError(payload));
-    on('data:loaded', () => this._updateActiveStep());
+    // Fresh data means a new request succeeded — a stale error from an earlier
+    // attempt (e.g. a reserved-slot message) must not outlive it.
+    on('data:loaded', () => {
+      this._clearError();
+      this._updateActiveStep();
+    });
     // Direct (Commerce-free) payment: reveal + mount the in-page Stripe step.
     on('payment:required', () => this._showStep('payment'));
   }

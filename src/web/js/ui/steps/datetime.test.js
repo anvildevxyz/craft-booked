@@ -161,6 +161,35 @@ describe('datetimeStep — slots', () => {
     // still browsing — no lock acquired
     expect(wizard.state).toBe('browsing');
   });
+
+  it('clears the previous day\'s slots immediately on click, not only once the new data arrives (#139)', async () => {
+    let resolveSecond;
+    const slotsMock = vi
+      .fn()
+      .mockImplementationOnce(async () => ({ slots: [{ time: '10:00', availableCapacity: 2 }] }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+    const { region } = await setup({
+      calendar: vi.fn(async () => ({
+        calendar: { '2026-08-10': { isBookable: true }, '2026-08-12': { isBookable: true } },
+      })),
+      slots: slotsMock,
+    });
+    await vi.waitFor(() => expect(day(region, '2026-08-10').hasAttribute('aria-disabled')).toBe(false));
+    day(region, '2026-08-10').click();
+    await vi.waitFor(() => expect(slot(region, '10:00')).not.toBeNull());
+
+    day(region, '2026-08-12').click();
+    // The new day's request is still in flight, but the old slot must already be gone.
+    expect(slot(region, '10:00')).toBeNull();
+
+    resolveSecond({ slots: [{ time: '14:00', availableCapacity: 1 }] });
+    await vi.waitFor(() => expect(slot(region, '14:00')).not.toBeNull());
+  });
 });
 
 describe('datetimeStep — slot quantity picker', () => {

@@ -1906,7 +1906,10 @@ var Renderer = class {
     on("state:change", ({ to }) => this._onState(to));
     on("announce", ({ message, politeness }) => this._live?.announce(message, politeness));
     on("error", (payload) => this._showError(payload));
-    on("data:loaded", () => this._updateActiveStep());
+    on("data:loaded", () => {
+      this._clearError();
+      this._updateActiveStep();
+    });
     on("payment:required", () => this._showStep("payment"));
   }
   _onState(lifecycle) {
@@ -2838,6 +2841,7 @@ var datetimeStep = {
       },
       onSelect: async (date) => {
         s.selectedDate = date;
+        this._clearSlots(region, s);
         const res = await wizard.loadSlots({ date });
         if (res) {
           s.waitlistAvailable = res.waitlistAvailable;
@@ -2984,12 +2988,19 @@ var datetimeStep = {
     this._renderQuantity(region, s);
     await s.reacquire(next);
   },
+  /** Wipe the slot/event list, quantity picker, and waitlist panel for the day just left. */
+  _clearSlots(region, s) {
+    const list2 = qs("[data-booked-slots]", region);
+    if (list2) list2.replaceChildren();
+    s.reacquire = null;
+    this._renderQuantity(region, s);
+    const waitlist = qs("[data-booked-waitlist]", region);
+    if (waitlist) setHidden(waitlist, true);
+  },
   _renderSlots(region, slots, events, s, wizard) {
     const list2 = qs("[data-booked-slots]", region);
     if (!list2) return;
-    list2.replaceChildren();
-    s.reacquire = null;
-    this._renderQuantity(region, s);
+    this._clearSlots(region, s);
     const mixed = events.length > 0 && slots.length > 0;
     const selectedEventId = wizard.getState().context.eventDateId;
     if (events.length > 0) {
