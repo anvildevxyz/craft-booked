@@ -3,7 +3,9 @@
 namespace anvildev\booked\mcp;
 
 use anvildev\booked\Booked;
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -32,8 +34,10 @@ class AvailabilityTools
         name: 'booked_check_availability',
         description: 'Get available booking slots for a given day (Y-m-d), optionally filtered by service, '
             . 'employee and location. Read-only; does not reserve anything.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function checkAvailability(
         string $date,
         ?int $serviceId = null,
@@ -64,8 +68,10 @@ class AvailabilityTools
     #[McpTool(
         name: 'booked_next_available_date',
         description: 'Find the next day (Y-m-d) that has at least one available slot, searching forward from today.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function nextAvailableDate(
         ?int $serviceId = null,
         ?int $employeeId = null,
@@ -95,8 +101,10 @@ class AvailabilityTools
         name: 'booked_availability_summary',
         description: 'Summarise availability across a date range (Y-m-d to Y-m-d), optionally filtered by '
             . 'service, employee and location. Useful for rendering a month of open/closed days.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function availabilitySummary(
         string $startDate,
         string $endDate,

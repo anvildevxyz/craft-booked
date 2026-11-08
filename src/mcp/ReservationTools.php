@@ -7,7 +7,9 @@ use anvildev\booked\contracts\ReservationInterface;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\mcp\support\Presenter;
 
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -39,8 +41,10 @@ class ReservationTools
         name: 'booked_list_reservations',
         description: 'List reservations, optionally filtered by status, service, employee, location and '
             . 'booking-date range. Returns customer and slot details for each.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listReservations(
         ?string $status = null,
         ?int $serviceId = null,
@@ -98,8 +102,10 @@ class ReservationTools
     #[McpTool(
         name: 'booked_get_reservation',
         description: 'Get a single reservation by id, including customer, slot and status details.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getReservation(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -120,8 +126,10 @@ class ReservationTools
     #[McpTool(
         name: 'booked_booking_stats',
         description: 'Get aggregate booking counts (total, confirmed, pending, today, this month).',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function bookingStats(): array
     {
         return $this->guard(static fn(): array => [
@@ -148,8 +156,10 @@ class ReservationTools
         name: 'booked_create_booking',
         description: 'Create a reservation for a time-slot service. Runs full availability validation and '
             . 'slot locking; returns the created reservation or a validation error.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createBooking(
         int $serviceId,
         string $bookingDate,
@@ -219,8 +229,10 @@ class ReservationTools
         name: 'booked_create_event_booking',
         description: 'Reserve one or more seats on a Booked event date. Validates remaining capacity; '
             . 'returns the created reservation or an error.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createEventBooking(
         int $eventDateId,
         string $userName,
@@ -263,8 +275,10 @@ class ReservationTools
         name: 'booked_cancel_reservation',
         description: 'Cancel an existing reservation by id, freeing its slot/capacity. Returns whether the '
             . 'cancellation succeeded.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function cancelReservation(int $id, string $reason = ''): array
     {
         return $this->guardWrite(function() use ($id, $reason): array {
@@ -309,8 +323,10 @@ class ReservationTools
         description: 'Update a reservation: edit customer details, reschedule (date/time/employee/location), '
             . 'or set status to confirmed. Reschedules are availability-validated and slot-locked. '
             . 'To cancel, use booked_cancel_reservation (status=cancelled is rejected here, as it would skip refund/capacity release).',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateReservation(
         int $id,
         ?string $bookingDate = null,
@@ -376,8 +392,10 @@ class ReservationTools
         name: 'booked_reduce_reservation_quantity',
         description: 'Reduce the quantity (spots/seats) of a reservation, releasing capacity. '
             . 'Triggers a partial refund when Commerce is enabled.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function reduceReservationQuantity(int $id, int $reduceBy, string $reason = ''): array
     {
         return $this->guardWrite(function() use ($id, $reduceBy, $reason): array {
@@ -403,8 +421,10 @@ class ReservationTools
     #[McpTool(
         name: 'booked_increase_reservation_quantity',
         description: 'Increase the quantity (spots/seats) of a reservation, re-checking capacity for the slot.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function increaseReservationQuantity(int $id, int $increaseBy): array
     {
         return $this->guardWrite(function() use ($id, $increaseBy): array {
@@ -432,8 +452,10 @@ class ReservationTools
         name: 'booked_refund_reservation',
         description: 'Issue a full Commerce refund for a reservation. Only available when Booked\'s Commerce '
             . 'integration is enabled.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function refundReservation(int $id): array
     {
         return $this->guardWrite(function() use ($id): array {

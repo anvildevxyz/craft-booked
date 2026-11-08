@@ -2,7 +2,7 @@
     "name": "anvildev/craft-booked",
     "description": "A comprehensive booking system for Craft CMS",
     "type": "craft-plugin",
-    "version": "1.8.1",
+    "version": "1.9.0",
     "keywords": [
         "craft",
         "cms",
@@ -43,7 +43,7 @@
         "mockery/mockery": "^1.5"
     },
     "suggest": {
-        "stimmt/craft-mcp": "Exposes Booked's services, availability, reservations and event dates as MCP tools for AI assistants (^8.3)."
+        "stimmt/craft-mcp": "Exposes Booked's MCP tools on Craft older than 5.12. Craft 5.12 serves the same tools itself (^8.3)."
     },
     "autoload": {
         "psr-4": {

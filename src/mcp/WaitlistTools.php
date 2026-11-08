@@ -5,7 +5,9 @@ namespace anvildev\booked\mcp;
 use anvildev\booked\Booked;
 use anvildev\booked\mcp\support\Presenter;
 use anvildev\booked\records\WaitlistRecord;
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -24,8 +26,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_list_waitlist',
         description: 'List active waitlist entries for a service, in priority order.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listWaitlist(int $serviceId, int $limit = 50, int $offset = 0): array
     {
         return $this->guard(function() use ($serviceId, $limit, $offset): array {
@@ -49,8 +53,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_waitlist_stats',
         description: 'Aggregate waitlist statistics (active/notified/converted/expired counts).',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function waitlistStats(): array
     {
         return $this->guard(static fn(): array => [
@@ -76,8 +82,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_add_to_waitlist',
         description: 'Add a customer to a service waitlist, with optional preferred employee/location/date/time.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function addToWaitlist(
         int $serviceId,
         string $userName,
@@ -131,8 +139,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_add_to_event_waitlist',
         description: 'Add a customer to the waitlist for a full event date.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function addToEventWaitlist(
         int $eventDateId,
         string $userName,
@@ -170,8 +180,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_cancel_waitlist_entry',
         description: 'Cancel (remove) a waitlist entry by id.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function cancelWaitlistEntry(int $entryId): array
     {
         return $this->guardWrite(static fn(): array => [
@@ -189,8 +201,10 @@ class WaitlistTools
     #[McpTool(
         name: 'booked_notify_waitlist_entry',
         description: 'Manually send the "a spot is available" notification to a waitlist entry.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function notifyWaitlistEntry(int $entryId): array
     {
         return $this->guardWrite(function() use ($entryId): array {

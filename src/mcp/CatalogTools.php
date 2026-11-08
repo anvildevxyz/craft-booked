@@ -7,8 +7,10 @@ use anvildev\booked\elements\Location;
 use anvildev\booked\elements\Service;
 use anvildev\booked\mcp\support\Presenter;
 use Craft;
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -50,8 +52,10 @@ class CatalogTools
         name: 'booked_list_services',
         description: 'List bookable services in Booked (id, title, duration, price, slot length). '
             . 'Returns both enabled and disabled services across all sites.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listServices(int $limit = 50, int $offset = 0): array
     {
         return $this->guard(function() use ($limit, $offset): array {
@@ -76,8 +80,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_get_service',
         description: 'Get the full definition of a single Booked service by id.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getService(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -104,8 +110,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_create_service',
         description: 'Create a new bookable service in Booked. Returns the created service.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createService(
         string $title,
         int $duration = 60,
@@ -143,8 +151,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_list_employees',
         description: 'List Booked employees (staff who deliver services), including which services and location each is tied to.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listEmployees(?int $serviceId = null, ?int $locationId = null, int $limit = 50): array
     {
         return $this->guard(function() use ($serviceId, $locationId, $limit): array {
@@ -170,8 +180,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_list_locations',
         description: 'List Booked locations (where services are delivered), with address and timezone.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listLocations(int $limit = 50): array
     {
         return $this->guard(function() use ($limit): array {
@@ -195,8 +207,10 @@ class CatalogTools
         name: 'booked_update_service',
         description: 'Update a Booked service by id. Only the fields you pass are changed. '
             . 'Set enabled=false to retire a service (Booked has no hard delete for services).',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateService(
         int $id,
         ?string $title = null,
@@ -245,8 +259,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_get_location',
         description: 'Get a single Booked location by id.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getLocation(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -274,8 +290,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_create_location',
         description: 'Create a new Booked location. Returns the created location.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createLocation(
         string $title,
         ?string $timezone = null,
@@ -313,8 +331,10 @@ class CatalogTools
         name: 'booked_update_location',
         description: 'Update a Booked location by id. Only the fields you pass are changed. '
             . 'Set enabled=false to retire a location.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateLocation(
         int $id,
         ?string $title = null,
@@ -361,8 +381,10 @@ class CatalogTools
     #[McpTool(
         name: 'booked_get_employee',
         description: 'Get a single Booked employee by id, including their service and location links.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getEmployee(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -391,8 +413,10 @@ class CatalogTools
             . 'Optionally link services, a location, and inline working hours. '
             . 'Linking to a Craft user account is intentionally not supported here (it controls '
             . 'Control-Panel booking visibility) — do that in the CP.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createEmployee(
         string $title,
         ?string $email = null,
@@ -435,8 +459,10 @@ class CatalogTools
         description: 'Update a Booked employee by id. Only the fields you pass are changed. '
             . 'Set enabled=false to retire them; serviceIds replaces the full set. '
             . 'The Craft user link is intentionally not editable here (it controls CP booking visibility).',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateEmployee(
         int $id,
         ?string $title = null,
