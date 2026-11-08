@@ -7,9 +7,9 @@ use anvildev\booked\contracts\ReservationInterface;
 use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\mcp\support\Presenter;
 
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\ToolAnnotations;
-use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 

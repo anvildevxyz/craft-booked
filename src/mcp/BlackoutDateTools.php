@@ -6,9 +6,9 @@ use anvildev\booked\Booked;
 use anvildev\booked\elements\BlackoutDate;
 use anvildev\booked\mcp\support\Presenter;
 use Craft;
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\ToolAnnotations;
-use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 

@@ -6,10 +6,10 @@ use anvildev\booked\Booked;
 use anvildev\booked\elements\Schedule;
 use anvildev\booked\mcp\support\Presenter;
 use Craft;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Schema\ToolAnnotations;
 use craft\mcp\attributes\RequiresPermission;
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
