@@ -7,6 +7,8 @@ use anvildev\booked\elements\Location;
 use anvildev\booked\elements\ServiceExtra;
 use anvildev\booked\mcp\support\Presenter;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
+use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -28,8 +30,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_list_service_extras',
         description: 'List all Booked service extras (bookable add-ons) with price, duration and required flag.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listServiceExtras(int $limit = 50, int $offset = 0): array
     {
         return $this->guard(function() use ($limit, $offset): array {
@@ -60,8 +64,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_create_service_extra',
         description: 'Create a Booked service extra (add-on). Attach it to services with booked_set_service_extras.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createServiceExtra(
         string $title,
         float $price = 0.0,
@@ -93,8 +99,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_get_service_extras',
         description: 'List the extras attached to a specific service.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getServiceExtras(int $serviceId, bool $enabledOnly = false): array
     {
         return $this->guard(function() use ($serviceId, $enabledOnly): array {
@@ -118,8 +126,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_set_service_extras',
         description: 'Set (replace) the extras attached to a service.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function setServiceExtras(int $serviceId, array $extraIds): array
     {
         return $this->guardWrite(static fn(): array => [
@@ -135,8 +145,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_get_service_locations',
         description: 'List the locations a service can be booked at.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getServiceLocations(int $serviceId): array
     {
         return $this->guard(function() use ($serviceId): array {
@@ -160,8 +172,10 @@ class ServiceExtraTools
     #[McpTool(
         name: 'booked_set_service_locations',
         description: 'Set (replace) the locations a service can be booked at. Empty list means all locations.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function setServiceLocations(int $serviceId, array $locationIds): array
     {
         return $this->guardWrite(static fn(): array => [

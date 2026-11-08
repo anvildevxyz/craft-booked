@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- The existing MCP tools also register with Craft 5.12’s built-in server. stimmt/craft-mcp stays available for older Craft. Writes and refunds stay behind the same settings switches.
+
 ## 1.8.1 - 2026-10-12
 
 ### Fixed

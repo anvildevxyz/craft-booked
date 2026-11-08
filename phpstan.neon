@@ -31,6 +31,9 @@ parameters:
         - '#unknown class craft\\commerce\\#'
         - '#unknown class stimmt\\craft\\Mcp\\#'
         - '#Attribute class Mcp\\Capability\\Attribute\\\w+ does not exist#'
+        - '#Mcp\\Schema\\ToolAnnotations#'
+        - '#craft\\mcp\\#'
+        - '#Mcp\\Capability\\Registry\\ToolReference#'
         - '#Attribute class stimmt\\craft\\Mcp\\attributes\\McpToolMeta does not exist#'
         - '#(craft\\commerce|stimmt\\craft\\Mcp)\\#'
         # Common patterns for Craft CMS plugins

@@ -155,14 +155,85 @@ class Booked extends Plugin
     }
 
     /**
-     * Register Booked's tools with the craft-mcp plugin, when it is installed.
-     *
-     * Booked only soft-depends on stimmt/craft-mcp: the integration is wired up
-     * by listening for its tool-registration event, so Booked runs unchanged
-     * when the MCP plugin is absent. Each tool class declares its tools via
-     * `#[McpTool]` attributes, which craft-mcp reads reflectively.
+     * Register Booked's tools with Craft 5.12's built-in MCP server and, when
+     * it is installed, with stimmt/craft-mcp. Both are soft dependencies.
      */
     private function registerMcpTools(): void
+    {
+        $this->registerCraftMcpTools();
+        $this->registerStimmtMcpTools();
+    }
+
+    /**
+     * Registers the existing tool classes with Craft's MCP server (5.12+).
+     * Absent on older Craft, so the class_exists() guard keeps those installs
+     * unchanged. Write tools stay hidden unless the install has opted in, the
+     * same switches guardWrite() already enforces when a tool is called.
+     */
+    private function registerCraftMcpTools(): void
+    {
+        if (!class_exists(\craft\services\Mcp::class)) {
+            return;
+        }
+
+        Event::on(
+            \craft\services\Mcp::class,
+            \craft\services\Mcp::EVENT_REGISTER_CAPABILITY_TYPES,
+            static function(\craft\events\RegisterComponentTypesEvent $event): void {
+                $event->types[] = \anvildev\booked\mcp\CatalogTools::class;
+                $event->types[] = \anvildev\booked\mcp\AvailabilityTools::class;
+                $event->types[] = \anvildev\booked\mcp\ReservationTools::class;
+                $event->types[] = \anvildev\booked\mcp\EventDateTools::class;
+                $event->types[] = \anvildev\booked\mcp\ScheduleTools::class;
+                $event->types[] = \anvildev\booked\mcp\BlackoutDateTools::class;
+                $event->types[] = \anvildev\booked\mcp\ServiceExtraTools::class;
+                $event->types[] = \anvildev\booked\mcp\ReportTools::class;
+                $event->types[] = \anvildev\booked\mcp\WaitlistTools::class;
+            },
+        );
+
+        Event::on(
+            \craft\services\Mcp::class,
+            \craft\services\Mcp::EVENT_DISCOVERING_CAPABILITY,
+            static function(\craft\mcp\events\DiscoveringCapability $event): void {
+                $reference = $event->reference;
+                if (!$reference instanceof \Mcp\Capability\Registry\ToolReference) {
+                    return;
+                }
+                $name = $reference->tool->name;
+                if (!str_starts_with($name, 'booked_')) {
+                    return;
+                }
+                $settings = self::getInstance()->getSettings();
+                if ($name === 'booked_refund_reservation' && !$settings->mcpAllowRefunds) {
+                    $event->allowed = false;
+                    return;
+                }
+                if ($reference->tool->annotations?->destructiveHint === true && !$settings->mcpWriteEnabled) {
+                    $event->allowed = false;
+                }
+            },
+        );
+
+        if (!class_exists(\craft\mcp\AdminInstructions::class)) {
+            return;
+        }
+
+        Event::on(
+            \craft\mcp\AdminInstructions::class,
+            \craft\mcp\AdminInstructions::EVENT_COLLECT_INSTRUCTIONS,
+            static function(\craft\mcp\events\CollectingAdminInstructions $event): void {
+                $event->instructions[] = 'Use the booked_* tools to read the catalog, availability, reservations, schedules, and reports. Writes stay hidden until MCP write operations are enabled in Booked’s settings, and refunds stay hidden until MCP refunds are enabled too.';
+            },
+        );
+    }
+
+    /**
+     * Registers the tool classes with stimmt/craft-mcp when that plugin is
+     * installed. Soft dependency (class_exists-guarded), so Booked runs
+     * unchanged when craft-mcp is absent.
+     */
+    private function registerStimmtMcpTools(): void
     {
         if (!class_exists(\stimmt\craft\Mcp\Mcp::class)) {
             return;
@@ -181,7 +252,7 @@ class Booked extends Plugin
                 $event->addTool(\anvildev\booked\mcp\ServiceExtraTools::class, 'booked');
                 $event->addTool(\anvildev\booked\mcp\ReportTools::class, 'booked');
                 $event->addTool(\anvildev\booked\mcp\WaitlistTools::class, 'booked');
-            }
+            },
         );
     }
 

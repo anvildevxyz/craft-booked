@@ -7,6 +7,8 @@ use anvildev\booked\elements\Schedule;
 use anvildev\booked\mcp\support\Presenter;
 use Craft;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
+use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\Schema;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
@@ -29,8 +31,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_list_schedules',
         description: 'List Booked availability schedules (weekly working-hours patterns) with their date bounds.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listSchedules(int $limit = 50): array
     {
         return $this->guard(function() use ($limit): array {
@@ -49,8 +53,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_get_schedule',
         description: 'Get a single Booked schedule by id, including its working-hours map.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getSchedule(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -75,8 +81,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_create_schedule',
         description: 'Create a Booked availability schedule (weekly working-hours pattern). Returns the created schedule.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createSchedule(
         string $title,
         #[Schema(type: 'object')] ?array $workingHours = null,
@@ -107,8 +115,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_update_schedule',
         description: 'Update a Booked schedule by id. Only the fields you pass are changed.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateSchedule(
         int $id,
         ?string $title = null,
@@ -149,8 +159,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_get_employee_schedules',
         description: 'List the schedules assigned to an employee, in priority order.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getEmployeeSchedules(int $employeeId): array
     {
         return $this->guard(function() use ($employeeId): array {
@@ -174,8 +186,10 @@ class ScheduleTools
     #[McpTool(
         name: 'booked_set_employee_schedules',
         description: 'Set (replace) the schedules assigned to an employee. Order is priority order.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function setEmployeeSchedules(int $employeeId, array $scheduleIds): array
     {
         return $this->guardWrite(static fn(): array => [

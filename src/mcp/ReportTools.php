@@ -4,6 +4,8 @@ namespace anvildev\booked\mcp;
 
 use anvildev\booked\Booked;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
+use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -27,8 +29,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_revenue_report',
         description: 'Revenue totals over a date range (optionally with the previous period for comparison).',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function revenueReport(?string $startDate = null, ?string $endDate = null, bool $includePreviousPeriod = false): array
     {
         return $this->guard(static function() use ($startDate, $endDate, $includePreviousPeriod): array {
@@ -56,8 +60,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_bookings_by_service',
         description: 'Booking counts and revenue grouped by service over a date range.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function bookingsByService(?string $startDate = null, ?string $endDate = null): array
     {
         return $this->guard(static fn(): array => [
@@ -71,8 +77,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_bookings_by_employee',
         description: 'Booking counts and revenue grouped by employee over a date range.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function bookingsByEmployee(?string $startDate = null, ?string $endDate = null): array
     {
         return $this->guard(static fn(): array => [
@@ -86,8 +94,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_bookings_by_location',
         description: 'Booking counts and revenue grouped by location over a date range.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function bookingsByLocation(?string $startDate = null, ?string $endDate = null): array
     {
         return $this->guard(static fn(): array => [
@@ -101,8 +111,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_cancellation_report',
         description: 'Cancellation and no-show counts/rates over a date range.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function cancellationReport(?string $startDate = null, ?string $endDate = null): array
     {
         return $this->guard(static fn(): array => [
@@ -119,8 +131,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_peak_hours_report',
         description: 'Busiest hours (and optionally days of week) over a date range, optionally filtered by service/employee.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function peakHoursReport(
         ?string $startDate = null,
         ?string $endDate = null,
@@ -141,8 +155,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_utilization_report',
         description: 'Capacity utilization (booked vs available) over a date range, optionally filtered by service/employee/location.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function utilizationReport(
         string $startDate,
         string $endDate,
@@ -161,8 +177,10 @@ class ReportTools
     #[McpTool(
         name: 'booked_dashboard_summary',
         description: 'High-level dashboard summary (upcoming bookings, today/this-week counts, recent activity).',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function dashboardSummary(): array
     {
         return $this->guard(static fn(): array => [

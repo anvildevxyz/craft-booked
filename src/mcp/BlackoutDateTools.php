@@ -7,6 +7,8 @@ use anvildev\booked\elements\BlackoutDate;
 use anvildev\booked\mcp\support\Presenter;
 use Craft;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
+use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -27,8 +29,10 @@ class BlackoutDateTools
     #[McpTool(
         name: 'booked_list_blackout_dates',
         description: 'List Booked blackout dates (ranges when booking is blocked), with their location/employee scope.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listBlackoutDates(int $limit = 100): array
     {
         return $this->guard(function() use ($limit): array {
@@ -54,8 +58,10 @@ class BlackoutDateTools
     #[McpTool(
         name: 'booked_create_blackout_date',
         description: 'Create a Booked blackout date range, optionally scoped to specific locations and/or employees.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createBlackoutDate(
         string $title,
         string $startDate,
@@ -91,8 +97,10 @@ class BlackoutDateTools
         name: 'booked_set_blackout_date_active',
         description: 'Activate or deactivate a blackout date by id (isActive). Use this to lift a blackout '
             . 'instead of deleting it.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function setBlackoutDateActive(int $id, bool $isActive): array
     {
         return $this->guardWrite(function() use ($id, $isActive): array {
@@ -122,8 +130,10 @@ class BlackoutDateTools
     #[McpTool(
         name: 'booked_check_date_blacked_out',
         description: 'Check whether a date (Y-m-d) is blacked out, optionally for a specific employee/location.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function checkDateBlackedOut(string $date, ?int $employeeId = null, ?int $locationId = null): array
     {
         return $this->guard(static fn(): array => [

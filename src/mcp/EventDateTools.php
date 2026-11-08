@@ -6,6 +6,8 @@ use anvildev\booked\Booked;
 use anvildev\booked\elements\EventDate;
 use anvildev\booked\mcp\support\Presenter;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\ToolAnnotations;
+use craft\mcp\attributes\RequiresPermission;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
 
@@ -30,8 +32,10 @@ class EventDateTools
         name: 'booked_list_event_dates',
         description: 'List Booked event dates (one-time bookable events) with their capacity and pricing, '
             . 'optionally bounded by a date range.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function listEventDates(?string $fromDate = null, ?string $toDate = null, int $limit = 50, int $offset = 0): array
     {
         return $this->guard(function() use ($fromDate, $toDate, $limit, $offset): array {
@@ -58,8 +62,10 @@ class EventDateTools
     #[McpTool(
         name: 'booked_get_event_date',
         description: 'Get a single Booked event date by id, including remaining capacity.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function getEventDate(int $id): array
     {
         return $this->guard(function() use ($id): array {
@@ -97,8 +103,10 @@ class EventDateTools
     #[McpTool(
         name: 'booked_create_event_date',
         description: 'Create a one-time Booked event date. Returns the created event.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function createEventDate(
         string $title,
         string $eventDate,
@@ -151,8 +159,10 @@ class EventDateTools
         name: 'booked_update_event_date',
         description: 'Update a Booked event date by id. Only the fields you pass are changed. '
             . 'Set enabled=false to retire it.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function updateEventDate(
         int $id,
         ?string $title = null,
@@ -199,8 +209,10 @@ class EventDateTools
         name: 'booked_delete_event_date',
         description: 'Delete a Booked event date by id. Fails if it has any reservations; in that case set '
             . 'enabled=false via booked_update_event_date instead.',
+        annotations: new ToolAnnotations(destructiveHint: true),
     )]
     #[McpToolMeta(category: ToolCategory::PLUGIN, dangerous: true)]
+    #[RequiresPermission('booked-accessPlugin')]
     public function deleteEventDate(int $id): array
     {
         return $this->guardWrite(static fn(): array => [

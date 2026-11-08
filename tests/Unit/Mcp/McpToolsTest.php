@@ -233,6 +233,26 @@ class McpToolsTest extends TestCase
         return str_contains($block, 'dangerous: true');
     }
 
+    public function testCraftHintsMatchTheDangerousFlag(): void
+    {
+        foreach (self::EXPECTED_TOOLS as $class => $names) {
+            $source = file_get_contents((new ReflectionClass($class))->getFileName());
+            $this->assertSame(count($names), substr_count($source, "#[RequiresPermission('booked-accessPlugin')]"));
+            foreach ($names as $tool) {
+                $start = strpos($source, "name: '{$tool}'");
+                $end = strpos($source, 'public function', $start);
+                $block = substr($source, $start, $end - $start);
+                if (str_contains($block, 'dangerous: true')) {
+                    $this->assertStringContainsString('destructiveHint: true', $block, $tool);
+                    $this->assertStringNotContainsString('readOnlyHint: true', $block, $tool);
+                } else {
+                    $this->assertStringContainsString('readOnlyHint: true', $block, $tool);
+                    $this->assertStringNotContainsString('destructiveHint: true', $block, $tool);
+                }
+            }
+        }
+    }
+
     public function testEveryToolAlsoDeclaresMetaCategory(): void
     {
         foreach (array_keys(self::EXPECTED_TOOLS) as $class) {
@@ -255,6 +275,9 @@ class McpToolsTest extends TestCase
         $this->assertStringContainsString('registerMcpTools', $source);
         $this->assertStringContainsString('class_exists(\\stimmt\\craft\\Mcp\\Mcp::class)', $source);
         $this->assertStringContainsString('\\stimmt\\craft\\Mcp\\Mcp::EVENT_REGISTER_TOOLS', $source);
+        $this->assertStringContainsString('class_exists(\\craft\\services\\Mcp::class)', $source);
+        $this->assertStringContainsString('\\craft\\services\\Mcp::EVENT_REGISTER_CAPABILITY_TYPES', $source);
+        $this->assertStringContainsString('\\craft\\services\\Mcp::EVENT_DISCOVERING_CAPABILITY', $source);
 
         foreach (array_keys(self::EXPECTED_TOOLS) as $class) {
             $this->assertStringContainsString(
@@ -569,8 +592,20 @@ class McpToolsTest extends TestCase
 
     private function toolName(ReflectionMethod $method): ?string
     {
-        $attr = $method->getAttributes(self::MCP_TOOL_ATTR)[0] ?? null;
-        return $attr?->getArguments()['name'] ?? null;
+        if ($method->getAttributes(self::MCP_TOOL_ATTR) === []) {
+            return null;
+        }
+        $source = (string) file_get_contents($method->getFileName());
+        $pos = strpos($source, 'function ' . $method->getName() . '(');
+        if ($pos === false) {
+            return null;
+        }
+        $before = substr($source, max(0, $pos - 1500), min(1500, $pos));
+        if (!preg_match_all("/name: '([^']+)'/", $before, $matches)) {
+            return null;
+        }
+
+        return $matches[1][count($matches[1]) - 1];
     }
 
     /**
