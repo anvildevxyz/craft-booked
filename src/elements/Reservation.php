@@ -813,10 +813,9 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
     public function afterDelete(): void
     {
         if ($this->hardDelete) {
-            // Deleting the row is this method's remaining job. A cascading
-            // foreign key was tried instead and reverted: a reservation is only
-            // an element when Commerce is enabled, so the constraint made
-            // bookings impossible to create on every Commerce-free install.
+            // The elements row is already gone, and booked_reservations.id
+            // cascades with it. Delete the content row explicitly in case it
+            // outlived the element.
             $this->getRecord()?->delete();
         } else {
             Craft::$app->getDb()->createCommand()

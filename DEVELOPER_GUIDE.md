@@ -2114,34 +2114,20 @@ Booked::getInstance()->getSettings()->canUseCommerce();    // alias
 
 ### The ReservationFactory Pattern
 
-The plugin uses a factory pattern to transparently switch between two Reservation implementations:
-
-| Mode | Class | Base | When |
-|------|-------|------|------|
-| Commerce | `elements\Reservation` | `Element` + `PurchasableInterface` | Commerce enabled |
-| Standard | `models\ReservationModel` | `Model` | Commerce disabled |
-
-Both implement `ReservationInterface`, so all service code works identically regardless of mode.
+A reservation is always `elements\Reservation`. Commerce is not required. The factory is the one place that constructs it, and every booking implements `ReservationInterface`.
 
 ```php
 use anvildev\booked\factories\ReservationFactory;
 
-// Create — returns Element or Model based on settings
-$reservation = ReservationFactory::create(['userName' => 'Jane']);
-
-// Query — returns ReservationQuery or ReservationModelQuery
+$reservation = ReservationFactory::create(['siteId' => $siteId]);
 $reservations = ReservationFactory::find()->status('confirmed')->all();
-
-// Lookup
 $reservation = ReservationFactory::findById(123);
 $reservation = ReservationFactory::findByToken('abc-def-ghi');
-
-// Check current mode
-ReservationFactory::isElementMode();      // true if Commerce
-ReservationFactory::isActiveRecordMode(); // true if no Commerce
 ```
 
-> **Important:** Always use `ReservationFactory` instead of instantiating `Reservation` or `ReservationModel` directly. This ensures your code works in both modes.
+`status('confirmed')` filters the booking status. Craft's own enabled/disabled status is a different column. `ReservationFactory::isElementMode()` still exists and always returns true.
+
+> **Important:** Create and query reservations through `ReservationFactory`. `ReservationModel` is the old ActiveRecord implementation and is no longer what the factory returns.
 
 ### Booking Flow: Standard vs Commerce
 

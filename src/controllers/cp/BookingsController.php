@@ -180,7 +180,7 @@ class BookingsController extends Controller
         $settings = Booked::getInstance()->getSettings();
 
         $order = null;
-        if ($id && ReservationFactory::isElementMode()) {
+        if ($id && Booked::getInstance()->isCommerceEnabled()) {
             try {
                 $orderId = (new \craft\db\Query())
                     ->select('orderId')
