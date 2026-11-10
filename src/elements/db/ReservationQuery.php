@@ -2,10 +2,12 @@
 
 namespace anvildev\booked\elements\db;
 
+use anvildev\booked\Booked;
 use anvildev\booked\contracts\ReservationQueryInterface;
 use Craft;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
+use craft\web\Application as WebApplication;
 
 /**
  * @method \anvildev\booked\elements\Reservation[]|array all($db = null)
@@ -217,7 +219,44 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
             $this->_applyBookingDateFilter($t);
         }
 
+        $this->_applyStaffScope($t);
+
         return true;
+    }
+
+    /**
+     * Limits a view-only staff member to the employees they manage, and only
+     * while Craft is building an element index.
+     *
+     * The bookings index query is created inside Craft's own controller, so a
+     * filter applied by our controllers never runs for it. Seat counts,
+     * availability and the public booking form also use this query. Scoping
+     * those would hide other employees' bookings and let a staff member book
+     * a seat that is already taken, so the limit stays on element-index requests.
+     *
+     * getStaffEmployeeIds() returns null for admins, for anyone who can manage
+     * bookings, and when nobody is logged in.
+     */
+    private function _applyStaffScope(string $t): void
+    {
+        // Console and queue runs have no user session to scope against.
+        if (!Craft::$app instanceof WebApplication) {
+            return;
+        }
+
+        $segments = Craft::$app->getRequest()->getActionSegments();
+        if (($segments[0] ?? null) !== 'element-indexes') {
+            return;
+        }
+
+        $ids = Booked::getInstance()?->getPermission()->getStaffEmployeeIds();
+        if ($ids === null) {
+            return;
+        }
+
+        // An empty managed list means "no bookings", stated explicitly rather
+        // than left to how a driver handles an empty IN().
+        $this->subQuery->andWhere($ids === [] ? '0=1' : ["$t.employeeId" => $ids]);
     }
 
     private function _applyBookingDateFilter(string $t): void

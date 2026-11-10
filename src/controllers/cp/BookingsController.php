@@ -50,108 +50,24 @@ class BookingsController extends Controller
         $this->bookingService = Booked::getInstance()->booking;
     }
 
+    /**
+     * The bookings index is a native Craft element index.
+     *
+     * Everything the hand-rolled table used to do — status filters, search,
+     * sorting, pagination, per-service and per-employee filtering, CSV export —
+     * the Reservation element already declares as sources, sort options,
+     * condition rules, actions and an exporter.
+     *
+     * Staff scoping is not applied here on purpose: Craft builds the index
+     * query itself, so it is enforced in ReservationQuery::beforePrepare().
+     */
     public function actionIndex(): Response
     {
-        $permissionService = Booked::getInstance()->getPermission();
         $user = Craft::$app->getUser()->getIdentity();
-        $canManage = $user->admin || $user->can('booked-manageBookings');
-        $request = Craft::$app->request;
 
-        $status = $request->getParam('status');
-        $search = $request->getParam('search');
-        $serviceId = $request->getParam('serviceId');
-        $employeeId = $request->getParam('employeeId');
-        $locationId = $request->getParam('locationId');
-        $eventDateId = $request->getParam('eventDateId');
-
-        $sortRaw = $request->getParam('sort');
-        $sort = in_array($sortRaw, ['bookingDate', 'userName', 'startTime', 'status', 'dateCreated'], true) ? $sortRaw : 'bookingDate';
-        $dir = $request->getParam('dir') === 'asc' ? 'asc' : 'desc';
-        $sortDir = $dir === 'asc' ? SORT_ASC : SORT_DESC;
-
-        $query = ReservationFactory::find()->orderBy([
-            $sort => $sortDir,
-            ($sort !== 'bookingDate' ? 'bookingDate' : 'startTime') => $sort !== 'bookingDate' ? SORT_DESC : $sortDir,
-        ]);
-        $permissionService->scopeReservationQuery($query);
-
-        if ($status && $status !== '*') {
-            $query->status($status);
-        }
-
-        // Apply entity filters via shared pattern
-        foreach (['serviceId' => $serviceId, 'employeeId' => $employeeId, 'locationId' => $locationId, 'eventDateId' => $eventDateId] as $method => $val) {
-            if ($val) {
-                $query->$method((int) $val);
-            }
-        }
-
-        if ($search) {
-            $conditions = ['or', ['like', 'userName', $search], ['like', 'userEmail', $search], ['like', 'userPhone', $search]];
-
-            if (ctype_digit($search)) {
-                $conditions[] = ['booked_reservations.id' => (int) $search];
-            }
-
-            if (preg_match('/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/', $search, $m) && checkdate((int)$m[2], (int)$m[1], (int)$m[3])) {
-                $conditions[] = ['bookingDate' => sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1])];
-            } elseif (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $search, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
-                $conditions[] = ['bookingDate' => $search];
-            }
-
-            $query->andWhere($conditions);
-        }
-
-        $page = max(1, (int)($request->getParam('page') ?? 1));
-        $limitParam = (int)($request->getParam('limit') ?? 50);
-        $limit = in_array($limitParam, [10, 20, 50, 100, 200], true) ? $limitParam : 50;
-        $offset = ($page - 1) * $limit;
-        $totalCount = (int)(clone $query)->count();
-        $reservations = $query->withRelations()->offset($offset)->limit($limit)->all();
-
-        $staffEmployeeIds = $permissionService->getStaffEmployeeIds();
-        if ($staffEmployeeIds !== null) {
-            $employees = Employee::find()->siteId('*')->id($staffEmployeeIds)->orderBy('title')->all();
-            $scopedServiceIds = $scopedLocationIds = [];
-            foreach ($employees as $emp) {
-                $scopedServiceIds = array_merge($scopedServiceIds, $emp->getServiceIds());
-                if ($emp->locationId) {
-                    $scopedLocationIds[] = $emp->locationId;
-                }
-            }
-            $serviceOptions = ($ids = array_unique($scopedServiceIds)) ? Service::find()->id($ids)->orderBy('title')->all() : [];
-            $locationOptions = ($ids = array_unique($scopedLocationIds)) ? Location::find()->siteId('*')->id($ids)->orderBy('title')->all() : [];
-        } else {
-            $employees = Employee::find()->siteId('*')->orderBy('title')->all();
-            $serviceOptions = Service::find()->orderBy('title')->all();
-            $locationOptions = Location::find()->siteId('*')->orderBy('title')->all();
-        }
-
-        return $this->renderTemplate('booked/bookings/_index-activerecord', [
+        return $this->renderTemplate('booked/bookings/_index', [
             'title' => Craft::t('booked', 'titles.bookings'),
-            'reservations' => $reservations,
-            'statuses' => Reservation::getStatuses(),
-            'currentStatus' => $status ?: '*',
-            'search' => $search,
-            'currentServiceId' => $serviceId,
-            'currentEmployeeId' => $employeeId,
-            'currentLocationId' => $locationId,
-            'currentEventDateId' => $eventDateId,
-            'serviceOptions' => $serviceOptions,
-            'employeeOptions' => $employees,
-            'locationOptions' => $locationOptions,
-            'eventDateOptions' => $this->getScopedEventDates(),
-            'canManage' => $canManage,
-            'sort' => $sort,
-            'dir' => $dir,
-            'pagination' => [
-                'currentPage' => $page,
-                'totalPages' => (int)ceil($totalCount / $limit) ?: 1,
-                'totalCount' => $totalCount,
-                'limit' => $limit,
-                'first' => $totalCount > 0 ? $offset + 1 : 0,
-                'last' => min($offset + $limit, $totalCount),
-            ],
+            'canManage' => $user && ($user->admin || $user->can('booked-manageBookings')),
         ]);
     }
 
@@ -361,21 +277,6 @@ class BookingsController extends Controller
                 array_map(static fn($tz) => ['value' => $tz, 'label' => $tz], \DateTimeZone::listIdentifiers())
             ),
         ];
-    }
-
-    /** @return EventDate[] */
-    private function getScopedEventDates(): array
-    {
-        $query = EventDate::find()->siteId('*')->unique()->orderBy(['eventDate' => SORT_DESC]);
-        $staffIds = Booked::getInstance()->getPermission()->getStaffEmployeeIds();
-        if ($staffIds !== null) {
-            $employees = Employee::find()->siteId('*')->id($staffIds)->all();
-            $locationIds = array_unique(array_filter(array_map(fn($e) => $e->locationId, $employees)));
-            if (!empty($locationIds)) {
-                $query->andWhere(['or', ['locationId' => $locationIds], ['locationId' => null]]);
-            }
-        }
-        return $query->all();
     }
 
     public function actionSave(): Response
