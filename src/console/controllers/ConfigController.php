@@ -3,7 +3,6 @@
 namespace anvildev\booked\console\controllers;
 
 use anvildev\booked\Booked;
-use anvildev\booked\factories\ReservationFactory;
 use anvildev\booked\models\Settings;
 use Craft;
 use craft\console\Controller;
@@ -203,7 +202,7 @@ class ConfigController extends Controller
         $this->stdout("  Booking window:  {$settings->minimumAdvanceBookingHours}h – {$settings->maximumAdvanceBookingDays} days\n");
         $this->stdout("  Cancel policy:   " . ($settings->cancellationPolicyHours > 0 ? "{$settings->cancellationPolicyHours}h before" : 'anytime') . "\n");
         $this->stdout("  Soft lock:       {$settings->softLockDurationMinutes} min\n");
-        $this->stdout("  Mode:            " . (ReservationFactory::isElementMode() ? 'Element (Commerce)' : 'ActiveRecord') . "\n\n");
+        $this->stdout("  Mode:            Element\n\n");
     }
 
     private function heading(string $label): void

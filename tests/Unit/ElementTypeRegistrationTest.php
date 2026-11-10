@@ -17,12 +17,6 @@ use anvildev\booked\tests\Support\TestCase;
  */
 class ElementTypeRegistrationTest extends TestCase
 {
-    /**
-     * Registered behind an isCommerceEnabled() check, since ReservationModel
-     * (ActiveRecord) takes over when Commerce is unavailable.
-     */
-    private const CONDITIONALLY_REGISTERED = ['Reservation'];
-
     private string $srcDir;
     private string $registrationSource;
 
@@ -55,16 +49,6 @@ class ElementTypeRegistrationTest extends TestCase
      */
     public function testUnconditionalElementClassIsNotCommerceGated(string $class): void
     {
-        if (in_array($class, self::CONDITIONALLY_REGISTERED, true)) {
-            $this->assertStringContainsString(
-                'isCommerceEnabled()',
-                $this->registrationSource,
-                "Element class '{$class}' should be registered behind a Commerce check"
-            );
-
-            return;
-        }
-
         [$unconditional] = explode('isCommerceEnabled()', $this->registrationSource, 2);
 
         $this->assertStringContainsString(

@@ -582,13 +582,10 @@ class Booked extends Plugin
     }
 
     /**
-     * Register element types
+     * Register element types.
      *
-     * Reservation is only registered as an element when Commerce is enabled.
-     * When Commerce is disabled, ReservationModel (ActiveRecord) is used instead
-     * for better long-term performance with high-volume transactional data.
-     *
-     * @see \anvildev\booked\factories\ReservationFactory for the abstraction that handles both modes
+     * A reservation is an element on every install. Commerce still uses it as
+     * a purchasable; without Commerce it is the same element, just not one.
      */
     private function registerElementTypes(): void
     {
@@ -603,11 +600,7 @@ class Booked extends Plugin
                 $event->types[] = \anvildev\booked\elements\EventDate::class;
                 $event->types[] = \anvildev\booked\elements\Schedule::class;
                 $event->types[] = \anvildev\booked\elements\BlackoutDate::class;
-
-                // Required for PurchasableInterface support in Craft Commerce
-                if ($this->isCommerceEnabled()) {
-                    $event->types[] = \anvildev\booked\elements\Reservation::class;
-                }
+                $event->types[] = \anvildev\booked\elements\Reservation::class;
             }
         );
     }

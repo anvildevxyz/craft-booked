@@ -2114,34 +2114,28 @@ Booked::getInstance()->getSettings()->canUseCommerce();    // alias
 
 ### The ReservationFactory Pattern
 
-The plugin uses a factory pattern to transparently switch between two Reservation implementations:
-
-| Mode | Class | Base | When |
-|------|-------|------|------|
-| Commerce | `elements\Reservation` | `Element` + `PurchasableInterface` | Commerce enabled |
-| Standard | `models\ReservationModel` | `Model` | Commerce disabled |
-
-Both implement `ReservationInterface`, so all service code works identically regardless of mode.
+A reservation is always `elements\Reservation`. Commerce is not required. The factory is the one place that constructs it, and every booking implements `ReservationInterface`.
 
 ```php
 use anvildev\booked\factories\ReservationFactory;
 
-// Create — returns Element or Model based on settings
-$reservation = ReservationFactory::create(['userName' => 'Jane']);
-
-// Query — returns ReservationQuery or ReservationModelQuery
+$reservation = ReservationFactory::create(['siteId' => $siteId]);
 $reservations = ReservationFactory::find()->status('confirmed')->all();
-
-// Lookup
 $reservation = ReservationFactory::findById(123);
 $reservation = ReservationFactory::findByToken('abc-def-ghi');
-
-// Check current mode
-ReservationFactory::isElementMode();      // true if Commerce
-ReservationFactory::isActiveRecordMode(); // true if no Commerce
 ```
 
-> **Important:** Always use `ReservationFactory` instead of instantiating `Reservation` or `ReservationModel` directly. This ensures your code works in both modes.
+`status('confirmed')` filters the booking status. Craft's own enabled/disabled status is a different column. `ReservationFactory::isElementMode()` still exists and always returns true.
+
+The same query is available in Twig on every install:
+
+```twig
+{% set bookings = craft.booked.reservations.status('confirmed').all() %}
+```
+
+> **Important:** Create and query reservations through `ReservationFactory` or `craft.booked.reservations`. `ReservationModel` is the old ActiveRecord implementation and is no longer what the factory returns.
+
+An upgrade from a Commerce-free install gives each existing booking an element row and a new id. The confirmation token still finds the booking. A numeric id stored before the upgrade does not.
 
 ### Booking Flow: Standard vs Commerce
 
@@ -2377,18 +2371,9 @@ The controller response includes Commerce-specific data:
 }
 ```
 
-### Conditional Element Registration
+### Element registration
 
-The `Reservation` element type is only registered with Craft when Commerce is enabled:
-
-```php
-// In Booked::registerElementTypes()
-if ($this->isCommerceEnabled()) {
-    $event->types[] = Reservation::class;
-}
-```
-
-When Commerce is disabled, `ReservationModel` is used instead — it doesn't register as an element type, avoiding overhead in the elements table for high-volume booking scenarios.
+`Reservation` is registered on every install. Commerce is not required for that. When Commerce is enabled and the booking has a price, the same element is the purchasable. The standard flow still confirms the booking immediately, and the Commerce flow still leaves it pending until the order completes.
 
 ### Configuration Reference
 
