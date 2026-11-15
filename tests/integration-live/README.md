@@ -6,6 +6,19 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `booking-form-pipeline.php` covers
+
+Issue #146 — custom field answers have to flow BookingForm ->
+getReservationData() -> BookingService::populateReservation() the same way
+for the wizard, the REST alias, and MCP, all of which share this one
+pipeline. Confirms the form validates and carries `fieldValues` through, and
+that `populateReservation()` actually applies them to a real Reservation via
+`setFieldValues()`. Self-cleaning (seeds its own service and field).
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/booking-form-pipeline.php
+```
+
 ## What `service-reservation-field-layout.php` covers
 
 Issue #146 — a Service owns a field layout for its custom booking questions;

@@ -312,6 +312,7 @@ return [
     'validation.invalidTimezone' => 'Ungültige Zeitzone angegeben. Bitte verwenden Sie eine gültige Zeitzonenkennung.',
     'validation.invalidPhone' => 'Bitte geben Sie eine gültige Telefonnummer ein.',
     'validation.invalidExtras' => 'Extras müssen ein Array sein.',
+    'validation.invalidFieldHandle' => 'Feldantworten müssen über ein gültiges Feld-Handle zugeordnet sein.',
     'validation.invalidExtraId' => 'Ungültige Extra-ID.',
     'validation.invalidExtraQuantity' => 'Ungültige Menge für Extra.',
     'validation.extraNotForService' => 'Ein oder mehrere Extras gehören nicht zum ausgewählten Service.',

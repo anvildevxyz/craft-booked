@@ -655,4 +655,64 @@ class BookingFormTest extends TestCase
 
         $this->assertEquals('Tom & Jerry', $form->userName);
     }
+
+    // =========================================================================
+    // fieldValues (#146) — answers to the booked service's custom questions
+    // =========================================================================
+
+    private function validFormData(array $overrides = []): array
+    {
+        return array_merge([
+            'userName' => 'John Doe',
+            'userEmail' => 'john@example.com',
+            'bookingDate' => '2025-06-15',
+            'startTime' => '14:00',
+            'endTime' => '15:00',
+            'serviceId' => 1,
+        ], $overrides);
+    }
+
+    public function testFieldValuesDefaultsToAnEmptyArray(): void
+    {
+        $form = new BookingForm();
+        $this->assertSame([], $form->fieldValues);
+    }
+
+    public function testValidFieldValuesPassValidation(): void
+    {
+        $form = new BookingForm($this->validFormData([
+            'fieldValues' => ['tShirtSize' => 'Large', 'waiverAccepted' => true],
+        ]));
+
+        $this->assertTrue($form->validate());
+    }
+
+    public function testAHandleThatIsNotAStringFailsValidation(): void
+    {
+        $form = new BookingForm($this->validFormData([
+            'fieldValues' => [0 => 'Large'],
+        ]));
+
+        $this->assertFalse($form->validate());
+        $this->assertArrayHasKey('fieldValues', $form->getErrors());
+    }
+
+    public function testAMalformedHandleFailsValidation(): void
+    {
+        $form = new BookingForm($this->validFormData([
+            'fieldValues' => ['not a valid handle!' => 'value'],
+        ]));
+
+        $this->assertFalse($form->validate());
+        $this->assertArrayHasKey('fieldValues', $form->getErrors());
+    }
+
+    public function testGetReservationDataIncludesFieldValues(): void
+    {
+        $form = new BookingForm($this->validFormData([
+            'fieldValues' => ['tShirtSize' => 'Large'],
+        ]));
+
+        $this->assertSame(['tShirtSize' => 'Large'], $form->getReservationData()['fieldValues']);
+    }
 }

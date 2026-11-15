@@ -311,6 +311,7 @@ return [
     'validation.invalidTimezone' => '無効なタイムゾーンです。有効なタイムゾーン識別子を使用してください。',
     'validation.invalidPhone' => '有効な電話番号を入力してください。',
     'validation.invalidExtras' => 'エクストラは配列である必要があります。',
+    'validation.invalidFieldHandle' => 'フィールドの回答は有効なフィールドハンドルで指定する必要があります。',
     'validation.invalidExtraId' => '無効なエクストラIDです。',
     'validation.invalidExtraQuantity' => 'エクストラの数量が無効です。',
     'validation.extraNotForService' => '1つ以上のオプションが選択されたサービスに属していません。',

@@ -311,6 +311,7 @@ return [
     'validation.invalidTimezone' => 'Fuseau horaire invalide. Veuillez utiliser un identifiant de fuseau horaire valide.',
     'validation.invalidPhone' => 'Veuillez entrer un numéro de téléphone valide.',
     'validation.invalidExtras' => 'Les extras doivent être un tableau.',
+    'validation.invalidFieldHandle' => 'Les réponses aux champs doivent être indexées par un identifiant de champ valide.',
     'validation.invalidExtraId' => 'ID d\'extra invalide.',
     'validation.invalidExtraQuantity' => 'Quantité invalide pour l\'extra.',
     'validation.extraNotForService' => 'Un ou plusieurs suppléments n\'appartiennent pas au service sélectionné.',

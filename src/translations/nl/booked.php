@@ -311,6 +311,7 @@ return [
     'validation.invalidTimezone' => 'Ongeldige tijdzone opgegeven. Gebruik een geldige tijdzone-identificatie.',
     'validation.invalidPhone' => 'Voer een geldig telefoonnummer in.',
     'validation.invalidExtras' => 'Extra\'s moeten een array zijn.',
+    'validation.invalidFieldHandle' => 'Veldantwoorden moeten worden gesleuteld met een geldige veldhandle.',
     'validation.invalidExtraId' => 'Ongeldig extra-ID.',
     'validation.invalidExtraQuantity' => 'Ongeldige hoeveelheid voor extra.',
     'validation.extraNotForService' => 'Een of meer extra\'s behoren niet tot de geselecteerde dienst.',

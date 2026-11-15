@@ -311,6 +311,7 @@ return [
     'validation.invalidTimezone' => 'Zona horaria no válida. Por favor, utilice un identificador de zona horaria válido.',
     'validation.invalidPhone' => 'Por favor, introduzca un número de teléfono válido.',
     'validation.invalidExtras' => 'Los extras deben ser un array.',
+    'validation.invalidFieldHandle' => 'Las respuestas de los campos deben indexarse mediante un identificador de campo válido.',
     'validation.invalidExtraId' => 'ID de extra no válido.',
     'validation.invalidExtraQuantity' => 'Cantidad no válida para el extra.',
     'validation.extraNotForService' => 'Uno o más extras no pertenecen al servicio seleccionado.',

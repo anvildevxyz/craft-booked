@@ -311,6 +311,7 @@ return [
     'validation.invalidTimezone' => 'Fuso orario non valido. Si prega di utilizzare un identificatore di fuso orario valido.',
     'validation.invalidPhone' => 'Si prega di inserire un numero di telefono valido.',
     'validation.invalidExtras' => 'Gli extra devono essere un array.',
+    'validation.invalidFieldHandle' => 'Le risposte ai campi devono essere indicizzate con un handle di campo valido.',
     'validation.invalidExtraId' => 'ID extra non valido.',
     'validation.invalidExtraQuantity' => 'Quantità non valida per l\'extra.',
     'validation.extraNotForService' => 'Uno o più extra non appartengono al servizio selezionato.',

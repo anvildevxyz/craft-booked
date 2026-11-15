@@ -102,6 +102,11 @@ class BookingController extends Controller
             $form->extras = $extrasParam;
         }
 
+        $fieldValuesParam = $request->getBodyParam('fields') ?? $request->getBodyParam('fieldValues');
+        if (is_array($fieldValuesParam)) {
+            $form->fieldValues = $fieldValuesParam;
+        }
+
         $softLockToken = $request->getBodyParam('softLockToken');
 
         // Auto-calculate end time from service duration + extras duration

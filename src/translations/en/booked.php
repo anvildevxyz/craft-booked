@@ -316,6 +316,7 @@ return [
     'validation.invalidTimezone' => 'Invalid timezone specified. Please use a valid timezone identifier.',
     'validation.invalidPhone' => 'Please enter a valid phone number.',
     'validation.invalidExtras' => 'Extras must be an array.',
+    'validation.invalidFieldHandle' => 'Field answers must be keyed by a valid field handle.',
     'validation.invalidExtraId' => 'Invalid extra ID.',
     'validation.invalidExtraQuantity' => 'Invalid quantity for extra.',
     'validation.extraNotForService' => 'One or more extras do not belong to the selected service.',

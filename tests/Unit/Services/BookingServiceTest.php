@@ -634,4 +634,28 @@ class BookingServiceTest extends TestCase
         $endTime2 = ($end2->format('Y-m-d') !== $start2->format('Y-m-d')) ? '24:00' : $end2->format('H:i');
         $this->assertSame('11:00', $endTime2, 'Non-crossing should return normal time');
     }
+
+    // =========================================================================
+    // fieldValues (#146) — behavioural proof lives in
+    // tests/integration-live/booking-form-pipeline.php; populateReservation()
+    // needs Craft::$app for anything beyond a source-position check.
+    // =========================================================================
+
+    public function testPopulateReservationAppliesFieldValuesAfterServiceId(): void
+    {
+        $source = $this->sourceOfMethod(BookingService::class, 'populateReservation');
+
+        $serviceIdPos = strpos($source, '$reservation->serviceId = $serviceId;');
+        $fieldValuesPos = strpos($source, "setFieldValues(\$data['fieldValues']");
+
+        $this->assertNotFalse($serviceIdPos);
+        $this->assertNotFalse($fieldValuesPos, 'populateReservation() must apply fieldValues');
+        $this->assertGreaterThan($serviceIdPos, $fieldValuesPos, 'fieldValues must be applied after serviceId, so getFieldLayout() resolves correctly');
+    }
+
+    public function testUpdateReservationAppliesFieldValues(): void
+    {
+        $source = $this->sourceOfMethod(BookingService::class, 'updateReservation');
+        $this->assertStringContainsString("setFieldValues(\$data['fieldValues']", $source);
+    }
 }
