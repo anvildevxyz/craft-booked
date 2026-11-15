@@ -2133,7 +2133,7 @@ The same query is available in Twig on every install:
 {% set bookings = craft.booked.reservations.status('confirmed').all() %}
 ```
 
-> **Important:** Create and query reservations through `ReservationFactory` or `craft.booked.reservations`. `ReservationModel` is the old ActiveRecord implementation and is no longer what the factory returns.
+> **Important:** Create and query reservations through `ReservationFactory` or `craft.booked.reservations`. `ReservationModel` is the old ActiveRecord implementation and is no longer what the factory returns. It still exists as a removal candidate (see #89) and its `save()` still works as a plain ActiveRecord call — but `booked_reservations.id` is now a cascading key onto `elements.id` on every install, so saving one directly, without going through the factory, fails with a foreign key violation unless an element row already exists at that id.
 
 An upgrade from a Commerce-free install gives each existing booking an element row and a new id. The confirmation token still finds the booking. A numeric id stored before the upgrade does not.
 

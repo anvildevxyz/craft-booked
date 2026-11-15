@@ -319,8 +319,9 @@ class CustomerService extends Component
 
     /**
      * Case-insensitive email match, for a table alias or, with an empty one,
-     * the bare column — ReservationModelQuery wraps a raw, alias-less
-     * ActiveQuery, so `bookingsFor()` cannot reference an `r.` that isn't there.
+     * the bare column — ReservationFactory::find() builds an element query with
+     * no `r.` alias on booked_reservations, so `bookingsFor()` cannot reference
+     * one that isn't there.
      */
     private function emailMatches(string $email, string $table = 'r'): array
     {

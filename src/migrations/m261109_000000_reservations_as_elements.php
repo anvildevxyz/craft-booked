@@ -127,7 +127,13 @@ class m261109_000000_reservations_as_elements extends Migration
                 'uid' => StringHelper::UUID(),
             ]);
 
-            $this->update(self::RESERVATIONS, ['id' => $elementId], ['id' => $parkedId]);
+            // siteId and uid are set alongside id: a row whose original site no
+            // longer exists fell back to the primary site for its
+            // elements_sites row above, and a uid collision got a fresh one
+            // for the elements row above. Either way the content row has to
+            // agree with what was actually inserted, or it disagrees with its
+            // own element from this point on.
+            $this->update(self::RESERVATIONS, ['id' => $elementId, 'siteId' => $siteId, 'uid' => $uid], ['id' => $parkedId]);
             foreach (self::ID_COLUMNS as $table => $column) {
                 if ($this->db->tableExists($table)) {
                     $this->update($table, [$column => $elementId], [$column => $parkedId]);
