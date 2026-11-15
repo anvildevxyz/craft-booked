@@ -6,6 +6,22 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `graphql-reservation-field-values.php` covers
+
+Issue #146 — `createBookedReservation`/`updateBookedReservation`'s
+`fieldValues` input, through the actual `ReservationMutations` resolvers
+(reflected into directly, since they're `protected` and reaching them via a
+real GraphQL query needs a full schema + permission scope this test doesn't
+set up). No custom JSON scalar exists in this schema, so `fieldValues`
+travels as a JSON string both ways — confirms the encode side
+(`ReservationInterface`) and decode side (`decodeFieldValues()`) agree.
+Needs a real bookable "Private Lesson" service on this install.
+Self-cleaning.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/graphql-reservation-field-values.php
+```
+
 ## What `mcp-reservation-field-values.php` covers
 
 Issue #146 — `booked_create_booking`/`booked_update_reservation`'s

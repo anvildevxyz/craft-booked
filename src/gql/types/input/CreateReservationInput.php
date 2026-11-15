@@ -75,6 +75,10 @@ class CreateReservationInput
                         'type' => Type::string(),
                         'description' => 'End date for multi-day bookings (YYYY-MM-DD)',
                     ],
+                    'fieldValues' => [
+                        'type' => Type::string(),
+                        'description' => 'Answers to the booked service\'s custom questions (#146), as a JSON object string keyed by field handle.',
+                    ],
                 ],
             ]));
     }

@@ -31,6 +31,10 @@ class UpdateReservationInput
                         'type' => Type::string(),
                         'description' => 'Customer notes.',
                     ],
+                    'fieldValues' => [
+                        'type' => Type::string(),
+                        'description' => 'Answers to the booked service\'s custom questions (#146), as a JSON object string keyed by field handle. Only the handles provided are replaced.',
+                    ],
                 ],
             ]));
     }
