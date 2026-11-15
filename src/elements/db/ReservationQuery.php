@@ -219,7 +219,7 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
             $this->_applyBookingDateFilter($t);
         }
 
-        $this->_applyStaffScope($t);
+        $this->_applyStaffScope();
 
         return true;
     }
@@ -234,12 +234,24 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
      * those would hide other employees' bookings and let a staff member book
      * a seat that is already taken, so the limit stays on element-index requests.
      *
-     * getStaffEmployeeIds() returns null for admins, for anyone who can manage
-     * bookings, and when nobody is logged in.
+     * PermissionService::scopeReservationQuery() already implements the staff
+     * narrowing for callers like CustomerService::bookingsFor() — reused here
+     * rather than re-deriving the same employeeId condition a second way. But
+     * unlike those callers, nothing upstream of this one already required
+     * booked-viewBookings: Craft's own element-indexes controller only checks
+     * for CP access, not any permission specific to this plugin, so every
+     * logged-in CP user reaches this query. getStaffEmployeeIds() returns
+     * null ("full access") for exactly that user too — it was written
+     * assuming a caller had already gated on booked-viewBookings — so this
+     * method has to check that itself before delegating, or any CP user with
+     * no Booked permission at all would see every reservation.
      */
-    private function _applyStaffScope(string $t): void
+    private function _applyStaffScope(): void
     {
         // Console and queue runs have no user session to scope against.
+        // Checked against the application type, not a request-reported flag:
+        // the latter falls back to a PHP_SAPI comparison when unset, which
+        // misclassifies a web app booted from a CLI context.
         if (!Craft::$app instanceof WebApplication) {
             return;
         }
@@ -249,14 +261,13 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
             return;
         }
 
-        $ids = Booked::getInstance()?->getPermission()->getStaffEmployeeIds();
-        if ($ids === null) {
+        $user = Craft::$app->getUser()->getIdentity();
+        if ($user === null || !$user->can('booked-viewBookings')) {
+            $this->subQuery->andWhere('0=1');
             return;
         }
 
-        // An empty managed list means "no bookings", stated explicitly rather
-        // than left to how a driver handles an empty IN().
-        $this->subQuery->andWhere($ids === [] ? '0=1' : ["$t.employeeId" => $ids]);
+        Booked::getInstance()?->getPermission()->scopeReservationQuery($this);
     }
 
     private function _applyBookingDateFilter(string $t): void

@@ -67,7 +67,7 @@ class BookingsController extends Controller
 
         return $this->renderTemplate('booked/bookings/_index', [
             'title' => Craft::t('booked', 'titles.bookings'),
-            'canManage' => $user && ($user->admin || $user->can('booked-manageBookings')),
+            'canManage' => $user->admin || $user->can('booked-manageBookings'),
         ]);
     }
 

@@ -3,10 +3,8 @@
 namespace anvildev\booked\migrations;
 
 use anvildev\booked\elements\Reservation;
-use anvildev\booked\records\ReservationRecord;
 use Craft;
 use craft\db\Migration;
-use craft\db\Query;
 
 /**
  * Puts existing reservations into Craft's search index.
@@ -21,20 +19,9 @@ class m261110_000000_index_reservation_search extends Migration
     public function safeUp(): bool
     {
         $search = Craft::$app->getSearch();
-        $ids = (new Query())
-            ->select(['id'])
-            ->from(ReservationRecord::tableName())
-            ->column();
 
-        foreach (array_chunk($ids, 100) as $chunk) {
-            $batch = Reservation::find()
-                ->siteId('*')
-                ->id($chunk)
-                ->all();
-
-            foreach ($batch as $reservation) {
-                $search->indexElementAttributes($reservation);
-            }
+        foreach (Reservation::find()->siteId('*')->each(100) as $reservation) {
+            $search->indexElementAttributes($reservation);
         }
 
         return true;

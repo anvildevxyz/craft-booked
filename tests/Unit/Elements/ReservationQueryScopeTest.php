@@ -2,6 +2,8 @@
 
 namespace anvildev\booked\tests\Unit\Elements;
 
+use anvildev\booked\elements\db\ReservationQuery;
+use anvildev\booked\services\PermissionService;
 use anvildev\booked\tests\Support\TestCase;
 
 /**
@@ -13,16 +15,16 @@ use anvildev\booked\tests\Support\TestCase;
  */
 class ReservationQueryScopeTest extends TestCase
 {
-    private function querySource(): string
+    private function scopeMethodSource(): string
     {
-        return file_get_contents(dirname(__DIR__, 3) . '/src/elements/db/ReservationQuery.php');
+        return $this->sourceOfMethod(ReservationQuery::class, '_applyStaffScope');
     }
 
     public function testTheQueryAppliesStaffScope(): void
     {
         $this->assertStringContainsString(
-            'getStaffEmployeeIds()',
-            $this->querySource(),
+            'scopeReservationQuery',
+            $this->scopeMethodSource(),
             'ReservationQuery must scope staff itself — Craft builds the index query, not our controller',
         );
     }
@@ -33,24 +35,27 @@ class ReservationQueryScopeTest extends TestCase
      */
     public function testTheScopeIsAppliedWhilePreparingTheQuery(): void
     {
-        $source = $this->querySource();
-
-        $prepare = strpos($source, 'protected function beforePrepare()');
-        $call = strpos($source, '$this->_applyStaffScope(');
-
-        $this->assertNotFalse($prepare);
-        $this->assertNotFalse($call, 'beforePrepare() should apply the staff scope');
-        $this->assertGreaterThan($prepare, $call);
+        $source = $this->sourceOfMethod(ReservationQuery::class, 'beforePrepare');
+        $this->assertStringContainsString(
+            '$this->_applyStaffScope(',
+            $source,
+            'beforePrepare() should apply the staff scope',
+        );
     }
 
     /**
      * An empty managed-employee list means "nothing", stated outright. Left to
      * an empty IN() it is driver-dependent, and the failure mode is showing
-     * everything rather than nothing.
+     * everything rather than nothing. This guarantee lives in
+     * PermissionService::scopeReservationQuery(), which ReservationQuery
+     * delegates to rather than re-deriving the same condition itself.
      */
     public function testAnEmptyManagedListMatchesNothing(): void
     {
-        $this->assertStringContainsString("'0=1'", $this->querySource());
+        $this->assertStringContainsString(
+            "'0=1'",
+            $this->sourceOfMethod(PermissionService::class, 'scopeReservationQuery'),
+        );
     }
 
     /**
@@ -61,9 +66,23 @@ class ReservationQueryScopeTest extends TestCase
     {
         $this->assertStringContainsString(
             'WebApplication',
-            $this->querySource(),
+            $this->scopeMethodSource(),
             'The scope must not try to read a user session in console or queue runs',
         );
+    }
+
+    /**
+     * Craft's own element-indexes controller only requires CP access, not any
+     * Booked permission — unlike BookingsController, which this query bypasses.
+     * Without an explicit check here, a CP user with no Booked access at all
+     * would inherit getStaffEmployeeIds()'s "null means full access", which
+     * was written assuming a permission check had already happened upstream.
+     */
+    public function testUsersWithoutViewBookingsSeeNothing(): void
+    {
+        $source = $this->scopeMethodSource();
+        $this->assertStringContainsString("can('booked-viewBookings')", $source);
+        $this->assertStringContainsString("'0=1'", $source);
     }
 
     /**
@@ -74,7 +93,7 @@ class ReservationQueryScopeTest extends TestCase
     {
         $this->assertStringContainsString(
             "'element-indexes'",
-            $this->querySource(),
+            $this->scopeMethodSource(),
             'Only Craft element-index requests may apply the staff scope',
         );
     }
