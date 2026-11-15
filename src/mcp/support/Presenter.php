@@ -164,6 +164,14 @@ final class Presenter
         $email = $reservation->getUserEmail();
         $phone = $reservation->getUserPhone();
 
+        // Answers to the booked service's custom questions (#146).
+        // method_exists guards against a ReservationInterface implementation
+        // that predates field layouts (craft\base\Element's own API, not
+        // declared on this plugin's interface).
+        $fieldValues = method_exists($reservation, 'getFieldValues')
+            ? self::jsonSafe($reservation->getFieldValues())
+            : [];
+
         return [
             'id' => $reservation->getId(),
             'uid' => $reservation->getUid(),
@@ -184,6 +192,7 @@ final class Presenter
             'userTimezone' => $reservation->getUserTimezone(),
             'notes' => $reservation->getNotes(),
             'hasVirtualMeeting' => $reservation->getVirtualMeetingUrl() !== null,
+            'fieldValues' => $fieldValues,
         ];
         // NOTE: confirmationToken and virtualMeetingUrl are deliberately NOT exposed —
         // both are bearer capabilities (the token authenticates the public

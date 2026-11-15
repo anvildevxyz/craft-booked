@@ -6,6 +6,21 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `mcp-reservation-field-values.php` covers
+
+Issue #146 — `booked_create_booking`/`booked_update_reservation`'s
+`fieldValues` parameter, through the actual MCP tool methods (not just the
+`BookingService` pipeline underneath them, covered by
+`booking-form-pipeline.php`). `guardWrite()` enforces "Allow MCP write
+operations" for real, not just as tool metadata, so this toggles that
+setting for the duration. Needs a real bookable "Private Lesson" service on
+this install. Self-cleaning — restores the setting and the service's
+original field layout regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/mcp-reservation-field-values.php
+```
+
 ## What `booking-form-pipeline.php` covers
 
 Issue #146 — custom field answers have to flow BookingForm ->

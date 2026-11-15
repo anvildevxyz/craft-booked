@@ -9,6 +9,7 @@ use anvildev\booked\mcp\support\Presenter;
 
 use craft\mcp\attributes\RequiresPermission;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\Schema;
 use Mcp\Schema\ToolAnnotations;
 use stimmt\craft\Mcp\attributes\McpToolMeta;
 use stimmt\craft\Mcp\enums\ToolCategory;
@@ -150,6 +151,7 @@ class ReservationTools
      * @param int|null $locationId Specific location, if applicable.
      * @param int $quantity Number of spots/seats to book.
      * @param string|null $userTimezone IANA timezone of the customer (e.g. Europe/Zurich).
+     * @param array<string, mixed>|null $fieldValues Answers to the service's custom booking questions (#146), keyed by field handle.
      * @return array<string, mixed>
      */
     #[McpTool(
@@ -171,6 +173,7 @@ class ReservationTools
         ?int $locationId = null,
         int $quantity = 1,
         ?string $userTimezone = null,
+        #[Schema(type: 'object')] ?array $fieldValues = null,
     ): array {
         return $this->guardWrite(function() use (
             $serviceId,
@@ -183,6 +186,7 @@ class ReservationTools
             $locationId,
             $quantity,
             $userTimezone,
+            $fieldValues,
         ): array {
             if ($quantity < 1) {
                 return ['error' => 'quantity must be at least 1.'];
@@ -202,6 +206,7 @@ class ReservationTools
                 'locationId' => $locationId,
                 'quantity' => $quantity,
                 'userTimezone' => $userTimezone,
+                'fieldValues' => $fieldValues ?? [],
                 'source' => 'mcp',
             ]);
 
@@ -316,6 +321,7 @@ class ReservationTools
      * @param string|null $userEmail Customer email.
      * @param string|null $userPhone Customer phone.
      * @param string|null $notes Internal notes.
+     * @param array<string, mixed>|null $fieldValues Answers to the service's custom booking questions (#146), keyed by field handle. Replaces only the handles provided.
      * @return array<string, mixed>
      */
     #[McpTool(
@@ -338,8 +344,9 @@ class ReservationTools
         ?string $userEmail = null,
         ?string $userPhone = null,
         ?string $notes = null,
+        #[Schema(type: 'object')] ?array $fieldValues = null,
     ): array {
-        return $this->guardWrite(function() use ($id, $bookingDate, $startTime, $employeeId, $locationId, $status, $userName, $userEmail, $userPhone, $notes): array {
+        return $this->guardWrite(function() use ($id, $bookingDate, $startTime, $employeeId, $locationId, $status, $userName, $userEmail, $userPhone, $notes, $fieldValues): array {
             // Flipping status to cancelled here skips the refund, capacity
             // release and waitlist notify that executeCancellation() runs.
             if ($status === 'cancelled') {
@@ -356,6 +363,7 @@ class ReservationTools
                 'userEmail' => $userEmail,
                 'userPhone' => $userPhone,
                 'notes' => $notes,
+                'fieldValues' => $fieldValues,
             ], static fn($v) => $v !== null);
 
             if ($data === []) {
