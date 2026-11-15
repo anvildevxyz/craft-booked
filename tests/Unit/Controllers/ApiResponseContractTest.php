@@ -370,73 +370,8 @@ class ApiResponseContractTest extends TestCase
         ];
     }
 
-    // =========================================================================
-    // CP BookingsController — sort whitelist and pagination
-    // =========================================================================
-
-    /**
-     * @dataProvider allowedSortFieldProvider
-     */
-    public function testBookingsIndexAllowsSortField(string $field): void
-    {
-        $source = $this->source('cp/BookingsController.php');
-        $this->assertStringContainsString(
-            "'{$field}'",
-            $source,
-            "Bookings index should allow sorting by '{$field}'"
-        );
-    }
-
-    public static function allowedSortFieldProvider(): array
-    {
-        return [
-            'bookingDate' => ['bookingDate'],
-            'userName' => ['userName'],
-            'startTime' => ['startTime'],
-            'status' => ['status'],
-            'dateCreated' => ['dateCreated'],
-        ];
-    }
-
-    /**
-     * @dataProvider paginationKeyProvider
-     */
-    public function testBookingsIndexPaginationKeys(string $key): void
-    {
-        $source = $this->source('cp/BookingsController.php');
-        $this->assertStringContainsString(
-            "'{$key}'",
-            $source,
-            "Bookings index pagination should include '{$key}'"
-        );
-    }
-
-    public static function paginationKeyProvider(): array
-    {
-        return [
-            'currentPage' => ['currentPage'],
-            'totalPages' => ['totalPages'],
-            'totalCount' => ['totalCount'],
-            'limit' => ['limit'],
-            'first' => ['first'],
-            'last' => ['last'],
-        ];
-    }
-
-    public function testBookingsIndexSearchSupportsDateFormats(): void
-    {
-        $source = $this->source('cp/BookingsController.php');
-        // European format DD.MM.YYYY pattern
-        $this->assertStringContainsString(
-            '(\d{1,2})\.(\d{1,2})\.(\d{4})',
-            $source,
-            'Search should support DD.MM.YYYY date format'
-        );
-        // ISO format YYYY-MM-DD pattern
-        $this->assertStringContainsString(
-            '(\d{4})-(\d{1,2})-(\d{1,2})',
-            $source,
-            'Search should support YYYY-MM-DD date format'
-        );
-    }
+    // CP BookingsController's sort whitelist, pagination and date-format search
+    // moved with the bookings index itself (#89) — Craft's native element
+    // index now owns all three, declared on the Reservation element and
+    // covered by ReservationTest, not a JSON contract this controller builds.
 }
