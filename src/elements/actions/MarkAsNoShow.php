@@ -18,11 +18,19 @@ class MarkAsNoShow extends ElementAction
         return Craft::t('booked', 'action.markAsNoShowConfirm');
     }
 
+    /**
+     * Unlike core actions such as Delete, a custom ElementAction gets no
+     * canSave()/canDelete() check from Craft itself — Reservation::canSave()
+     * (admin or booked-manageBookings) already states who may mutate a
+     * booking, so it's checked here rather than left unenforced.
+     */
     public function performAction(ElementQueryInterface $query): bool
     {
+        $elementsService = Craft::$app->getElements();
+
         $count = 0;
         foreach ($query->all() as $reservation) {
-            if ($reservation->markAsNoShow()) {
+            if ($elementsService->canSave($reservation) && $reservation->markAsNoShow()) {
                 $count++;
             }
         }

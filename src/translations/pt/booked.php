@@ -201,6 +201,7 @@ return [
     // Buttons
     'buttons.newBooking' => 'Nova Reserva',
     'buttons.exportCsv' => 'Exportar CSV',
+    'buttons.exportDetailed' => 'Exportação detalhada',
     'buttons.export' => 'Exportar',
     'buttons.search' => 'Pesquisar',
     'buttons.clear' => 'Limpar',
@@ -767,6 +768,7 @@ return [
     'labels.required' => 'Obrigatório',
     'labels.employee' => 'Colaborador',
     'labels.location' => 'Localização',
+    'labels.eventDate' => 'Data de Evento',
     'labels.day' => 'Dia',
     'labels.days' => 'Dias',
     'labels.dateRange' => 'Período',

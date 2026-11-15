@@ -103,7 +103,7 @@ class ReservationModelQuery implements ReservationQueryInterface
         return $this;
     }
 
-    public function employeeId(?int $value): static
+    public function employeeId(array|int|null $value): static
     {
         if ($value !== null) {
             $this->query->andWhere(['employeeId' => $value]);
@@ -111,7 +111,7 @@ class ReservationModelQuery implements ReservationQueryInterface
         return $this;
     }
 
-    public function locationId(?int $value): static
+    public function locationId(array|int|null $value): static
     {
         if ($value !== null) {
             $this->query->andWhere(['locationId' => $value]);
@@ -119,7 +119,7 @@ class ReservationModelQuery implements ReservationQueryInterface
         return $this;
     }
 
-    public function serviceId(?int $value): static
+    public function serviceId(array|int|null $value): static
     {
         if ($value !== null) {
             $this->query->andWhere(['serviceId' => $value]);
@@ -127,7 +127,7 @@ class ReservationModelQuery implements ReservationQueryInterface
         return $this;
     }
 
-    public function eventDateId(?int $value): static
+    public function eventDateId(array|int|null $value): static
     {
         if ($value !== null) {
             $this->query->andWhere(['eventDateId' => $value]);

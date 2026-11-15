@@ -89,4 +89,26 @@ class ReservationTest extends TestCase
             'getSearchKeywords() should index the European date format alongside the stored ISO one',
         );
     }
+
+    public function testIdIsSearchable(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'defineSearchableAttributes');
+        $this->assertStringContainsString("'id'", $source);
+    }
+
+    /**
+     * The hand-rolled table this replaced (#89) matched a bare numeric
+     * search against the reservation's own id (e.g. one quoted in a support
+     * email); the native index's keyword search needs id indexed to do the
+     * same.
+     */
+    public function testSearchKeywordsIncludeTheRawId(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'getSearchKeywords');
+        $this->assertStringContainsString(
+            "\$attribute === 'id'",
+            $source,
+            'getSearchKeywords() should special-case id',
+        );
+    }
 }

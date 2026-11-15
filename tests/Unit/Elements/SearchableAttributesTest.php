@@ -35,7 +35,7 @@ class SearchableAttributesTest extends TestCase
             'Location' => [Location::class, ['addressLine1', 'addressLine2', 'locality', 'administrativeArea', 'postalCode', 'countryCode']],
             'EventDate' => [EventDate::class, ['description']],
             'BlackoutDate' => [BlackoutDate::class, ['startDate', 'endDate']],
-            'Reservation' => [Reservation::class, ['userName', 'userEmail', 'userPhone', 'notes', 'bookingDate']],
+            'Reservation' => [Reservation::class, ['userName', 'userEmail', 'userPhone', 'notes', 'bookingDate', 'id']],
             'ServiceExtra' => [ServiceExtra::class, ['title', 'description']],
         ];
     }

@@ -26,6 +26,38 @@ class ReservationQueryInterfaceTest extends TestCase
         $this->assertTrue($ref->hasMethod($method), "Missing method: {$method}");
     }
 
+    /**
+     * The condition-rule classes (ReservationEmployeeConditionRule and
+     * friends) pass getElementIds() — an array — straight into these.
+     * A ?int-only signature type-errors the moment a native-index filter is
+     * actually applied; this only surfaced by exercising the filter live,
+     * not by reading the condition rule's source.
+     *
+     * @dataProvider arrayAcceptingMethodsProvider
+     */
+    public function testMethodAcceptsAnArrayOfIds(string $method): void
+    {
+        $ref = new \ReflectionMethod(ReservationQueryInterface::class, $method);
+        $type = $ref->getParameters()[0]->getType();
+
+        $this->assertNotNull($type, "{$method}() has no declared parameter type");
+        $typeNames = $type instanceof \ReflectionUnionType
+            ? array_map(fn(\ReflectionNamedType $t) => $t->getName(), $type->getTypes())
+            : [$type->getName()];
+
+        $this->assertContains('array', $typeNames, "{$method}() must accept an array of ids, not just a single int");
+    }
+
+    public static function arrayAcceptingMethodsProvider(): array
+    {
+        return [
+            ['employeeId'],
+            ['locationId'],
+            ['serviceId'],
+            ['eventDateId'],
+        ];
+    }
+
     public static function requiredMethodsProvider(): array
     {
         return [

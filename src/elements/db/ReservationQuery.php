@@ -33,33 +33,33 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
     public ?string $startTime = null;
     public ?string $endTime = null;
     public array|string|null $reservationStatus = null;
-    public ?int $employeeId = null;
-    public ?int $locationId = null;
-    public ?int $serviceId = null;
-    public ?int $eventDateId = null;
+    public array|int|null $employeeId = null;
+    public array|int|null $locationId = null;
+    public array|int|null $serviceId = null;
+    public array|int|null $eventDateId = null;
     public ?string $confirmationToken = null;
 
     private bool $_forCurrentUser = false;
 
-    public function employeeId(?int $value): static
+    public function employeeId(array|int|null $value): static
     {
         $this->employeeId = $value;
         return $this;
     }
 
-    public function locationId(?int $value): static
+    public function locationId(array|int|null $value): static
     {
         $this->locationId = $value;
         return $this;
     }
 
-    public function serviceId(?int $value): static
+    public function serviceId(array|int|null $value): static
     {
         $this->serviceId = $value;
         return $this;
     }
 
-    public function eventDateId(?int $value): static
+    public function eventDateId(array|int|null $value): static
     {
         $this->eventDateId = $value;
         return $this;

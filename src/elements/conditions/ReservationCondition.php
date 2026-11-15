@@ -12,6 +12,7 @@ class ReservationCondition extends ElementCondition
             ReservationServiceConditionRule::class,
             ReservationEmployeeConditionRule::class,
             ReservationLocationConditionRule::class,
+            ReservationEventDateConditionRule::class,
             ReservationBookingDateConditionRule::class,
         ]);
     }

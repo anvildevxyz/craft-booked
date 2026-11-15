@@ -68,6 +68,8 @@ class BookingsController extends Controller
         return $this->renderTemplate('booked/bookings/_index', [
             'title' => Craft::t('booked', 'titles.bookings'),
             'canManage' => $user->admin || $user->can('booked-manageBookings'),
+            // Arriving from an Event Date's "View reservations" link.
+            'eventDateId' => $this->request->getQueryParam('eventDateId'),
         ]);
     }
 

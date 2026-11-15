@@ -201,6 +201,7 @@ return [
     // Buttons
     'buttons.newBooking' => '新規予約',
     'buttons.exportCsv' => 'CSV出力',
+    'buttons.exportDetailed' => '詳細エクスポート',
     'buttons.export' => '出力',
     'buttons.search' => '検索',
     'buttons.clear' => 'クリア',
@@ -767,6 +768,7 @@ return [
     'labels.required' => '必須',
     'labels.employee' => 'スタッフ',
     'labels.location' => '場所',
+    'labels.eventDate' => 'イベント日',
     'labels.day' => '曜日',
     'labels.days' => '日間',
     'labels.dateRange' => '期間',

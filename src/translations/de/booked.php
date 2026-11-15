@@ -202,6 +202,7 @@ return [
     // Buttons
     'buttons.newBooking' => 'Neue Buchung',
     'buttons.exportCsv' => 'CSV exportieren',
+    'buttons.exportDetailed' => 'Detaillierter Export',
     'buttons.export' => 'Exportieren',
     'buttons.search' => 'Suchen',
     'buttons.clear' => 'Löschen',
@@ -768,6 +769,7 @@ return [
     'labels.required' => 'Pflichtfeld',
     'labels.employee' => 'Mitarbeiter',
     'labels.location' => 'Standort',
+    'labels.eventDate' => 'Ereignisdatum',
     'labels.day' => 'Tag',
     'labels.days' => 'Tage',
     'labels.dateRange' => 'Zeitraum',

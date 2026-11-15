@@ -201,6 +201,7 @@ return [
     // Buttons
     'buttons.newBooking' => 'Nieuwe boeking',
     'buttons.exportCsv' => 'CSV exporteren',
+    'buttons.exportDetailed' => 'Gedetailleerde export',
     'buttons.export' => 'Exporteren',
     'buttons.search' => 'Zoeken',
     'buttons.clear' => 'Wissen',
@@ -767,6 +768,7 @@ return [
     'labels.required' => 'Verplicht',
     'labels.employee' => 'Medewerker',
     'labels.location' => 'Locatie',
+    'labels.eventDate' => 'Evenementdatum',
     'labels.day' => 'Dag',
     'labels.days' => 'Dagen',
     'labels.dateRange' => 'Periode',

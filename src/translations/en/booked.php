@@ -202,6 +202,7 @@ return [
     // Buttons
     'buttons.newBooking' => 'New Booking',
     'buttons.exportCsv' => 'Export CSV',
+    'buttons.exportDetailed' => 'Detailed Export',
     'buttons.export' => 'Export',
     'buttons.search' => 'Search',
     'buttons.clear' => 'Clear',
@@ -782,6 +783,7 @@ return [
     'labels.required' => 'Required',
     'labels.employee' => 'Employee',
     'labels.location' => 'Location',
+    'labels.eventDate' => 'Event Date',
     'labels.day' => 'Day',
     'labels.days' => 'Days',
     'labels.dateRange' => 'Date Range',
