@@ -18,6 +18,23 @@ fully removed. Self-cleaning.
 ddev exec php plugins/craft-booked/tests/integration-live/soft-lock-capacity.php
 ```
 
+## What `reservations-as-elements-migration.php` covers
+
+Issue #88 — `m261109_000000_reservations_as_elements` gives every legacy,
+Commerce-free booking an element row and remaps its id, and it's one-way
+(`safeDown()` refuses to revert). Drops the live `booked_reservations.id ->
+elements.id` FK to reproduce a pre-upgrade install, seeds synthetic orphan
+rows (including linked `booked_payments`, `booked_order_reservations` and
+`booked_reservation_extras` rows), runs the real migration class, and asserts
+the remap end-to-end — ids move, confirmation tokens and status don't, child
+rows follow, an unrelated existing reservation is untouched, and a second run
+is a no-op. Self-cleaning; restores the FK in a `finally` regardless of
+outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/reservations-as-elements-migration.php
+```
+
 ## What `payments.sh` covers
 
 1. **Happy path** — `payment/create` → confirm the PaymentIntent → **webhook** →

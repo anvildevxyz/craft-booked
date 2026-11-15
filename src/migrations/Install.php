@@ -350,11 +350,9 @@ class Install extends Migration
                 'uid' => $this->uid(),
             ]);
 
-            // No FK on 'id' to 'elements.id' - Reservations can be Elements (Commerce) or standalone ActiveRecords
-            // No id -> elements.id constraint here, unlike every other element
-            // table: a reservation is only a Craft element when Commerce is
-            // enabled. Without it the row is a plain ActiveRecord with nothing
-            // in `elements`, and the constraint would reject it outright.
+            // The id is the element id. Existing ActiveRecord rows are remapped
+            // onto elements by m261109_000000_reservations_as_elements.
+            $this->addForeignKey(null, '{{%booked_reservations}}', 'id', '{{%elements}}', 'id', 'CASCADE', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'employeeId', '{{%elements}}', 'id', 'SET NULL', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'locationId', '{{%elements}}', 'id', 'SET NULL', null);
             $this->addForeignKey(null, '{{%booked_reservations}}', 'serviceId', '{{%elements}}', 'id', 'SET NULL', null);

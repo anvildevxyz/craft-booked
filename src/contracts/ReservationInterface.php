@@ -9,8 +9,7 @@ use anvildev\booked\elements\Service;
 use craft\elements\User;
 
 /**
- * Defines the contract for both Element-based (Commerce) and
- * ActiveRecord-based (non-Commerce) Reservation implementations.
+ * Defines the contract every reservation implements.
  *
  * @property int|null $id
  * @property string|null $uid

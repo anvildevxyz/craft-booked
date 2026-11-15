@@ -109,7 +109,7 @@ class PermissionService extends Component
     }
 
     /**
-     * Scope a ReservationQuery or ReservationModelQuery to the current user's employees.
+     * Scope a reservation query to the current user's employees.
      *
      * @template T of ReservationQueryInterface
      * @param T $query

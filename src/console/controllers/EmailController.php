@@ -377,11 +377,6 @@ class EmailController extends Controller
     {
         $real = ReservationFactory::find()->siteId('*')->orderBy('dateCreated DESC')->one();
 
-        if ($real instanceof ReservationModel) {
-            $real->siteId = $siteId;
-            return $real;
-        }
-
         if ($real !== null) {
             $model = new ReservationModel();
             $model->id = $real->getId();

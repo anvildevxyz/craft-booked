@@ -11,8 +11,7 @@ use anvildev\booked\tests\Support\TestCase;
 /**
  * ReservationFactory Test
  *
- * Tests the factory that determines which Reservation implementation to use
- * based on whether Commerce is enabled.
+ * Tests the factory that builds reservation elements.
  *
  * Note: Tests requiring full Craft CMS are skipped in unit test mode.
  */
@@ -162,6 +161,16 @@ class ReservationFactoryTest extends TestCase
         $source = file_get_contents(dirname(__DIR__, 3) . '/src/factories/ReservationFactory.php');
         $this->assertStringContainsString('ALLOWED_CREATE_ATTRIBUTES', $source,
             'ReservationFactory::create must use an attribute allowlist');
+    }
+
+    public function testFactoryAlwaysBuildsTheElement(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 3) . '/src/factories/ReservationFactory.php');
+
+        $this->assertStringContainsString('new Reservation()', $source);
+        $this->assertStringContainsString('Reservation::find()', $source);
+        $this->assertStringNotContainsString('ReservationModel', $source);
+        $this->assertStringContainsString('return true;', $source);
     }
 
     // =========================================================================

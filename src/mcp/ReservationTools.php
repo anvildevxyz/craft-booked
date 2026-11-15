@@ -77,7 +77,7 @@ class ReservationTools
             if ($fromDate !== null && $toDate !== null) {
                 $query->bookingDate(['and', ">= {$fromDate}", "<= {$toDate}"]);
             } elseif ($fromDate !== null) {
-                // Array form, not ">= {$fromDate}": ReservationModelQuery treats
+                // Array form, not ">= {$fromDate}": ReservationQuery treats
                 // the string as a literal equality match and finds nothing.
                 $query->bookingDate(['>=', $fromDate]);
             } elseif ($toDate !== null) {

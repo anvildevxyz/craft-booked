@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- A reservation is a Craft element on every install, including ones without Commerce ([#88](https://github.com/anvildevxyz/craft-booked/issues/88)). Existing ActiveRecord bookings are given element rows and their ids are remapped onto those elements. Bookings that were already elements keep their ids. Booking statuses stay on the reservation row, separate from Craft's enabled/disabled status.
+
 ## 1.9.0 - 2026-11-08
 
 ### Added

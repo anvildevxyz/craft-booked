@@ -80,20 +80,19 @@ class ReservationSoftDeleteTest extends TestCase
     }
 
     /**
-     * A cascading id -> elements.id constraint looks like the tidy way to make
-     * afterDelete() unnecessary, and was briefly added. It cannot be used here:
-     * a reservation is only a Craft element when Commerce is enabled, so on a
-     * Commerce-free install the row has no `elements` counterpart and the
-     * constraint rejects every insert — no booking can be created at all.
+     * A fresh install stores every reservation as an element, so the content
+     * row's id is a cascading key onto elements.id. Upgrades reach the same
+     * constraint only after m261109_000000_reservations_as_elements has created
+     * the missing element rows.
      */
-    public function testInstallDoesNotConstrainReservationsToElements(): void
+    public function testInstallConstrainsReservationsToElements(): void
     {
         $install = file_get_contents(dirname(__DIR__, 3) . '/src/migrations/Install.php');
 
-        $this->assertStringNotContainsString(
+        $this->assertStringContainsString(
             "addForeignKey(null, '{{%booked_reservations}}', 'id', '{{%elements}}'",
             $install,
-            'Reservations must not be constrained to elements — they are plain records without Commerce',
+            'A new reservation id must be the element id',
         );
     }
 

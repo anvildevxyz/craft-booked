@@ -2,19 +2,24 @@
 
 namespace anvildev\booked\factories;
 
-use anvildev\booked\Booked;
 use anvildev\booked\contracts\ReservationInterface;
 use anvildev\booked\contracts\ReservationQueryInterface;
 use anvildev\booked\elements\Reservation;
-use anvildev\booked\models\ReservationModel;
 
+/**
+ * Constructs reservations and reservation queries.
+ *
+ * A booking is always a Craft element, whether or not Commerce is installed.
+ * Call sites name `Reservation` only through these two interfaces, so that
+ * decision stays in this file.
+ */
 class ReservationFactory
 {
     private const ALLOWED_CREATE_ATTRIBUTES = ['siteId'];
 
     public static function create(array $attributes = []): ReservationInterface
     {
-        $reservation = self::isElementMode() ? new Reservation() : new ReservationModel();
+        $reservation = new Reservation();
 
         foreach (array_intersect_key($attributes, array_flip(self::ALLOWED_CREATE_ATTRIBUTES)) as $key => $value) {
             if (property_exists($reservation, $key)) {
@@ -25,9 +30,13 @@ class ReservationFactory
         return $reservation;
     }
 
+    /**
+     * Reservations are not localized, so every query spans all sites. Without
+     * this, a query made from a non-primary site returns nothing.
+     */
     public static function find(): ReservationQueryInterface
     {
-        return ReservationModel::find()->siteId('*');
+        return Reservation::find()->siteId('*');
     }
 
     public static function findById(int $id): ?ReservationInterface
@@ -40,9 +49,14 @@ class ReservationFactory
         return $token === '' ? null : self::find()->confirmationToken($token)->one();
     }
 
+    /**
+     * Reservations are always elements.
+     *
+     * Kept so callers written while the element existed only with Commerce
+     * still compile. New code should not branch on this.
+     */
     public static function isElementMode(): bool
     {
-        $plugin = Booked::getInstance();
-        return $plugin !== null && $plugin->isCommerceEnabled();
+        return true;
     }
 }
