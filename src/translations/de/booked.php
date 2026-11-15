@@ -951,6 +951,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'Wählen Sie den virtuellen Meeting-Anbieter für diesen Service.',
     'service.none' => 'Keiner',
     'service.waitlist' => 'Warteliste',
+    'service.reservationQuestions' => 'Buchungsfragen',
+    'service.reservationQuestionsInstructions' => 'Individuelle Fragen, die ein Kunde bei der Buchung dieser Dienstleistung beantwortet. Antworten werden direkt bei der Buchung gespeichert.',
     'service.enableWaitlist' => 'Warteliste aktivieren',
     'service.enableWaitlistInstructions' => 'Ermöglichen Sie Kunden, sich auf eine Warteliste zu setzen, wenn keine Zeitfenster verfügbar sind. Die Warteliste wird nur an Tagen angeboten, an denen dieser Service Verfügbarkeit konfiguriert hat.',
     'service.useGlobalSetting' => 'Globale Einstellung verwenden',

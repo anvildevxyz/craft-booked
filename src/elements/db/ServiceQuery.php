@@ -74,7 +74,7 @@ class ServiceQuery extends ElementQuery
             "$t.timeSlotLength", "$t.availabilitySchedule",
             "$t.customerLimitEnabled", "$t.customerLimitCount",
             "$t.customerLimitPeriod", "$t.customerLimitPeriodType", "$t.enableWaitlist",
-            "$t.taxCategoryId", "$t.deletedAt",
+            "$t.taxCategoryId", "$t.deletedAt", "$t.reservationFieldLayoutId",
         ]);
 
         foreach (['duration', 'price', 'durationType', 'minDays', 'maxDays'] as $param) {

@@ -949,6 +949,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'Sélectionnez le fournisseur de réunion virtuelle pour ce service.',
     'service.none' => 'Aucun',
     'service.waitlist' => 'Liste d\'attente',
+    'service.reservationQuestions' => 'Questions de réservation',
+    'service.reservationQuestionsInstructions' => 'Questions personnalisées auxquelles un client répond lors de la réservation de ce service. Les réponses sont enregistrées sur la réservation elle-même.',
     'service.enableWaitlist' => 'Activer la liste d\'attente',
     'service.enableWaitlistInstructions' => 'Permettre aux clients de s\'inscrire sur une liste d\'attente lorsqu\'aucun créneau n\'est disponible. La liste d\'attente ne sera proposée que les jours où ce service a une disponibilité configurée.',
     'service.useGlobalSetting' => 'Utiliser le paramètre global',

@@ -6,6 +6,18 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `service-reservation-field-layout.php` covers
+
+Issue #146 — a Service owns a field layout for its custom booking questions;
+a Reservation has no layout of its own, resolving to whichever service it
+booked via `Reservation::getFieldLayout()`. Confirms the layout id and a
+saved field value both survive a real save/reload cycle, and that a
+reservation with no service resolves no field layout at all. Self-cleaning.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/service-reservation-field-layout.php
+```
+
 ## What `reservation-condition-rules.php` covers
 
 Issue #89 — the native bookings index's filter-HUD condition rules

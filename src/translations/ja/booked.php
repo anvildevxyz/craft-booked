@@ -949,6 +949,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'このサービスのオンラインミーティングプロバイダーを選択してください。',
     'service.none' => 'なし',
     'service.waitlist' => 'キャンセル待ち',
+    'service.reservationQuestions' => '予約時の質問',
+    'service.reservationQuestionsInstructions' => 'このサービスを予約する際に顧客が回答するカスタム質問です。回答は予約自体に保存されます。',
     'service.enableWaitlist' => 'キャンセル待ちを有効にする',
     'service.enableWaitlistInstructions' => '空き枠がない場合に、お客様がキャンセル待ちに登録できるようにします。キャンセル待ちは、このサービスの空き状況が設定されている日にのみ提供されます。',
     'service.useGlobalSetting' => 'グローバル設定を使用',

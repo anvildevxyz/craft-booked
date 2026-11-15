@@ -965,6 +965,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'Select the virtual meeting provider for this service.',
     'service.none' => 'None',
     'service.waitlist' => 'Waitlist',
+    'service.reservationQuestions' => 'Booking Questions',
+    'service.reservationQuestionsInstructions' => 'Custom questions a customer answers when booking this service. Answers are saved on the booking itself.',
     'service.enableWaitlist' => 'Enable Waitlist',
     'service.enableWaitlistInstructions' => 'Allow customers to join a waitlist when no slots are available. The waitlist will only be offered on days where this service has availability configured.',
     'service.useGlobalSetting' => 'Use Global Setting',

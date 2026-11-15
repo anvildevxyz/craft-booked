@@ -4,6 +4,7 @@ namespace anvildev\booked\controllers\cp;
 
 use anvildev\booked\Booked;
 use anvildev\booked\controllers\traits\JsonResponseTrait;
+use anvildev\booked\elements\Reservation;
 use anvildev\booked\elements\Service;
 use anvildev\booked\elements\ServiceExtra;
 use anvildev\booked\helpers\ElementQueryHelper;
@@ -151,6 +152,10 @@ class ServicesController extends Controller
         $service->availabilitySchedule = FormFieldHelper::formatWorkingHoursFromRequest(
             $request->getBodyParam('availabilitySchedule', [])
         );
+
+        $fieldLayout = Craft::$app->getFields()->assembleLayoutFromPost();
+        $fieldLayout->type = Reservation::class;
+        $service->setReservationFieldLayout($fieldLayout);
 
         if (!Craft::$app->getElements()->saveElement($service)) {
             Craft::$app->getSession()->setError(Craft::t('booked', 'messages.serviceNotSaved'));

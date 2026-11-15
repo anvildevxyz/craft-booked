@@ -111,4 +111,28 @@ class ReservationTest extends TestCase
             'getSearchKeywords() should special-case id',
         );
     }
+
+    // =========================================================================
+    // getFieldLayout() (#146) — a reservation's questions are whichever ones
+    // the booked service defines; it has no layout of its own.
+    // =========================================================================
+
+    /**
+     * No serviceId means getService() returns null before ever reaching
+     * Craft::$app, so this is safe to exercise without full Craft init.
+     */
+    public function testGetFieldLayoutIsNullWithNoService(): void
+    {
+        $reservation = (new \ReflectionClass(Reservation::class))->newInstanceWithoutConstructor();
+        $reservation->serviceId = null;
+
+        $this->assertNull($reservation->getFieldLayout());
+    }
+
+    public function testGetFieldLayoutDelegatesToTheService(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'getFieldLayout');
+        $this->assertStringContainsString('getService()', $source);
+        $this->assertStringContainsString('getReservationFieldLayout()', $source);
+    }
 }

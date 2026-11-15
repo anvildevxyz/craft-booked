@@ -180,12 +180,18 @@ class Install extends Migration
                 'cancellationPolicyHours' => $this->integer()->null(),
                 'allowRefund' => $this->boolean()->notNull()->defaultValue(true),
                 'refundTiers' => $this->text()->null(),
+                // The questions a customer answers when booking this service (#146).
+                // Answers live on the reservation itself, keyed by field handle —
+                // this column only has to point Reservation::getFieldLayout() at
+                // the right layout.
+                'reservationFieldLayoutId' => $this->integer()->null(),
                 'deletedAt' => $this->dateTime()->null(),
                 'dateCreated' => $this->dateTime()->notNull(),
                 'dateUpdated' => $this->dateTime()->notNull(),
                 'uid' => $this->uid(),
             ]);
             $this->addForeignKey(null, '{{%booked_services}}', 'id', '{{%elements}}', 'id', 'CASCADE', null);
+            $this->addForeignKey(null, '{{%booked_services}}', 'reservationFieldLayoutId', '{{%fieldlayouts}}', 'id', 'SET NULL', null);
         }
 
         if (!$this->db->tableExists('{{%booked_schedules}}')) {

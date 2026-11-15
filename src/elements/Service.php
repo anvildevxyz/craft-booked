@@ -15,6 +15,7 @@ use craft\elements\actions\Delete;
 use craft\elements\actions\SetStatus;
 use craft\elements\User;
 use craft\helpers\Html;
+use craft\models\FieldLayout;
 
 class Service extends Element
 {
@@ -47,6 +48,9 @@ class Service extends Element
     public array|string|null $refundTiers = null;
     public ?int $taxCategoryId = null;
     public ?string $deletedAt = null;
+    public ?int $reservationFieldLayoutId = null;
+
+    private ?FieldLayout $_reservationFieldLayout = null;
 
     public function isDayService(): bool
     {
@@ -56,6 +60,38 @@ class Service extends Element
     public function isFlexibleDayService(): bool
     {
         return $this->durationType === 'flexible_days';
+    }
+
+    /**
+     * The field layout for this service's custom booking questions (#146).
+     *
+     * Distinct from the element's own inherited `fieldLayoutId`/
+     * `getFieldLayout()` (reserved for Service's own future custom fields,
+     * unused today) — this layout belongs to Reservation, via
+     * Reservation::getFieldLayout() resolving to whichever service was
+     * booked. Always returns a layout, creating an empty one on the fly so
+     * the CP designer always has something to render.
+     */
+    public function getReservationFieldLayout(): FieldLayout
+    {
+        if ($this->_reservationFieldLayout !== null) {
+            return $this->_reservationFieldLayout;
+        }
+
+        if ($this->reservationFieldLayoutId) {
+            $layout = Craft::$app->getFields()->getLayoutById($this->reservationFieldLayoutId);
+            if ($layout !== null) {
+                return $this->_reservationFieldLayout = $layout;
+            }
+        }
+
+        return $this->_reservationFieldLayout = new FieldLayout(['type' => Reservation::class]);
+    }
+
+    public function setReservationFieldLayout(FieldLayout $layout): void
+    {
+        $layout->type = Reservation::class;
+        $this->_reservationFieldLayout = $layout;
     }
 
     public function isPerUnitPricing(): bool
@@ -303,6 +339,24 @@ class Service extends Element
         return 'booked-manageServices';
     }
 
+    /**
+     * Persists a pending reservation field layout (set via
+     * setReservationFieldLayout()) before the element itself saves, so
+     * reservationFieldLayoutId is already resolved by the time afterSave()
+     * syncs it onto the record. Same call CP settings pages such as
+     * TagsController::actionSaveTagGroup() already make to save a field
+     * layout owned by something other than the element being edited.
+     */
+    public function beforeSave(bool $isNew): bool
+    {
+        if ($this->_reservationFieldLayout !== null) {
+            Craft::$app->getFields()->saveLayout($this->_reservationFieldLayout);
+            $this->reservationFieldLayoutId = $this->_reservationFieldLayout->id;
+        }
+
+        return parent::beforeSave($isNew);
+    }
+
     public function afterSave(bool $isNew): void
     {
         if (!$this->propagating) {
@@ -334,6 +388,7 @@ class Service extends Element
             $record->customerLimitPeriodType = $this->customerLimitPeriodType;
             $record->enableWaitlist = $this->enableWaitlist;
             $record->taxCategoryId = $this->taxCategoryId;
+            $record->reservationFieldLayoutId = $this->reservationFieldLayoutId;
             $record->deletedAt = $this->deletedAt;
             $record->availabilitySchedule = match (true) {
                 is_array($this->availabilitySchedule) => $this->availabilitySchedule,
@@ -347,6 +402,9 @@ class Service extends Element
 
     public function afterDelete(): void
     {
+        if ($this->reservationFieldLayoutId) {
+            Craft::$app->getFields()->deleteLayoutById($this->reservationFieldLayoutId);
+        }
         ServiceRecord::findOne($this->id)?->delete();
         parent::afterDelete();
     }

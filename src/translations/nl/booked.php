@@ -949,6 +949,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'Selecteer de aanbieder van virtuele vergaderingen voor deze dienst.',
     'service.none' => 'Geen',
     'service.waitlist' => 'Wachtlijst',
+    'service.reservationQuestions' => 'Boekingsvragen',
+    'service.reservationQuestionsInstructions' => 'Aangepaste vragen die een klant beantwoordt bij het boeken van deze dienst. Antwoorden worden opgeslagen bij de boeking zelf.',
     'service.enableWaitlist' => 'Wachtlijst inschakelen',
     'service.enableWaitlistInstructions' => 'Sta klanten toe zich op een wachtlijst te plaatsen wanneer er geen tijdsloten beschikbaar zijn. De wachtlijst wordt alleen aangeboden op dagen waarvoor deze dienst beschikbaarheid heeft geconfigureerd.',
     'service.useGlobalSetting' => 'Globale instelling gebruiken',

@@ -949,6 +949,8 @@ return [
     'service.virtualMeetingProviderInstructions' => 'Selezionare il provider di riunioni virtuali per questo servizio.',
     'service.none' => 'Nessuno',
     'service.waitlist' => 'Lista d\'attesa',
+    'service.reservationQuestions' => 'Domande di prenotazione',
+    'service.reservationQuestionsInstructions' => 'Domande personalizzate a cui un cliente risponde durante la prenotazione di questo servizio. Le risposte vengono salvate sulla prenotazione stessa.',
     'service.enableWaitlist' => 'Abilita lista d\'attesa',
     'service.enableWaitlistInstructions' => 'Consente ai clienti di iscriversi a una lista d\'attesa quando non ci sono fasce disponibili. La lista d\'attesa verrà proposta solo nei giorni in cui questo servizio ha disponibilità configurata.',
     'service.useGlobalSetting' => 'Usa impostazione globale',
