@@ -785,6 +785,7 @@ class Booked extends Plugin
                     // Booking data
                     'booked/api/v1/services' => 'booked/booking-data/get-services',
                     'booked/api/v1/services/extras' => 'booked/booking-data/get-service-extras',
+                    'booked/api/v1/services/questions' => 'booked/booking-data/get-service-questions',
                     'booked/api/v1/services/employees' => 'booked/booking-data/get-employees',
                     'booked/api/v1/commerce-settings' => 'booked/booking-data/get-commerce-settings',
                     // Availability

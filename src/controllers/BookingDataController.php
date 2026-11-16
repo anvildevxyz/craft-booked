@@ -26,6 +26,7 @@ class BookingDataController extends Controller
     protected array|bool|int $allowAnonymous = [
         'get-services',
         'get-service-extras',
+        'get-service-questions',
         'get-employees',
         'get-commerce-settings',
     ];
@@ -144,6 +145,81 @@ class BookingDataController extends Controller
             Craft::error("Failed to load service extras: " . $e->getMessage(), __METHOD__);
             return $this->jsonSuccess('', ['extras' => []]);
         }
+    }
+
+    /**
+     * The service's custom booking questions (#146), in the order its field
+     * layout declares them. Only field types the wizard step actually knows
+     * how to render are included — anything else is silently skipped rather
+     * than sent as something the front end can't draw.
+     */
+    public function actionGetServiceQuestions(): Response
+    {
+        $this->requireAcceptsJson();
+
+        if (!$this->checkRateLimit('booked_data_throttle', 60)) {
+            return $this->jsonError(Craft::t('booked', 'booking.rateLimitIP'), statusCode: 429);
+        }
+
+        $serviceId = Craft::$app->request->getParam('serviceId');
+        if (!$serviceId) {
+            return $this->jsonError(Craft::t('booked', 'booking.serviceIdRequired'), null, ['questions' => []]);
+        }
+
+        try {
+            $service = ElementQueryHelper::forAllSites(Service::find()->id((int)$serviceId)->status(null))->one();
+            if (!$service) {
+                return $this->jsonSuccess('', ['questions' => []]);
+            }
+
+            $questions = [];
+            foreach ($service->getReservationFieldLayout()->getCustomFieldElements() as $layoutElement) {
+                $field = $layoutElement->getField();
+                $type = $this->wizardFieldType($field);
+                if ($type === null) {
+                    continue;
+                }
+
+                $question = [
+                    'handle' => $field->handle,
+                    'label' => $field->name,
+                    'instructions' => $field->instructions ?: '',
+                    'required' => $layoutElement->required,
+                    'type' => $type,
+                ];
+                if ($field instanceof \craft\fields\BaseOptionsField) {
+                    $question['options'] = array_map(
+                        static fn(array $option): array => ['label' => $option['label'], 'value' => $option['value']],
+                        $field->options,
+                    );
+                }
+
+                $questions[] = $question;
+            }
+
+            return $this->jsonSuccess('', ['questions' => $questions]);
+        } catch (\Throwable $e) {
+            Craft::error("Failed to load service questions: " . $e->getMessage(), __METHOD__);
+            return $this->jsonSuccess('', ['questions' => []]);
+        }
+    }
+
+    /**
+     * The wizard's question step only knows how to render these field
+     * types; anything else (a custom third-party field type, Matrix, …)
+     * returns null so the caller can skip it.
+     */
+    private function wizardFieldType(\craft\base\FieldInterface $field): ?string
+    {
+        return match (true) {
+            $field instanceof \craft\fields\PlainText => $field->multiline ? 'textarea' : 'text',
+            $field instanceof \craft\fields\Dropdown => 'dropdown',
+            $field instanceof \craft\fields\RadioButtons => 'radio',
+            $field instanceof \craft\fields\Checkboxes => 'checkboxes',
+            $field instanceof \craft\fields\Lightswitch => 'lightswitch',
+            $field instanceof \craft\fields\Assets => 'assets',
+            default => null,
+        };
     }
 
     public function actionGetEmployees(): Response

@@ -6,6 +6,19 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `service-questions-endpoint.php` covers
+
+Issue #146 — the field-layout data `booked/api/v1/services/questions`
+builds its response from (the endpoint the public wizard calls right after
+a service is selected), with one field of each type the wizard step knows
+how to draw: text, dropdown (with its options), and a required lightswitch.
+Seeds a temporary field layout on a real service and restores it
+regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/service-questions-endpoint.php
+```
+
 ## What `graphql-reservation-field-values.php` covers
 
 Issue #146 — `createBookedReservation`/`updateBookedReservation`'s
