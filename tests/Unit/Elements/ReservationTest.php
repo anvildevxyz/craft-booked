@@ -40,4 +40,75 @@ class ReservationTest extends TestCase
         $this->assertStringContainsString("'key' => 'no_show'", $source);
         $this->assertStringContainsString('STATUS_NO_SHOW', $source);
     }
+
+    // =========================================================================
+    // Native element index (#89) — sources, sort options and search replace
+    // what the hand-rolled bookings table used to do itself.
+    // =========================================================================
+
+    /**
+     * @dataProvider sortOptionAttributeProvider
+     */
+    public function testDefineSortOptionsIncludesAttribute(string $attribute): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'defineSortOptions');
+        $this->assertStringContainsString(
+            "'attribute' => '{$attribute}'",
+            $source,
+            "The bookings index sort menu should offer '{$attribute}'",
+        );
+    }
+
+    public static function sortOptionAttributeProvider(): array
+    {
+        return [
+            'userName' => ['userName'],
+            'userEmail' => ['userEmail'],
+            'bookingDate' => ['bookingDate'],
+            'dateCreated' => ['dateCreated'],
+        ];
+    }
+
+    public function testBookingDateIsSearchable(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'defineSearchableAttributes');
+        $this->assertStringContainsString("'bookingDate'", $source);
+    }
+
+    public function testSearchKeywordsForBookingDateCoverBothDateFormats(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'getSearchKeywords');
+        $this->assertStringContainsString(
+            "'bookingDate'",
+            $source,
+            'getSearchKeywords() should special-case bookingDate',
+        );
+        $this->assertStringContainsString(
+            "'d.m.Y'",
+            $source,
+            'getSearchKeywords() should index the European date format alongside the stored ISO one',
+        );
+    }
+
+    public function testIdIsSearchable(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'defineSearchableAttributes');
+        $this->assertStringContainsString("'id'", $source);
+    }
+
+    /**
+     * The hand-rolled table this replaced (#89) matched a bare numeric
+     * search against the reservation's own id (e.g. one quoted in a support
+     * email); the native index's keyword search needs id indexed to do the
+     * same.
+     */
+    public function testSearchKeywordsIncludeTheRawId(): void
+    {
+        $source = $this->sourceOfMethod(Reservation::class, 'getSearchKeywords');
+        $this->assertStringContainsString(
+            "\$attribute === 'id'",
+            $source,
+            'getSearchKeywords() should special-case id',
+        );
+    }
 }

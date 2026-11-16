@@ -22,10 +22,18 @@ interface ReservationQueryInterface
 
     public function startTime(?string $value): static;
     public function endTime(?string $value): static;
-    public function employeeId(?int $value): static;
-    public function locationId(?int $value): static;
-    public function serviceId(?int $value): static;
-    public function eventDateId(?int $value): static;
+
+    /** @param int|int[]|null $value */
+    public function employeeId(array|int|null $value): static;
+
+    /** @param int|int[]|null $value */
+    public function locationId(array|int|null $value): static;
+
+    /** @param int|int[]|null $value */
+    public function serviceId(array|int|null $value): static;
+
+    /** @param int|int[]|null $value */
+    public function eventDateId(array|int|null $value): static;
 
     /** @param string|string[]|null $value */
     public function status(array|string|null $value): static;

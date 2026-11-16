@@ -2,10 +2,12 @@
 
 namespace anvildev\booked\elements\db;
 
+use anvildev\booked\Booked;
 use anvildev\booked\contracts\ReservationQueryInterface;
 use Craft;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
+use craft\web\Application as WebApplication;
 
 /**
  * @method \anvildev\booked\elements\Reservation[]|array all($db = null)
@@ -31,33 +33,33 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
     public ?string $startTime = null;
     public ?string $endTime = null;
     public array|string|null $reservationStatus = null;
-    public ?int $employeeId = null;
-    public ?int $locationId = null;
-    public ?int $serviceId = null;
-    public ?int $eventDateId = null;
+    public array|int|null $employeeId = null;
+    public array|int|null $locationId = null;
+    public array|int|null $serviceId = null;
+    public array|int|null $eventDateId = null;
     public ?string $confirmationToken = null;
 
     private bool $_forCurrentUser = false;
 
-    public function employeeId(?int $value): static
+    public function employeeId(array|int|null $value): static
     {
         $this->employeeId = $value;
         return $this;
     }
 
-    public function locationId(?int $value): static
+    public function locationId(array|int|null $value): static
     {
         $this->locationId = $value;
         return $this;
     }
 
-    public function serviceId(?int $value): static
+    public function serviceId(array|int|null $value): static
     {
         $this->serviceId = $value;
         return $this;
     }
 
-    public function eventDateId(?int $value): static
+    public function eventDateId(array|int|null $value): static
     {
         $this->eventDateId = $value;
         return $this;
@@ -217,7 +219,55 @@ class ReservationQuery extends ElementQuery implements ReservationQueryInterface
             $this->_applyBookingDateFilter($t);
         }
 
+        $this->_applyStaffScope();
+
         return true;
+    }
+
+    /**
+     * Limits a view-only staff member to the employees they manage, and only
+     * while Craft is building an element index.
+     *
+     * The bookings index query is created inside Craft's own controller, so a
+     * filter applied by our controllers never runs for it. Seat counts,
+     * availability and the public booking form also use this query. Scoping
+     * those would hide other employees' bookings and let a staff member book
+     * a seat that is already taken, so the limit stays on element-index requests.
+     *
+     * PermissionService::scopeReservationQuery() already implements the staff
+     * narrowing for callers like CustomerService::bookingsFor() — reused here
+     * rather than re-deriving the same employeeId condition a second way. But
+     * unlike those callers, nothing upstream of this one already required
+     * booked-viewBookings: Craft's own element-indexes controller only checks
+     * for CP access, not any permission specific to this plugin, so every
+     * logged-in CP user reaches this query. getStaffEmployeeIds() returns
+     * null ("full access") for exactly that user too — it was written
+     * assuming a caller had already gated on booked-viewBookings — so this
+     * method has to check that itself before delegating, or any CP user with
+     * no Booked permission at all would see every reservation.
+     */
+    private function _applyStaffScope(): void
+    {
+        // Console and queue runs have no user session to scope against.
+        // Checked against the application type, not a request-reported flag:
+        // the latter falls back to a PHP_SAPI comparison when unset, which
+        // misclassifies a web app booted from a CLI context.
+        if (!Craft::$app instanceof WebApplication) {
+            return;
+        }
+
+        $segments = Craft::$app->getRequest()->getActionSegments();
+        if (($segments[0] ?? null) !== 'element-indexes') {
+            return;
+        }
+
+        $user = Craft::$app->getUser()->getIdentity();
+        if ($user === null || !$user->can('booked-viewBookings')) {
+            $this->subQuery->andWhere('0=1');
+            return;
+        }
+
+        Booked::getInstance()?->getPermission()->scopeReservationQuery($this);
     }
 
     private function _applyBookingDateFilter(string $t): void

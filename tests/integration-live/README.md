@@ -6,6 +6,21 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `reservation-condition-rules.php` covers
+
+Issue #89 — the native bookings index's filter-HUD condition rules
+(`ReservationEmployeeConditionRule` and friends) all pass an array of
+selected ids into `ReservationQuery::employeeId()`/`serviceId()`/
+`locationId()`/`eventDateId()`, which were typed `?int` only — selecting any
+single value in the filter HUD 500'd the whole index with a TypeError.
+Reading the condition rule's source gives no reason to suspect this; it only
+surfaces when a real selection reaches the query. Read-only, no fixture
+seeding, nothing to clean up.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/reservation-condition-rules.php
+```
+
 ## What `soft-lock-capacity.php` covers
 
 Issue #74 — a soft lock on a multi-capacity (group) slot must hold only the

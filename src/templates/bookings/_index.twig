@@ -1,0 +1,29 @@
+{% extends "_layouts/elementindex" %}
+{% set elementType = 'anvildev\\booked\\elements\\Reservation' %}
+{% set title = 'titles.bookings'|t('booked') %}
+{% set selectedSubnavItem = 'bookings' %}
+
+{# Sources, status filters, sorting, search, the condition filter HUD, element
+   actions and the CSV exporter all come from the Reservation element itself.
+   The table this replaced re-implemented each of them by hand. #}
+
+{# An Event Date's "View reservations" link arrives here with ?eventDateId=.
+   _layouts/elementindex reads its initial criteria from Craft.defaultIndexCriteria,
+   so this has to run before that layout's own init script does. #}
+{% if eventDateId %}
+    {% js %}
+        Craft.defaultIndexCriteria = {eventDateId: {{ eventDateId|json_encode|raw }}};
+    {% endjs %}
+{% endif %}
+
+{% block actionButton %}
+    {# This is a separate, richer report (event name, and payment columns on
+       direct-payment installs) than the CSV the Export... action above
+       builds from the Reservation element — kept as its own link rather than
+       folded into that exporter, which several other callers (CSV, future
+       exporters) share. #}
+    <a class="btn icon download" href="{{ url('booked/bookings/export') }}">{{ 'buttons.exportDetailed'|t('booked') }}</a>
+    {% if canManage %}
+        <a class="btn submit add icon" href="{{ url('booked/bookings/new') }}">{{ 'buttons.newBooking'|t('booked') }}</a>
+    {% endif %}
+{% endblock %}

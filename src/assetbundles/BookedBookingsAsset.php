@@ -12,7 +12,6 @@ class BookedBookingsAsset extends AssetBundle
     {
         $this->sourcePath = '@anvildev/booked/web';
         $this->js = [
-            'js/cp/bookings-index.js',
             'js/cp/booking-time.js',
         ];
         parent::init();

@@ -439,7 +439,28 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
 
     protected static function defineSearchableAttributes(): array
     {
-        return ['userName', 'userEmail', 'userPhone', 'notes'];
+        return ['userName', 'userEmail', 'userPhone', 'notes', 'bookingDate', 'id'];
+    }
+
+    /**
+     * bookingDate is stored as an ISO string (Y-m-d), but staff searching the
+     * native element index type the European format too — the hand-rolled
+     * table this replaced (#89) parsed both. Craft's search is keyword-based,
+     * not an exact-match condition, so both representations are indexed and
+     * either one finds the booking. id is indexed too, for the same reason:
+     * that table matched a search typed as a bare number against the
+     * reservation's own id (e.g. one quoted in a support email).
+     */
+    public function getSearchKeywords(string $attribute): string
+    {
+        if ($attribute === 'bookingDate' && ($date = DateHelper::parseDate($this->bookingDate)) !== null) {
+            return $this->bookingDate . ' ' . $date->format('d.m.Y');
+        }
+        if ($attribute === 'id') {
+            return (string) $this->id;
+        }
+
+        return parent::getSearchKeywords($attribute);
     }
 
     protected static function defineSortOptions(): array

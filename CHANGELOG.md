@@ -5,6 +5,9 @@
 ### Added
 - A reservation is a Craft element on every install, including ones without Commerce ([#88](https://github.com/anvildevxyz/craft-booked/issues/88)). Existing ActiveRecord bookings are given element rows and their ids are remapped onto those elements. Bookings that were already elements keep their ids. Booking statuses stay on the reservation row, separate from Craft's enabled/disabled status.
 
+### Changed
+- The bookings screen uses Craft's element index ([#89](https://github.com/anvildevxyz/craft-booked/issues/89)). Status sources, sorting, search, condition rules, the no-show action and the CSV exporter are the ones the reservation element already declared. A staff member who can view bookings but not manage them only sees their own employees there, because Craft builds that query itself. Seat counts and availability stay unscoped, so that limit cannot hide a seat someone else already holds. Bookings that became elements without a normal save are added to the search index.
+
 ## 1.9.0 - 2026-11-08
 
 ### Added
