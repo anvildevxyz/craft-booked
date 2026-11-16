@@ -40,6 +40,7 @@ export const DEFAULTS = Object.freeze({
   'validation.quantityInvalid': 'Please enter a valid quantity.',
   'validation.quantityTooLow': 'Quantity is too low.',
   'validation.quantityTooHigh': 'Not enough capacity for that quantity.',
+  'validation.fieldRequired': 'This field is required.',
 });
 
 function interpolate(template, params) {

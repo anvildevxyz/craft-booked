@@ -78,19 +78,44 @@ export class BookedApi {
   _encodeBody(body) {
     const form = new URLSearchParams();
     if (this._csrf && this._csrf.name) form.append(this._csrf.name, this._csrf.value ?? '');
+    // PHP's (bool)"false" is true, so a boolean must become '1'/'0', never the
+    // string "true"/"false" — applies whether the value is top-level or inside
+    // a nested object (e.g. a fields[handle] answer to a lightswitch question).
+    const encodeScalar = (value) => (typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+    // Recursive so a nested object's own array value (e.g. a checkboxes
+    // question's `fields[handle]`) gets PHP's `key[]=a&key[]=b` array
+    // notation instead of being stringified into one comma-joined value.
     const append = (key, value) => {
       if (value === undefined || value === null) return;
-      // Nested plain objects → key[subKey]=value for PHP array parsing (e.g. extras).
-      if (typeof value === 'object' && !Array.isArray(value)) {
-        for (const [subKey, subVal] of Object.entries(value)) {
-          if (subVal !== undefined && subVal !== null) form.append(`${key}[${subKey}]`, String(subVal));
-        }
+      if (Array.isArray(value)) {
+        for (const item of value) append(`${key}[]`, item);
         return;
       }
-      form.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+      // Nested plain objects → key[subKey]=value for PHP array parsing (e.g. extras).
+      if (typeof value === 'object') {
+        for (const [subKey, subVal] of Object.entries(value)) append(`${key}[${subKey}]`, subVal);
+        return;
+      }
+      form.append(key, encodeScalar(value));
     };
     if (body) {
       for (const [k, v] of Object.entries(body)) append(k, v);
+    }
+    return form;
+  }
+
+  /**
+   * A multipart body for a file upload (question `assets` answers, #146) —
+   * form-encoding can't carry binary data, so this is the one request shape
+   * that doesn't go through `_encodeBody()`. The browser sets its own
+   * `Content-Type` boundary for a `FormData` body, same as it does for the
+   * `URLSearchParams` body of every other POST here.
+   */
+  _buildFormData(fields) {
+    const form = new FormData();
+    if (this._csrf && this._csrf.name) form.append(this._csrf.name, this._csrf.value ?? '');
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== undefined && value !== null) form.append(key, value);
     }
     return form;
   }
@@ -103,11 +128,12 @@ export class BookedApi {
    * @param {'GET'|'POST'} method
    * @param {string} path
    * @param {Object} [opts]
-   * @param {Object} [opts.query]   GET query params
-   * @param {Object} [opts.body]    POST fields (form-encoded)
-   * @param {string} [opts.channel] stale-guard channel
+   * @param {Object} [opts.query]      GET query params
+   * @param {Object} [opts.body]       POST fields (form-encoded)
+   * @param {FormData} [opts.formData] POST body as multipart instead of form-encoded
+   * @param {string} [opts.channel]    stale-guard channel
    */
-  async request(method, path, { query, body, channel } = {}) {
+  async request(method, path, { query, body, formData, channel } = {}) {
     // Supersede any in-flight request on this channel.
     if (channel) {
       const prev = this._channels.get(channel);
@@ -118,7 +144,7 @@ export class BookedApi {
 
     const init = { method, signal: controller.signal, headers: {} };
     if (method === 'POST') {
-      init.body = this._encodeBody(body);
+      init.body = formData ?? this._encodeBody(body);
       init.headers['Accept'] = 'application/json';
       init.headers['X-Requested-With'] = 'XMLHttpRequest';
     } else {
@@ -191,6 +217,17 @@ export class BookedApi {
     // serviceId travels as a query param, not a path token: the backing Craft
     // actions read it via getParam(), and Yii route tokens don't populate that.
     return this.get('services/extras', { query: { serviceId }, channel: 'extras' });
+  }
+  serviceQuestions(serviceId) {
+    return this.get('services/questions', { query: { serviceId }, channel: 'questions' });
+  }
+  /**
+   * Pre-upload a file for an `assets` question (#146): the booking submission
+   * itself stays form-encoded, so the file goes here first and the returned
+   * asset id becomes that question's answer.
+   */
+  uploadQuestionFile(serviceId, handle, file) {
+    return this.post('services/questions/upload', { formData: this._buildFormData({ serviceId, handle, file }) });
   }
   employees(serviceId, query) {
     return this.get('services/employees', { query: { serviceId, ...(query || {}) }, channel: 'employees' });

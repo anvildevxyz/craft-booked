@@ -80,6 +80,25 @@ class ReservationMutations extends Mutation
         ]));
     }
 
+    /**
+     * fieldValues arrives as a JSON object string (#146) — there's no custom
+     * JSON scalar registered, so this mirrors ScheduleInterface's own
+     * string-encoded workingHours on the way out, just decoded on the way in.
+     * Malformed JSON is a client error, not a server one: it's silently
+     * dropped here, the same as any other field the resolver never received.
+     *
+     * @return array<string, mixed>
+     */
+    private static function decodeFieldValues(?string $json): array
+    {
+        if ($json === null || $json === '') {
+            return [];
+        }
+
+        $decoded = json_decode($json, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
     private static function sanitizeInput(array $input): array
     {
         $sanitize = static fn(?string $v, int $max = 255): ?string =>
@@ -153,6 +172,7 @@ class ReservationMutations extends Mutation
                     'notes' => $input['notes'] ?? null,
                     'quantity' => $input['quantity'] ?? 1,
                     'extras' => $extras,
+                    'fieldValues' => self::decodeFieldValues($input['fieldValues'] ?? null),
                     'source' => 'graphql',
                 ]),
                 'errors' => [],
@@ -188,6 +208,11 @@ class ReservationMutations extends Mutation
                 if (isset($input[$field])) {
                     $reservation->$field = $input[$field];
                 }
+            }
+
+            // Answers to the booked service's custom questions (#146).
+            if (isset($input['fieldValues']) && method_exists($reservation, 'setFieldValues')) {
+                $reservation->setFieldValues(self::decodeFieldValues($input['fieldValues']));
             }
 
             if (!$reservation->save()) {

@@ -275,6 +275,8 @@ var Context = class {
     this.locations = initial.locations ?? [];
     this.employees = initial.employees ?? [];
     this.eventDates = initial.eventDates ?? [];
+    this.questions = initial.questions ?? [];
+    this.answers = initial.answers ?? {};
     this.eventDateId = initial.eventDateId ?? null;
     this.locale = initial.locale ?? null;
     this.selectedExtras = initial.selectedExtras ?? {};
@@ -376,11 +378,17 @@ var Context = class {
     this.endDate = null;
     this.isDayService = ["days", "flexible_days"].includes(service?.durationType);
     this.isFlexibleDayService = service?.durationType === "flexible_days";
+    this.questions = [];
+    this.answers = {};
   }
   setExtraQuantity(extraId, quantity) {
     const id = parseInt(extraId, 10);
     if (quantity > 0) this.selectedExtras[id] = quantity;
     else delete this.selectedExtras[id];
+  }
+  setAnswer(handle, value) {
+    if (value === void 0 || value === null || value === "") delete this.answers[handle];
+    else this.answers[handle] = value;
   }
   setCustomer(fields) {
     this.customer = { ...this.customer, ...fields };
@@ -402,6 +410,8 @@ var Context = class {
       locations: this.locations,
       employees: this.employees,
       eventDates: this.eventDates,
+      questions: this.questions,
+      answers: { ...this.answers },
       eventDateId: this.eventDateId,
       selectedEvent: this.selectedEvent,
       locale: this.locale,
@@ -481,18 +491,36 @@ var BookedApi = class {
   _encodeBody(body) {
     const form = new URLSearchParams();
     if (this._csrf && this._csrf.name) form.append(this._csrf.name, this._csrf.value ?? "");
+    const encodeScalar = (value) => typeof value === "boolean" ? value ? "1" : "0" : String(value);
     const append = (key, value) => {
       if (value === void 0 || value === null) return;
-      if (typeof value === "object" && !Array.isArray(value)) {
-        for (const [subKey, subVal] of Object.entries(value)) {
-          if (subVal !== void 0 && subVal !== null) form.append(`${key}[${subKey}]`, String(subVal));
-        }
+      if (Array.isArray(value)) {
+        for (const item of value) append(`${key}[]`, item);
         return;
       }
-      form.append(key, typeof value === "boolean" ? value ? "1" : "0" : String(value));
+      if (typeof value === "object") {
+        for (const [subKey, subVal] of Object.entries(value)) append(`${key}[${subKey}]`, subVal);
+        return;
+      }
+      form.append(key, encodeScalar(value));
     };
     if (body) {
       for (const [k, v] of Object.entries(body)) append(k, v);
+    }
+    return form;
+  }
+  /**
+   * A multipart body for a file upload (question `assets` answers, #146) —
+   * form-encoding can't carry binary data, so this is the one request shape
+   * that doesn't go through `_encodeBody()`. The browser sets its own
+   * `Content-Type` boundary for a `FormData` body, same as it does for the
+   * `URLSearchParams` body of every other POST here.
+   */
+  _buildFormData(fields) {
+    const form = new FormData();
+    if (this._csrf && this._csrf.name) form.append(this._csrf.name, this._csrf.value ?? "");
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== void 0 && value !== null) form.append(key, value);
     }
     return form;
   }
@@ -504,11 +532,12 @@ var BookedApi = class {
    * @param {'GET'|'POST'} method
    * @param {string} path
    * @param {Object} [opts]
-   * @param {Object} [opts.query]   GET query params
-   * @param {Object} [opts.body]    POST fields (form-encoded)
-   * @param {string} [opts.channel] stale-guard channel
+   * @param {Object} [opts.query]      GET query params
+   * @param {Object} [opts.body]       POST fields (form-encoded)
+   * @param {FormData} [opts.formData] POST body as multipart instead of form-encoded
+   * @param {string} [opts.channel]    stale-guard channel
    */
-  async request(method, path, { query, body, channel } = {}) {
+  async request(method, path, { query, body, formData, channel } = {}) {
     if (channel) {
       const prev = this._channels.get(channel);
       if (prev) prev.abort();
@@ -517,7 +546,7 @@ var BookedApi = class {
     if (channel) this._channels.set(channel, controller);
     const init = { method, signal: controller.signal, headers: {} };
     if (method === "POST") {
-      init.body = this._encodeBody(body);
+      init.body = formData ?? this._encodeBody(body);
       init.headers["Accept"] = "application/json";
       init.headers["X-Requested-With"] = "XMLHttpRequest";
     } else {
@@ -578,6 +607,17 @@ var BookedApi = class {
   }
   serviceExtras(serviceId) {
     return this.get("services/extras", { query: { serviceId }, channel: "extras" });
+  }
+  serviceQuestions(serviceId) {
+    return this.get("services/questions", { query: { serviceId }, channel: "questions" });
+  }
+  /**
+   * Pre-upload a file for an `assets` question (#146): the booking submission
+   * itself stays form-encoded, so the file goes here first and the returned
+   * asset id becomes that question's answer.
+   */
+  uploadQuestionFile(serviceId, handle, file) {
+    return this.post("services/questions/upload", { formData: this._buildFormData({ serviceId, handle, file }) });
   }
   employees(serviceId, query) {
     return this.get("services/employees", { query: { serviceId, ...query || {} }, channel: "employees" });
@@ -874,7 +914,8 @@ var DEFAULTS = Object.freeze({
   "validation.phoneRequired": "Please enter your phone number.",
   "validation.quantityInvalid": "Please enter a valid quantity.",
   "validation.quantityTooLow": "Quantity is too low.",
-  "validation.quantityTooHigh": "Not enough capacity for that quantity."
+  "validation.quantityTooHigh": "Not enough capacity for that quantity.",
+  "validation.fieldRequired": "This field is required."
 });
 function interpolate(template, params) {
   if (!params) return template;
@@ -946,6 +987,16 @@ function canLeaveStep(stepId, ctx, opts = {}) {
       const errors = validateCustomer(ctx.customer, { requirePhone: opts.requirePhone });
       return { ok: Object.keys(errors).length === 0, errors };
     }
+    case "questions": {
+      const errors = {};
+      for (const q of ctx.questions ?? []) {
+        if (!q.required || q.type === "lightswitch") continue;
+        const answer = ctx.answers?.[q.handle];
+        const answered = q.type === "checkboxes" ? Array.isArray(answer) && answer.length > 0 : isPresent(answer);
+        if (!answered) errors[q.handle] = "validation.fieldRequired";
+      }
+      return { ok: Object.keys(errors).length === 0, errors };
+    }
     default:
       return { ok: true, errors: {} };
   }
@@ -957,6 +1008,7 @@ var bookingFlow = {
   steps: [
     { id: "service", visible: (ctx) => !(ctx.servicePreselected || Array.isArray(ctx.services) && ctx.services.length === 1) },
     { id: "extras", visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
+    { id: "questions", visible: (ctx) => Array.isArray(ctx.questions) && ctx.questions.length > 0 },
     { id: "location", visible: (ctx) => !ctx.locationPreselected && Array.isArray(ctx.locations) && ctx.locations.length > 1 },
     { id: "employee", visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 1 },
     { id: "datetime", visible: () => true },
@@ -1205,6 +1257,12 @@ var Wizard = class {
     this._ctx.employees = list(employees, "employees");
     this._ctx.locations = list(employees, "locations");
     this._ctx.serviceHasSchedule = !!(employees && employees.serviceHasSchedule);
+    try {
+      const questions = await this._api.serviceQuestions(id);
+      this._ctx.questions = list(questions, "questions");
+    } catch (err) {
+      if (!(err && err.aborted)) this._ctx.questions = [];
+    }
     for (const extra of this._ctx.extras) {
       if (extra.isRequired) this._ctx.setExtraQuantity(extra.id, 1);
     }
@@ -1232,6 +1290,23 @@ var Wizard = class {
   clearExtra(id) {
     this._ctx.setExtraQuantity(id, 0);
     this._flow.setContext(this._ctx);
+    return this.getState();
+  }
+  /** Record a customer's answer to one of the selected service's custom questions (#146). */
+  setAnswer(handle, value) {
+    this._ctx.setAnswer(handle, value);
+    return this.getState();
+  }
+  /**
+   * Upload a file for an `assets` question (#146) and record the returned
+   * asset id as that question's answer. Rejects (ApiError) on failure — a
+   * failed upload is local to one input, not a wizard-wide error, so the
+   * caller (the questions step renderer) is left to surface it, rather than
+   * this going through the shared `error` event channel.
+   */
+  async uploadQuestionFile(handle, file) {
+    const result = await this._api.uploadQuestionFile(this._ctx.serviceId, handle, file);
+    this._ctx.setAnswer(handle, result.assetId);
     return this.getState();
   }
   async selectLocation(rawId) {
@@ -1731,6 +1806,7 @@ var Wizard = class {
       ...customer
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
+    if (Object.keys(this._ctx.answers).length > 0) body.fields = { ...this._ctx.answers };
     if (this._ctx.isDayService && this._ctx.endDate) {
       body.endDate = this._ctx.endDate;
       delete body.time;
@@ -2252,6 +2328,229 @@ var extrasStep = {
       container.appendChild(frag);
     }
     setText(qs("[data-booked-extras-total]", region), formatPrice(context.extrasTotal, currencySymbol));
+  }
+};
+
+// src/web/js/ui/steps/questions.js
+var cleanups = /* @__PURE__ */ new WeakMap();
+function buildInput(fieldEl, question) {
+  const mount = qs("[data-booked-question-input]", fieldEl);
+  if (!mount) return;
+  const name = `question-${question.handle}`;
+  switch (question.type) {
+    case "textarea": {
+      const el = document.createElement("textarea");
+      el.setAttribute("data-booked-question", question.handle);
+      el.name = name;
+      mount.appendChild(el);
+      break;
+    }
+    case "dropdown": {
+      const el = document.createElement("select");
+      el.setAttribute("data-booked-question", question.handle);
+      el.name = name;
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      placeholder.textContent = fieldEl.querySelector("[data-booked-select-placeholder]")?.dataset.bookedSelectPlaceholder ?? "";
+      el.appendChild(placeholder);
+      for (const opt of question.options ?? []) {
+        const optionEl = document.createElement("option");
+        optionEl.value = opt.value;
+        optionEl.textContent = opt.label;
+        el.appendChild(optionEl);
+      }
+      mount.appendChild(el);
+      break;
+    }
+    case "radio":
+    case "checkboxes": {
+      const inputType = question.type === "radio" ? "radio" : "checkbox";
+      for (const opt of question.options ?? []) {
+        const label = document.createElement("label");
+        const el = document.createElement("input");
+        el.type = inputType;
+        el.name = name;
+        el.value = opt.value;
+        el.setAttribute("data-booked-question", question.handle);
+        label.appendChild(el);
+        label.appendChild(document.createTextNode(opt.label));
+        mount.appendChild(label);
+      }
+      break;
+    }
+    case "lightswitch": {
+      const el = document.createElement("input");
+      el.type = "checkbox";
+      el.setAttribute("data-booked-question", question.handle);
+      el.name = name;
+      mount.appendChild(el);
+      break;
+    }
+    case "assets": {
+      const el = document.createElement("input");
+      el.type = "file";
+      el.setAttribute("data-booked-question", question.handle);
+      el.setAttribute("data-booked-question-upload", "true");
+      el.name = name;
+      mount.appendChild(el);
+      break;
+    }
+    default: {
+      const el = document.createElement("input");
+      el.type = "text";
+      el.setAttribute("data-booked-question", question.handle);
+      el.name = name;
+      mount.appendChild(el);
+      break;
+    }
+  }
+}
+function readValue(region, question) {
+  if (question.type === "checkboxes") {
+    return qsa(`[data-booked-question="${question.handle}"]`, region).filter((el) => el.checked).map((el) => el.value);
+  }
+  if (question.type === "radio") {
+    return qsa(`[data-booked-question="${question.handle}"]`, region).find((el) => el.checked)?.value ?? "";
+  }
+  if (question.type === "lightswitch") {
+    return qs(`[data-booked-question="${question.handle}"]`, region)?.checked ?? false;
+  }
+  return qs(`[data-booked-question="${question.handle}"]`, region)?.value ?? "";
+}
+var questionsStep = {
+  mount(region, wizard) {
+    const offChange = delegate(region, "change", "[data-booked-question]", (event, el) => {
+      const handle = el.getAttribute("data-booked-question");
+      const question = (wizard.getState().context.questions || []).find((q) => q.handle === handle);
+      if (!question) return;
+      if (el.hasAttribute("data-booked-question-upload")) {
+        this._handleUpload(region, wizard, el, question);
+        return;
+      }
+      wizard.setAnswer(handle, readValue(region, question));
+    });
+    const offInput = delegate(region, "input", 'input[type="text"][data-booked-question], textarea[data-booked-question]', (event, el) => {
+      wizard.setAnswer(el.getAttribute("data-booked-question"), el.value);
+    });
+    const offError = wizard.on("error", (payload) => {
+      if (!payload || payload.code !== "validation" || !payload.messages) return;
+      this._applyErrors(region, payload.messages);
+    });
+    cleanups.set(region, () => {
+      offChange();
+      offInput();
+      offError();
+    });
+  },
+  unmount(region) {
+    const off = cleanups.get(region);
+    if (off) {
+      off();
+      cleanups.delete(region);
+    }
+  },
+  render(region, wizard) {
+    const container = qs('[data-booked-list="questions"]', region);
+    if (!container) return;
+    const { context } = wizard.getState();
+    const questions = context.questions || [];
+    const answers = context.answers || {};
+    container.replaceChildren();
+    for (const question of questions) {
+      const frag = cloneTemplate(region, "question-field");
+      if (!frag) break;
+      setText(frag.querySelector('[data-booked-field="label"]'), question.label);
+      const instructionsEl = frag.querySelector('[data-booked-field="instructions"]');
+      setText(instructionsEl, question.instructions);
+      setHidden(instructionsEl, !question.instructions);
+      const fieldEl = frag.firstElementChild;
+      if (fieldEl && question.required) fieldEl.setAttribute("data-booked-required", "true");
+      const statusEl = frag.querySelector("[data-booked-field-status]");
+      if (statusEl) statusEl.setAttribute("data-booked-field-status", question.handle);
+      const errorEl = frag.querySelector("[data-booked-field-error]");
+      if (errorEl) errorEl.setAttribute("data-booked-field-error", question.handle);
+      buildInput(frag, question);
+      const answer = answers[question.handle];
+      if (answer !== void 0) {
+        if (question.type === "checkboxes" && Array.isArray(answer)) {
+          for (const el of frag.querySelectorAll(`[data-booked-question="${question.handle}"]`)) {
+            el.checked = answer.includes(el.value);
+          }
+        } else if (question.type === "radio") {
+          for (const el of frag.querySelectorAll(`[data-booked-question="${question.handle}"]`)) {
+            el.checked = el.value === answer;
+          }
+        } else if (question.type === "lightswitch") {
+          const el = frag.querySelector(`[data-booked-question="${question.handle}"]`);
+          if (el) el.checked = !!answer;
+        } else if (question.type === "assets") {
+          const text = fieldEl?.dataset.bookedUploadedText || "A file was uploaded.";
+          setText(frag.querySelector(`[data-booked-field-status="${question.handle}"]`), text);
+          setHidden(frag.querySelector(`[data-booked-field-status="${question.handle}"]`), false);
+        } else {
+          const el = frag.querySelector(`[data-booked-question="${question.handle}"]`);
+          if (el) el.value = answer;
+        }
+      }
+      container.appendChild(frag);
+    }
+    this._clearErrors(region);
+  },
+  /**
+   * Upload the selected file for an `assets` question and record the
+   * resulting asset id as its answer. A failed upload surfaces into that
+   * question's own error slot, local to this one input — the customer can
+   * retry without losing anything else they've filled in on the step.
+   */
+  async _handleUpload(region, wizard, el, question) {
+    const file = el.files?.[0];
+    const statusEl = qs(`[data-booked-field-status="${question.handle}"]`, region);
+    const errorEl = qs(`[data-booked-field-error="${question.handle}"]`, region);
+    if (!file) return;
+    const fieldWrap = el.closest("[data-booked-uploading-text], [data-booked-uploaded-text]");
+    setText(errorEl, "");
+    setHidden(errorEl, true);
+    el.disabled = true;
+    setText(statusEl, fieldWrap?.dataset.bookedUploadingText || "Uploading\u2026");
+    setHidden(statusEl, false);
+    try {
+      await wizard.uploadQuestionFile(question.handle, file);
+      setText(statusEl, file.name);
+    } catch (err) {
+      el.value = "";
+      setText(statusEl, "");
+      setHidden(statusEl, true);
+      if (errorEl) {
+        setText(errorEl, err?.message || "Upload failed.");
+        setHidden(errorEl, false);
+      }
+      el.setAttribute("aria-invalid", "true");
+    } finally {
+      el.disabled = false;
+    }
+  },
+  _applyErrors(region, messages) {
+    this._clearErrors(region);
+    for (const [handle, message] of Object.entries(messages)) {
+      const errorEl = qs(`[data-booked-field-error="${handle}"]`, region);
+      const inputs = qsa(`[data-booked-question="${handle}"]`, region);
+      for (const input of inputs) input.setAttribute("aria-invalid", "true");
+      if (errorEl) {
+        setText(errorEl, message);
+        setHidden(errorEl, false);
+      }
+    }
+  },
+  _clearErrors(region) {
+    for (const input of qsa("[data-booked-question]", region)) {
+      input.removeAttribute("aria-invalid");
+    }
+    for (const errorEl of qsa("[data-booked-field-error]", region)) {
+      setText(errorEl, "");
+      setHidden(errorEl, true);
+    }
   }
 };
 
@@ -3201,7 +3500,7 @@ var eventDateStep = {
 
 // src/web/js/ui/steps/customer-info.js
 var FIELDS = ["name", "email", "phone", "notes"];
-var cleanups = /* @__PURE__ */ new WeakMap();
+var cleanups2 = /* @__PURE__ */ new WeakMap();
 var customerInfoStep = {
   mount(region, wizard) {
     const offInput = delegate(region, "input", "[data-booked-field]", (event, el) => {
@@ -3212,16 +3511,16 @@ var customerInfoStep = {
       if (!payload || payload.code !== "validation" || !payload.messages) return;
       this._applyErrors(region, payload.messages);
     });
-    cleanups.set(region, () => {
+    cleanups2.set(region, () => {
       offInput();
       offError();
     });
   },
   unmount(region) {
-    const off = cleanups.get(region);
+    const off = cleanups2.get(region);
     if (off) {
       off();
-      cleanups.delete(region);
+      cleanups2.delete(region);
     }
   },
   render(region, wizard) {
@@ -3318,7 +3617,7 @@ var successStep = {
 };
 
 // src/web/js/ui/steps/manage.js
-var cleanups2 = /* @__PURE__ */ new WeakMap();
+var cleanups3 = /* @__PURE__ */ new WeakMap();
 var state3 = /* @__PURE__ */ new WeakMap();
 function pad3(n) {
   return String(n).padStart(2, "0");
@@ -3348,16 +3647,16 @@ var manageStep = {
         if (!result.ok) el.disabled = false;
       })
     ];
-    cleanups2.set(region, () => {
+    cleanups3.set(region, () => {
       offs.forEach((off) => off());
       s.cal?.destroy();
     });
   },
   unmount(region) {
-    const off = cleanups2.get(region);
+    const off = cleanups3.get(region);
     if (off) {
       off();
-      cleanups2.delete(region);
+      cleanups3.delete(region);
     }
     state3.delete(region);
   },
@@ -3619,6 +3918,7 @@ var version = "1.0.0-dev";
 function registerDefaultSteps(renderer) {
   renderer.registerStep("service", serviceListStep);
   renderer.registerStep("extras", extrasStep);
+  renderer.registerStep("questions", questionsStep);
   renderer.registerStep("location", locationStep);
   renderer.registerStep("employee", employeeStep);
   renderer.registerStep("datetime", datetimeStep);

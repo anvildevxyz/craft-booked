@@ -53,6 +53,28 @@
         }) }}
 
 		<hr>
+		<h2>{{ 'settings.booking.questionUploadsTitle'|t('booked') }}</h2>
+
+		{% set questionUploadVolumes = craft.app.volumes.getAllVolumes() %}
+		{% if questionUploadVolumes|length %}
+			{{ forms.selectField({
+                label: 'settings.booking.questionUploadVolume'|t('booked'),
+                instructions: 'settings.booking.questionUploadVolumeInstructions'|t('booked'),
+                id: 'questionUploadVolumeUid',
+                name: 'settings[questionUploadVolumeUid]',
+                value: settings.questionUploadVolumeUid,
+                options: [{ label: 'settings.booking.selectVolume'|t('booked'), value: '' }]|merge(
+                    questionUploadVolumes|map(volume => { label: volume.name, value: volume.uid })
+                ),
+            }) }}
+		{% else %}
+			{{ forms.field({
+                label: 'settings.booking.questionUploadVolume'|t('booked'),
+                instructions: 'settings.booking.questionUploadVolumeInstructions'|t('booked'),
+            }, '<p class="error">' ~ 'settings.booking.noVolumesExist'|t('booked') ~ '</p>') }}
+		{% endif %}
+
+		<hr>
 		<h2>{{ 'settings.booking.advancedTitle'|t('booked') }}</h2>
 
 		{{ forms.selectField({

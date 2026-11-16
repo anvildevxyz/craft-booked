@@ -6,6 +6,106 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `question-upload-volume-sources-mismatch.php` covers
+
+Issue #146 — the plugin's global "Upload Volume" setting (`questionUploadVolumeUid`)
+can point at a volume an Assets question field's own "Sources" setting doesn't
+include. Found by live browser testing: a real booking submission succeeded
+with every other answer type persisted correctly, but the uploaded file's
+relation read back as `null` — Craft accepted the upload and created the
+asset, then silently couldn't resolve the relation back onto the reservation.
+`actionUploadQuestionFile()` now checks the field's `sources` against the
+configured volume and rejects the upload up front. Needs a real HTTP
+round-trip (session-bound CSRF token + multipart upload), so this drives the
+live endpoint with curl rather than calling the controller action directly.
+Seeds its own field/service; restores the Settings volume and cleans up
+regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/question-upload-volume-sources-mismatch.php
+```
+
+## What `question-answers-booking-submission.php` covers
+
+Issue #146 Phase 6 — a text, a lightswitch, and an `assets`-type question
+answer, carried by `BookingService::populateReservation()` onto a saved
+`Reservation` and read back correctly after reload. The only live script
+here that exercises an Assets-type answer (the others cover a scalar field);
+seeds its own fields/service/asset and cleans them all up.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/question-answers-booking-submission.php
+```
+
+## What `service-questions-endpoint.php` covers
+
+Issue #146 — the field-layout data `booked/api/v1/services/questions`
+builds its response from (the endpoint the public wizard calls right after
+a service is selected), with one field of each type the wizard step knows
+how to draw: text, dropdown (with its options), and a required lightswitch.
+Seeds a temporary field layout on a real service and restores it
+regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/service-questions-endpoint.php
+```
+
+## What `graphql-reservation-field-values.php` covers
+
+Issue #146 — `createBookedReservation`/`updateBookedReservation`'s
+`fieldValues` input, through the actual `ReservationMutations` resolvers
+(reflected into directly, since they're `protected` and reaching them via a
+real GraphQL query needs a full schema + permission scope this test doesn't
+set up). No custom JSON scalar exists in this schema, so `fieldValues`
+travels as a JSON string both ways — confirms the encode side
+(`ReservationInterface`) and decode side (`decodeFieldValues()`) agree.
+Needs a real bookable "Private Lesson" service on this install.
+Self-cleaning.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/graphql-reservation-field-values.php
+```
+
+## What `mcp-reservation-field-values.php` covers
+
+Issue #146 — `booked_create_booking`/`booked_update_reservation`'s
+`fieldValues` parameter, through the actual MCP tool methods (not just the
+`BookingService` pipeline underneath them, covered by
+`booking-form-pipeline.php`). `guardWrite()` enforces "Allow MCP write
+operations" for real, not just as tool metadata, so this toggles that
+setting for the duration. Needs a real bookable "Private Lesson" service on
+this install. Self-cleaning — restores the setting and the service's
+original field layout regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/mcp-reservation-field-values.php
+```
+
+## What `booking-form-pipeline.php` covers
+
+Issue #146 — custom field answers have to flow BookingForm ->
+getReservationData() -> BookingService::populateReservation() the same way
+for the wizard, the REST alias, and MCP, all of which share this one
+pipeline. Confirms the form validates and carries `fieldValues` through, and
+that `populateReservation()` actually applies them to a real Reservation via
+`setFieldValues()`. Self-cleaning (seeds its own service and field).
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/booking-form-pipeline.php
+```
+
+## What `service-reservation-field-layout.php` covers
+
+Issue #146 — a Service owns a field layout for its custom booking questions;
+a Reservation has no layout of its own, resolving to whichever service it
+booked via `Reservation::getFieldLayout()`. Confirms the layout id and a
+saved field value both survive a real save/reload cycle, and that a
+reservation with no service resolves no field layout at all. Self-cleaning.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/service-reservation-field-layout.php
+```
+
 ## What `reservation-condition-rules.php` covers
 
 Issue #89 — the native bookings index's filter-HUD condition rules

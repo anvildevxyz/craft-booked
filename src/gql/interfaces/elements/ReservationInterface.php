@@ -3,6 +3,7 @@
 namespace anvildev\booked\gql\interfaces\elements;
 
 use anvildev\booked\gql\types\generators\ReservationType;
+use anvildev\booked\mcp\support\Presenter;
 use Craft;
 use craft\gql\GqlEntityRegistry;
 use craft\gql\interfaces\Element;
@@ -145,6 +146,14 @@ class ReservationInterface extends Element
                     'type' => Type::int(),
                     'description' => 'Number of days for multi-day bookings, null for single-day',
                     'resolve' => fn($source) => $source->getDurationDays(),
+                ],
+                'fieldValues' => [
+                    'name' => 'fieldValues',
+                    'type' => Type::string(),
+                    'description' => 'Answers to the booked service\'s custom questions (#146), as a JSON object keyed by field handle.',
+                    'resolve' => fn($source) => json_encode(
+                        method_exists($source, 'getFieldValues') ? Presenter::jsonSafe($source->getFieldValues()) : [],
+                    ),
                 ],
             ]
         ), self::getName());

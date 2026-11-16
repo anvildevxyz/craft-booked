@@ -531,6 +531,14 @@
 		errors: service.getErrors('enableWaitlist')
 	}) }}
 
+	<hr>
+	<h2>{{ 'service.reservationQuestions'|t('booked') }}</h2>
+	<p class="light">{{ 'service.reservationQuestionsInstructions'|t('booked') }}</p>
+
+	{{ forms.fieldLayoutDesignerField({
+		fieldLayout: service.getReservationFieldLayout(),
+	}) }}
+
 	{% js %}
 	(function() {
 	    var labels = {

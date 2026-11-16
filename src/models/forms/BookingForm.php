@@ -28,6 +28,15 @@ class BookingForm extends Model
     public array $extras = [];
     public bool $smsEnabled = false;
 
+    /**
+     * Answers to the booked service's custom questions (#146), keyed by
+     * field handle. Craft's own field types validate their own values once
+     * attached to the reservation — this form only has to carry the array
+     * through, not pre-validate its contents against a layout it has no
+     * access to here.
+     */
+    public array $fieldValues = [];
+
     public function rules(): array
     {
         return [
@@ -50,7 +59,18 @@ class BookingForm extends Model
             [['honeypot', 'captchaToken'], 'string'],
             [['userPhone'], 'validatePhone'],
             [['extras'], 'validateExtras'],
+            [['fieldValues'], 'validateFieldValues'],
         ];
+    }
+
+    public function validateFieldValues(string $attribute, ?array $params = null): void
+    {
+        foreach (array_keys($this->$attribute) as $handle) {
+            if (!is_string($handle) || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $handle)) {
+                $this->addError($attribute, Yii::t('booked', 'validation.invalidFieldHandle'));
+                return;
+            }
+        }
     }
 
     public function validateTimezone(string $attribute, ?array $params = null): void
@@ -142,6 +162,7 @@ class BookingForm extends Model
                 array_map('intval', array_keys($this->extras)),
                 array_values($this->extras)
             ) ?: []),
+            'fieldValues' => $this->fieldValues,
         ];
     }
 }

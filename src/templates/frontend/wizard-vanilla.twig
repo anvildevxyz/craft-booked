@@ -25,6 +25,7 @@
 {% set labels = {
     selectService: 'wizard.selectService'|t('booked'),
     selectExtras: 'wizard.selectExtras'|t('booked'),
+    selectQuestions: 'wizard.selectQuestions'|t('booked'),
     selectLocation: 'wizard.selectLocation'|t('booked'),
     selectEmployee: 'wizard.selectEmployee'|t('booked'),
     selectDateTime: 'wizard.selectDateTime'|t('booked'),
@@ -72,6 +73,7 @@
     'validation.quantityInvalid': 'validation.quantityInvalid'|t('booked'),
     'validation.quantityTooLow': 'validation.quantityTooLow'|t('booked'),
     'validation.quantityTooHigh': 'validation.quantityTooHigh'|t('booked'),
+    'validation.fieldRequired': 'validation.fieldRequired'|t('booked'),
 } %}
 
 {% set bookedConfig = {
@@ -159,6 +161,24 @@
         </template>
         <div data-booked-list="extras"></div>
         <p>{{ 'wizard.extrasTotal'|t('booked') }}: <span data-booked-extras-total></span></p>
+        <div class="booked-nav">
+            <button type="button" data-booked-action="back">{{ labels.back }}</button>
+            <button type="button" data-booked-action="next">{{ labels.next }}</button>
+        </div>
+    </section>
+
+    <section data-booked-step="questions" hidden>
+        <h2 data-booked-step-heading>{{ labels.selectQuestions }}</h2>
+        <template data-booked-template="question-field">
+            <div class="booked-question" data-booked-uploading-text="{{ 'wizard.uploading'|t('booked') }}" data-booked-uploaded-text="{{ 'wizard.fileUploaded'|t('booked') }}" data-booked-select-placeholder="{{ 'wizard.selectOption'|t('booked') }}">
+                <label class="booked-question__label" data-booked-field="label"></label>
+                <p class="booked-question__instructions" data-booked-field="instructions" hidden></p>
+                <div class="booked-question__input" data-booked-question-input></div>
+                <p class="booked-question__status" data-booked-field-status hidden></p>
+                <p class="booked-question__error" data-booked-field-error hidden></p>
+            </div>
+        </template>
+        <div data-booked-list="questions"></div>
         <div class="booked-nav">
             <button type="button" data-booked-action="back">{{ labels.back }}</button>
             <button type="button" data-booked-action="next">{{ labels.next }}</button>

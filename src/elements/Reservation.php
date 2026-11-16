@@ -20,6 +20,7 @@ use craft\elements\User;
 use craft\enums\Color;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
+use craft\models\FieldLayout;
 
 // Commerce is optional, so the interface Reservation implements is aliased to
 // the real PurchasableInterface when Commerce is installed and to a local shim
@@ -960,6 +961,17 @@ class Reservation extends Element implements _ReservationPurchasable, Reservatio
             $this->_service = $service;
         }
         return $this->_service;
+    }
+
+    /**
+     * A reservation's custom questions are whichever ones the booked
+     * service defines (#146) — there is no fixed layout of its own. A
+     * reservation with no service, or one whose service has no questions
+     * configured, renders no fields at all.
+     */
+    public function getFieldLayout(): ?FieldLayout
+    {
+        return $this->getService()?->getReservationFieldLayout();
     }
 
     public function getEventDate(): ?EventDate

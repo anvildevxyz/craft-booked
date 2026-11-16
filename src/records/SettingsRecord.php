@@ -62,6 +62,7 @@ use craft\db\ActiveRecord;
  * @property bool $enableAutoRefund
  * @property string|null $defaultRefundTiers
  * @property int|null $defaultTimeSlotLength
+ * @property string|null $questionUploadVolumeUid
  * @property bool $enableCaptcha
  * @property string|null $captchaProvider
  * @property string|null $recaptchaSiteKey

@@ -30,6 +30,7 @@ use craft\db\ActiveRecord;
  * @property array|string|null $availabilitySchedule
  * @property string|null $refundTiers
  * @property int|null $taxCategoryId
+ * @property int|null $reservationFieldLayoutId
  * @property string|null $deletedAt
  * @property \DateTime $dateCreated
  * @property \DateTime $dateUpdated

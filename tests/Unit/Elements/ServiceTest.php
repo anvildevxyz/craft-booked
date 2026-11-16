@@ -2,8 +2,10 @@
 
 namespace anvildev\booked\tests\Unit\Elements;
 
+use anvildev\booked\elements\Reservation;
 use anvildev\booked\elements\Service;
 use anvildev\booked\tests\Support\TestCase;
+use craft\models\FieldLayout;
 
 /**
  * Service Element Test
@@ -154,5 +156,51 @@ class ServiceTest extends TestCase
     public function testRefHandleReturnsService(): void
     {
         $this->assertEquals('service', Service::refHandle());
+    }
+
+    // =========================================================================
+    // getReservationFieldLayout() / setReservationFieldLayout() (#146)
+    // =========================================================================
+
+    /**
+     * An unconfigured service (reservationFieldLayoutId never set) still
+     * returns a usable, empty layout — the CP designer and
+     * Reservation::getFieldLayout() both rely on never getting null here.
+     */
+    public function testGetReservationFieldLayoutReturnsAnEmptyLayoutByDefault(): void
+    {
+        $service = $this->makeService();
+
+        $layout = $service->getReservationFieldLayout();
+
+        $this->assertInstanceOf(FieldLayout::class, $layout);
+        $this->assertSame(Reservation::class, $layout->type);
+        $this->assertCount(0, $layout->getTabs());
+    }
+
+    /**
+     * Calling it twice returns the same instance — the CP designer edits
+     * one object across a single request, not a fresh layout each time.
+     */
+    public function testGetReservationFieldLayoutIsMemoized(): void
+    {
+        $service = $this->makeService();
+
+        $this->assertSame($service->getReservationFieldLayout(), $service->getReservationFieldLayout());
+    }
+
+    /**
+     * setReservationFieldLayout() always forces the layout's type to
+     * Reservation — a caller can't accidentally attach a layout meant for a
+     * different element type.
+     */
+    public function testSetReservationFieldLayoutForcesTheReservationType(): void
+    {
+        $service = $this->makeService();
+        $layout = new FieldLayout(['type' => Service::class]);
+
+        $service->setReservationFieldLayout($layout);
+
+        $this->assertSame(Reservation::class, $service->getReservationFieldLayout()->type);
     }
 }

@@ -466,6 +466,14 @@ class BookingService extends Component
         $reservation->serviceId = $serviceId;
         $reservation->eventDateId = $eventDateId;
 
+        // Answers to the booked service's custom questions (#146). Set after
+        // serviceId so getFieldLayout() resolves to the right service before
+        // any value is applied; method_exists guards against a
+        // ReservationInterface implementation that predates field layouts.
+        if (!empty($data['fieldValues']) && method_exists($reservation, 'setFieldValues')) {
+            $reservation->setFieldValues($data['fieldValues']);
+        }
+
         // Capture the originating site for email language and management URLs.
         // Element-based reservations use bookingSiteId (element siteId is fixed to primary site);
         // ActiveRecord-based models use siteId directly.
@@ -798,6 +806,11 @@ class BookingService extends Component
                         Craft::error('Attempted to update reservation to unavailable slot', __METHOD__);
                         throw new BookingConflictException(Craft::t('booked', 'booking.slotNotAvailable'));
                     }
+                }
+
+                // Answers to the booked service's custom questions (#146).
+                if (!empty($data['fieldValues']) && method_exists($reservation, 'setFieldValues')) {
+                    $reservation->setFieldValues($data['fieldValues']);
                 }
 
                 if (!$reservation->save()) {

@@ -29,6 +29,10 @@ export class Context {
     this.locations = initial.locations ?? [];
     this.employees = initial.employees ?? [];
     this.eventDates = initial.eventDates ?? [];
+    // The selected service's custom booking questions (#146), and the
+    // customer's answers so far: { [handle]: value }.
+    this.questions = initial.questions ?? [];
+    this.answers = initial.answers ?? {};
 
     // Event flow selection
     this.eventDateId = initial.eventDateId ?? null;
@@ -163,12 +167,22 @@ export class Context {
     this.endDate = null;
     this.isDayService = ['days', 'flexible_days'].includes(service?.durationType);
     this.isFlexibleDayService = service?.durationType === 'flexible_days';
+    // A previous service's answers don't apply to this one's questions —
+    // which may not even be the same fields. Cleared here; _loadServiceData
+    // repopulates `questions` for the newly selected service.
+    this.questions = [];
+    this.answers = {};
   }
 
   setExtraQuantity(extraId, quantity) {
     const id = parseInt(extraId, 10);
     if (quantity > 0) this.selectedExtras[id] = quantity;
     else delete this.selectedExtras[id];
+  }
+
+  setAnswer(handle, value) {
+    if (value === undefined || value === null || value === '') delete this.answers[handle];
+    else this.answers[handle] = value;
   }
 
   setCustomer(fields) {
@@ -192,6 +206,8 @@ export class Context {
       locations: this.locations,
       employees: this.employees,
       eventDates: this.eventDates,
+      questions: this.questions,
+      answers: { ...this.answers },
       eventDateId: this.eventDateId,
       selectedEvent: this.selectedEvent,
       locale: this.locale,
