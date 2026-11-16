@@ -79,6 +79,21 @@ describe('BookedApi — request shaping', () => {
     expect(body.get('fields[newsletterOptIn]')).toBe('1');
   });
 
+  /**
+   * A nested array (a checkboxes question's answer, #146) must become PHP's
+   * repeated key[]=a&key[]=b array notation, not a single comma-joined
+   * string — Craft's Checkboxes field rejects a plain string as an invalid
+   * value, so this was failing real submissions until fixed.
+   */
+  it('encodes a nested array as key[subKey][]=item for each value, not a joined string', async () => {
+    const f = fakeFetch();
+    const api = new BookedApi({ fetch: f });
+    await api.createBooking({ serviceId: 1, fields: { equipmentNeeded: ['yogaMat', 'dumbbells'] } });
+    const body = f.calls[0].init.body;
+    expect(body.getAll('fields[equipmentNeeded][]')).toEqual(['yogaMat', 'dumbbells']);
+    expect(body.has('fields[equipmentNeeded]')).toBe(false);
+  });
+
   it('parses a JSON response body', async () => {
     const f = fakeFetch({ json: { services: [{ id: 1 }] } });
     const api = new BookedApi({ fetch: f });

@@ -274,6 +274,7 @@ return [
     'booking.uploadTooLarge' => 'Dat bestand is te groot.',
     'booking.uploadKindNotAllowed' => 'Dat bestandstype is niet toegestaan voor deze vraag.',
     'booking.uploadVolumeNotConfigured' => 'Vragen met bestandsupload zijn nog niet beschikbaar: een beheerder moet een uploadvolume kiezen in de Booked-instellingen.',
+    'booking.uploadVolumeNotInFieldSources' => 'Deze bestandsupload-vraag is niet correct geconfigureerd: een beheerder moet het ingestelde uploadvolume als bron toevoegen aan dit veld.',
     'slot.noTokenProvided' => 'Geen token opgegeven',
     'booking.failedToCancel' => 'Boeking kon niet worden geannuleerd. Probeer het opnieuw.',
 
@@ -1655,6 +1656,7 @@ return [
     'wizard.confirmBooking' => 'Boeking bevestigen',
     'wizard.selectExtras' => 'Selecteer extra\'s',
     'wizard.selectQuestions' => 'Een paar vragen',
+    'wizard.selectOption' => 'Kies...',
     'wizard.uploading' => 'Uploaden…',
     'wizard.fileUploaded' => 'Bestand geüpload.',
 

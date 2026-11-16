@@ -30,6 +30,15 @@ function buildInput(fieldEl, question) {
       const el = document.createElement('select');
       el.setAttribute('data-booked-question', question.handle);
       el.name = name;
+      // A native <select> auto-selects its first option, which would submit
+      // an answer the customer never chose. A blank, disabled placeholder
+      // forces an explicit choice before the value can be anything real.
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      placeholder.textContent = fieldEl.querySelector('[data-booked-select-placeholder]')?.dataset.bookedSelectPlaceholder ?? '';
+      el.appendChild(placeholder);
       for (const opt of question.options ?? []) {
         const optionEl = document.createElement('option');
         optionEl.value = opt.value;

@@ -279,6 +279,7 @@ return [
     'booking.uploadTooLarge' => 'That file is too large.',
     'booking.uploadKindNotAllowed' => 'That file type is not allowed for this question.',
     'booking.uploadVolumeNotConfigured' => 'File-upload questions are not available yet: an administrator needs to choose an upload volume in Booked settings.',
+    'booking.uploadVolumeNotInFieldSources' => 'This file-upload question is not configured correctly: an administrator needs to add the configured upload volume as a source on this question\'s field.',
     'slot.noTokenProvided' => 'No token provided',
     'booking.failedToCancel' => 'Failed to cancel booking. Please try again.',
 
@@ -1700,6 +1701,7 @@ return [
     'wizard.confirmBooking' => 'Confirm booking',
     'wizard.selectExtras' => 'Select Extras',
     'wizard.selectQuestions' => 'A Few Questions',
+    'wizard.selectOption' => 'Please choose...',
     'wizard.uploading' => 'Uploading…',
     'wizard.fileUploaded' => 'File uploaded.',
 

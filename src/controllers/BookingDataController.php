@@ -306,6 +306,15 @@ class BookingDataController extends Controller
             return $this->jsonError(Craft::t('booked', 'booking.uploadVolumeNotConfigured'));
         }
 
+        // The field's own "Sources" setting still scopes which volume(s) it
+        // will resolve a relation from. Saving into the configured volume
+        // when the field doesn't list it as a source doesn't fail loudly —
+        // Craft just can't resolve the relation back, so the answer silently
+        // disappears. Catch that here rather than losing the customer's upload.
+        if ($field->sources !== '*' && is_array($field->sources) && !in_array("volume:{$volume->uid}", $field->sources, true)) {
+            return $this->jsonError(Craft::t('booked', 'booking.uploadVolumeNotInFieldSources'));
+        }
+
         try {
             $folder = Craft::$app->getAssets()->getRootFolderByVolumeId($volume->id);
             if (!$folder) {

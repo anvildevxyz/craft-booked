@@ -494,10 +494,12 @@ var BookedApi = class {
     const encodeScalar = (value) => typeof value === "boolean" ? value ? "1" : "0" : String(value);
     const append = (key, value) => {
       if (value === void 0 || value === null) return;
-      if (typeof value === "object" && !Array.isArray(value)) {
-        for (const [subKey, subVal] of Object.entries(value)) {
-          if (subVal !== void 0 && subVal !== null) form.append(`${key}[${subKey}]`, encodeScalar(subVal));
-        }
+      if (Array.isArray(value)) {
+        for (const item of value) append(`${key}[]`, item);
+        return;
+      }
+      if (typeof value === "object") {
+        for (const [subKey, subVal] of Object.entries(value)) append(`${key}[${subKey}]`, subVal);
         return;
       }
       form.append(key, encodeScalar(value));

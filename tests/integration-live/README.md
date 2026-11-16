@@ -6,6 +6,25 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `question-upload-volume-sources-mismatch.php` covers
+
+Issue #146 — the plugin's global "Upload Volume" setting (`questionUploadVolumeUid`)
+can point at a volume an Assets question field's own "Sources" setting doesn't
+include. Found by live browser testing: a real booking submission succeeded
+with every other answer type persisted correctly, but the uploaded file's
+relation read back as `null` — Craft accepted the upload and created the
+asset, then silently couldn't resolve the relation back onto the reservation.
+`actionUploadQuestionFile()` now checks the field's `sources` against the
+configured volume and rejects the upload up front. Needs a real HTTP
+round-trip (session-bound CSRF token + multipart upload), so this drives the
+live endpoint with curl rather than calling the controller action directly.
+Seeds its own field/service; restores the Settings volume and cleans up
+regardless of outcome.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/question-upload-volume-sources-mismatch.php
+```
+
 ## What `question-answers-booking-submission.php` covers
 
 Issue #146 Phase 6 — a text, a lightswitch, and an `assets`-type question

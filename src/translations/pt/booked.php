@@ -274,6 +274,7 @@ return [
     'booking.uploadTooLarge' => 'Esse ficheiro é demasiado grande.',
     'booking.uploadKindNotAllowed' => 'Esse tipo de ficheiro não é permitido para esta pergunta.',
     'booking.uploadVolumeNotConfigured' => 'As perguntas com carregamento de ficheiros ainda não estão disponíveis: um administrador precisa de escolher um volume de carregamento nas definições do Booked.',
+    'booking.uploadVolumeNotInFieldSources' => 'Esta pergunta de carregamento de ficheiros não está configurada corretamente: um administrador precisa de adicionar o volume de carregamento configurado como origem deste campo.',
     'slot.noTokenProvided' => 'Nenhum token fornecido',
     'booking.failedToCancel' => 'Não foi possível cancelar a reserva. Por favor, tente novamente.',
 
@@ -1655,6 +1656,7 @@ return [
     'wizard.confirmBooking' => 'Confirmar reserva',
     'wizard.selectExtras' => 'Selecionar Extras',
     'wizard.selectQuestions' => 'Algumas perguntas',
+    'wizard.selectOption' => 'Por favor, escolha...',
     'wizard.uploading' => 'A carregar…',
     'wizard.fileUploaded' => 'Ficheiro carregado.',
 

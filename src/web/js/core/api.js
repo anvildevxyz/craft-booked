@@ -82,13 +82,18 @@ export class BookedApi {
     // string "true"/"false" — applies whether the value is top-level or inside
     // a nested object (e.g. a fields[handle] answer to a lightswitch question).
     const encodeScalar = (value) => (typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+    // Recursive so a nested object's own array value (e.g. a checkboxes
+    // question's `fields[handle]`) gets PHP's `key[]=a&key[]=b` array
+    // notation instead of being stringified into one comma-joined value.
     const append = (key, value) => {
       if (value === undefined || value === null) return;
+      if (Array.isArray(value)) {
+        for (const item of value) append(`${key}[]`, item);
+        return;
+      }
       // Nested plain objects → key[subKey]=value for PHP array parsing (e.g. extras).
-      if (typeof value === 'object' && !Array.isArray(value)) {
-        for (const [subKey, subVal] of Object.entries(value)) {
-          if (subVal !== undefined && subVal !== null) form.append(`${key}[${subKey}]`, encodeScalar(subVal));
-        }
+      if (typeof value === 'object') {
+        for (const [subKey, subVal] of Object.entries(value)) append(`${key}[${subKey}]`, subVal);
         return;
       }
       form.append(key, encodeScalar(value));

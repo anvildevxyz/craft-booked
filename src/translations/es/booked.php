@@ -274,6 +274,7 @@ return [
     'booking.uploadTooLarge' => 'Ese archivo es demasiado grande.',
     'booking.uploadKindNotAllowed' => 'Ese tipo de archivo no está permitido para esta pregunta.',
     'booking.uploadVolumeNotConfigured' => 'Las preguntas con subida de archivos no están disponibles todavía: un administrador debe elegir un volumen de subida en la configuración de Booked.',
+    'booking.uploadVolumeNotInFieldSources' => 'Esta pregunta de subida de archivos no está configurada correctamente: un administrador debe añadir el volumen de subida configurado como origen de este campo.',
     'slot.noTokenProvided' => 'No se proporcionó ningún token',
     'booking.failedToCancel' => 'Error al cancelar la reserva. Por favor, inténtelo de nuevo.',
 
@@ -1655,6 +1656,7 @@ return [
     'wizard.confirmBooking' => 'Confirmar reserva',
     'wizard.selectExtras' => 'Seleccionar complementos',
     'wizard.selectQuestions' => 'Algunas preguntas',
+    'wizard.selectOption' => 'Por favor, elige...',
     'wizard.uploading' => 'Subiendo…',
     'wizard.fileUploaded' => 'Archivo subido.',
 

@@ -274,6 +274,7 @@ return [
     'booking.uploadTooLarge' => 'Ce fichier est trop volumineux.',
     'booking.uploadKindNotAllowed' => 'Ce type de fichier n\'est pas autorisé pour cette question.',
     'booking.uploadVolumeNotConfigured' => 'Les questions avec téléversement de fichier ne sont pas encore disponibles : un administrateur doit choisir un volume de téléversement dans les paramètres de Booked.',
+    'booking.uploadVolumeNotInFieldSources' => 'Cette question de téléversement de fichier n\'est pas configurée correctement : un administrateur doit ajouter le volume de téléversement configuré comme source de ce champ.',
     'slot.noTokenProvided' => 'Aucun jeton fourni',
     'booking.failedToCancel' => 'Échec de l\'annulation de la réservation. Veuillez réessayer.',
 
@@ -1655,6 +1656,7 @@ return [
     'wizard.confirmBooking' => 'Confirmer la réservation',
     'wizard.selectExtras' => 'Choisissez vos options',
     'wizard.selectQuestions' => 'Quelques questions',
+    'wizard.selectOption' => 'Veuillez choisir...',
     'wizard.uploading' => 'Téléversement…',
     'wizard.fileUploaded' => 'Fichier téléversé.',
 

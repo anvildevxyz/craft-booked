@@ -285,7 +285,7 @@ describe('questionsStep', () => {
   const REGION = `
     <section>
       <template data-booked-template="question-field">
-        <div data-booked-uploading-text="Uploading…" data-booked-uploaded-text="Uploaded">
+        <div data-booked-uploading-text="Uploading…" data-booked-uploaded-text="Uploaded" data-booked-select-placeholder="Please choose…">
           <label data-booked-field="label"></label>
           <p data-booked-field="instructions" hidden></p>
           <div data-booked-question-input></div>
@@ -300,6 +300,16 @@ describe('questionsStep', () => {
     { handle: 'tShirtSize', label: 'T-Shirt Size', type: 'text', required: true },
     { handle: 'waiver', label: 'Waiver accepted', type: 'lightswitch', required: false },
     { handle: 'photo', label: 'Reference photo', type: 'assets', required: false },
+    {
+      handle: 'experience',
+      label: 'Experience level',
+      type: 'dropdown',
+      required: true,
+      options: [
+        { label: 'Beginner', value: 'beginner' },
+        { label: 'Advanced', value: 'advanced' },
+      ],
+    },
   ];
 
   async function wizardWithQuestions(apiOverrides = {}) {
@@ -387,5 +397,39 @@ describe('questionsStep', () => {
     expect(err.hidden).toBe(false);
     expect(err.textContent.length).toBeGreaterThan(0);
     expect(region.querySelector('[data-booked-question="tShirtSize"]').getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('a dropdown question starts on a disabled placeholder, not the first real option', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const wizard = await wizardWithQuestions();
+    questionsStep.render(region, wizard);
+
+    const select = region.querySelector('[data-booked-question="experience"]');
+    expect(select.value).toBe('');
+    expect(select.options[0].disabled).toBe(true);
+    expect(select.options[0].textContent).toBe('Please choose…');
+  });
+
+  it('a required dropdown left on its placeholder fails validation; choosing an option clears it', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const wizard = await wizardWithQuestions();
+    questionsStep.mount(region, wizard);
+    questionsStep.render(region, wizard);
+    wizard.setAnswer('tShirtSize', 'Large');
+
+    wizard.goNext(); // service → questions
+    let result = wizard.goNext(); // leaving `questions` with the dropdown still on its placeholder
+    expect(result.ok).toBe(false);
+    expect(region.querySelector('[data-booked-field-error="experience"]').hidden).toBe(false);
+
+    const select = region.querySelector('[data-booked-question="experience"]');
+    select.value = 'advanced';
+    select.dispatchEvent(new window.Event('change', { bubbles: true }));
+    expect(wizard.getState().context.answers.experience).toBe('advanced');
+
+    result = wizard.goNext();
+    expect(result.ok).toBe(true);
   });
 });

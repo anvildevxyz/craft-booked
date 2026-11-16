@@ -275,6 +275,7 @@ return [
     'booking.uploadTooLarge' => 'Diese Datei ist zu groß.',
     'booking.uploadKindNotAllowed' => 'Dieser Dateityp ist für diese Frage nicht erlaubt.',
     'booking.uploadVolumeNotConfigured' => 'Fragen mit Datei-Upload sind noch nicht verfügbar: Ein Administrator muss in den Booked-Einstellungen ein Upload-Volume auswählen.',
+    'booking.uploadVolumeNotInFieldSources' => 'Diese Datei-Upload-Frage ist nicht korrekt konfiguriert: Ein Administrator muss das konfigurierte Upload-Volume als Quelle für dieses Feld hinzufügen.',
     'slot.noTokenProvided' => 'Kein Token angegeben',
     'booking.failedToCancel' => 'Stornierung fehlgeschlagen. Bitte versuchen Sie es erneut.',
 
@@ -1681,6 +1682,7 @@ return [
     'wizard.confirmBooking' => 'Buchung bestätigen',
     'wizard.selectExtras' => 'Wählen Sie Extras',
     'wizard.selectQuestions' => 'Ein paar Fragen',
+    'wizard.selectOption' => 'Bitte wählen...',
     'wizard.uploading' => 'Wird hochgeladen…',
     'wizard.fileUploaded' => 'Datei hochgeladen.',
 

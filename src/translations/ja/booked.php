@@ -274,6 +274,7 @@ return [
     'booking.uploadTooLarge' => 'このファイルは大きすぎます。',
     'booking.uploadKindNotAllowed' => 'この質問ではこのファイル形式は許可されていません。',
     'booking.uploadVolumeNotConfigured' => 'ファイルアップロード付きの質問はまだ利用できません。管理者がBookedの設定でアップロードボリュームを選択する必要があります。',
+    'booking.uploadVolumeNotInFieldSources' => 'このファイルアップロードの質問は正しく設定されていません。管理者がこのフィールドのソースとして設定済みのアップロードボリュームを追加する必要があります。',
     'slot.noTokenProvided' => 'トークンが提供されていません',
     'booking.failedToCancel' => '予約のキャンセルに失敗しました。再度お試しください。',
 
@@ -1655,6 +1656,7 @@ return [
     'wizard.confirmBooking' => '予約内容の確認',
     'wizard.selectExtras' => 'オプションを選択',
     'wizard.selectQuestions' => 'いくつかの質問',
+    'wizard.selectOption' => '選択してください...',
     'wizard.uploading' => 'アップロード中…',
     'wizard.fileUploaded' => 'ファイルがアップロードされました。',
 
