@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.10.0 - 2026-11-16
 
 ### Added
 - A reservation is a Craft element on every install, including ones without Commerce ([#88](https://github.com/anvildevxyz/craft-booked/issues/88)). Existing ActiveRecord bookings are given element rows and their ids are remapped onto those elements. Bookings that were already elements keep their ids. Booking statuses stay on the reservation row, separate from Craft's enabled/disabled status.
+- **Services can ask custom questions when a customer books, with answers saved on the reservation.** ([#146](https://github.com/anvildevxyz/craft-booked/issues/146)) A Service gets a field layout — the same mechanism Craft uses for entries — and a Reservation resolves its own field layout to whichever service it booked, so answers (text, textarea, dropdown, radio, checkboxes, lightswitch, file upload) live as ordinary custom field values with no new storage model. The CP's existing booking create/edit screens render and save them for free. The public wizard gets a new step for them, including file uploads through a dedicated anonymous pre-upload endpoint (rate-limited, kind/size-validated) into a volume chosen on a new Booking Settings field, rejected up front if that field's own Sources setting doesn't include the configured volume — Craft can otherwise accept the file and never resolve the relation back, silently losing the answer. `booked_create_booking`/`booked_update_reservation` (MCP) and `createBookedReservation`/`updateBookedReservation` (GraphQL, carried as a JSON string) share the same answers through the identical `BookingService` pipeline the wizard uses.
 
 ### Changed
 - The bookings screen uses Craft's element index ([#89](https://github.com/anvildevxyz/craft-booked/issues/89)). Status sources, sorting, search, condition rules, the no-show action and the CSV exporter are the ones the reservation element already declared. A staff member who can view bookings but not manage them only sees their own employees there, because Craft builds that query itself. Seat counts and availability stay unscoped, so that limit cannot hide a seat someone else already holds. Bookings that became elements without a normal save are added to the search index.
