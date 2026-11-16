@@ -6,6 +6,18 @@ covering the money/concurrency behaviours the unit suite can't (there is no
 in-process Craft test harness, so DB-bound payment paths are otherwise only
 source-scan-tested). They complement the Playwright browser E2E in `tests/e2e/`.
 
+## What `question-answers-booking-submission.php` covers
+
+Issue #146 Phase 6 — a text, a lightswitch, and an `assets`-type question
+answer, carried by `BookingService::populateReservation()` onto a saved
+`Reservation` and read back correctly after reload. The only live script
+here that exercises an Assets-type answer (the others cover a scalar field);
+seeds its own fields/service/asset and cleans them all up.
+
+```
+ddev exec php plugins/craft-booked/tests/integration-live/question-answers-booking-submission.php
+```
+
 ## What `service-questions-endpoint.php` covers
 
 Issue #146 — the field-layout data `booked/api/v1/services/questions`

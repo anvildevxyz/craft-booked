@@ -13,6 +13,7 @@ import { Renderer } from './renderer.js';
 import { setupCaptcha } from './captcha.js';
 import { serviceListStep } from './steps/service-list.js';
 import { extrasStep } from './steps/extras.js';
+import { questionsStep } from './steps/questions.js';
 import { locationStep } from './steps/location.js';
 import { employeeStep } from './steps/employee.js';
 import { datetimeStep } from './steps/datetime.js';
@@ -30,6 +31,7 @@ function registerDefaultSteps(renderer) {
   // Booking flow
   renderer.registerStep('service', serviceListStep);
   renderer.registerStep('extras', extrasStep);
+  renderer.registerStep('questions', questionsStep);
   renderer.registerStep('location', locationStep);
   renderer.registerStep('employee', employeeStep);
   renderer.registerStep('datetime', datetimeStep);

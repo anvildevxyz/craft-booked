@@ -102,6 +102,7 @@ class Install extends Migration
                 'waitlistConversionMinutes' => $this->integer()->notNull()->defaultValue(30),
                 'mutexDriver' => $this->string(10)->notNull()->defaultValue('auto'),
                 'defaultTimeSlotLength' => $this->integer()->null(),
+                'questionUploadVolumeUid' => $this->string()->null(),
                 'mcpWriteEnabled' => $this->boolean()->notNull()->defaultValue(false),
                 'mcpAllowRefunds' => $this->boolean()->notNull()->defaultValue(false),
                 'dateCreated' => $this->dateTime()->notNull(),

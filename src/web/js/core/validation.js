@@ -69,6 +69,18 @@ export function canLeaveStep(stepId, ctx, opts = {}) {
       const errors = validateCustomer(ctx.customer, { requirePhone: opts.requirePhone });
       return { ok: Object.keys(errors).length === 0, errors };
     }
+    case 'questions': {
+      const errors = {};
+      for (const q of ctx.questions ?? []) {
+        // A lightswitch has no "unanswered" state — off is a legitimate value,
+        // not a missing one — so required never blocks it.
+        if (!q.required || q.type === 'lightswitch') continue;
+        const answer = ctx.answers?.[q.handle];
+        const answered = q.type === 'checkboxes' ? Array.isArray(answer) && answer.length > 0 : isPresent(answer);
+        if (!answered) errors[q.handle] = 'validation.fieldRequired';
+      }
+      return { ok: Object.keys(errors).length === 0, errors };
+    }
     default:
       // extras / location / employee / review have no blocking validation here.
       return { ok: true, errors: {} };

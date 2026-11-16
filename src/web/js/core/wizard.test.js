@@ -19,6 +19,7 @@ function fakeApi(overrides = {}) {
       ],
     })),
     serviceExtras: vi.fn(async () => ({ extras: [] })),
+    serviceQuestions: vi.fn(async () => ({ questions: [] })),
     employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1, name: 'Main' }], serviceHasSchedule: true })),
     createSlotLock: vi.fn(async () => ({ success: true, token: 'lock-abc', expiresIn: 300 })),
     createRangeLock: vi.fn(async () => ({ success: true, token: 'lock-range', expiresIn: 300 })),
@@ -238,6 +239,76 @@ describe('Wizard — headless booking (M1 exit demo)', () => {
     wizard.goNext(); // review
     await wizard.submit();
     expect(api.createBooking.mock.calls[0][0].extras).toEqual({ 5: 2 });
+  });
+});
+
+describe('Wizard — custom booking questions (#146)', () => {
+  function questionsApi(overrides = {}) {
+    return newWizard({
+      serviceQuestions: vi.fn(async () => ({
+        questions: [{ handle: 'tShirtSize', label: 'T-Shirt Size', type: 'text', required: false }],
+      })),
+      ...overrides,
+    });
+  }
+
+  it('loads the selected service\'s questions into context', async () => {
+    const { wizard, api } = questionsApi();
+    await wizard.start();
+    await wizard.selectService(12);
+    expect(api.serviceQuestions).toHaveBeenCalledWith(12);
+    expect(wizard.getState().context.questions).toEqual([
+      { handle: 'tShirtSize', label: 'T-Shirt Size', type: 'text', required: false },
+    ]);
+  });
+
+  it('setAnswer records the answer and it reaches the booking body', async () => {
+    const { wizard, api } = questionsApi();
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.setAnswer('tShirtSize', 'Large');
+    expect(wizard.getState().context.answers).toEqual({ tShirtSize: 'Large' });
+
+    wizard.goNext(); // datetime
+    await wizard.selectSlot({ date: '2026-08-03', time: '09:00' });
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    await wizard.submit();
+    expect(api.createBooking.mock.calls[0][0].fields).toEqual({ tShirtSize: 'Large' });
+  });
+
+  it('omits fields from the booking body when no question was answered', async () => {
+    const { wizard, api } = questionsApi();
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.goNext(); // datetime
+    await wizard.selectSlot({ date: '2026-08-03', time: '09:00' });
+    wizard.goNext(); // info
+    wizard.setCustomer({ name: 'Ada', email: 'ada@example.com' });
+    wizard.goNext(); // review
+    await wizard.submit();
+    expect(api.createBooking.mock.calls[0][0]).not.toHaveProperty('fields');
+  });
+
+  it('clears questions and answers when a different service is selected', async () => {
+    const { wizard } = questionsApi();
+    await wizard.start();
+    await wizard.selectService(12);
+    wizard.setAnswer('tShirtSize', 'Large');
+    expect(wizard.getState().context.answers).toEqual({ tShirtSize: 'Large' });
+
+    await wizard.selectService(13);
+    expect(wizard.getState().context.answers).toEqual({});
+  });
+
+  it('a failed questions load leaves the rest of service selection intact', async () => {
+    const { wizard, api } = newWizard({ serviceQuestions: vi.fn(async () => { throw new Error('network'); }) });
+    await wizard.start();
+    await wizard.selectService(12);
+    expect(wizard.getState().context.questions).toEqual([]);
+    expect(wizard.getState().context.serviceId).toBe(12); // selection itself still succeeded
+    expect(api.employees).toHaveBeenCalledWith(12);
   });
 });
 

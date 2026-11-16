@@ -3,6 +3,7 @@ import { Wizard } from '../../core/wizard.js';
 import { serviceListStep } from './service-list.js';
 import { customerInfoStep } from './customer-info.js';
 import { reviewStep } from './review.js';
+import { questionsStep } from './questions.js';
 
 function fakeApi(overrides = {}) {
   return {
@@ -14,6 +15,8 @@ function fakeApi(overrides = {}) {
       ],
     })),
     serviceExtras: vi.fn(async () => ({ extras: [] })),
+    serviceQuestions: vi.fn(async () => ({ questions: [] })),
+    uploadQuestionFile: vi.fn(async () => ({ assetId: 99, filename: 'upload.jpg' })),
     employees: vi.fn(async () => ({ employees: [], locations: [{ id: 1 }], serviceHasSchedule: true })),
     createSlotLock: vi.fn(async () => ({ success: true, token: 't', expiresIn: 300 })),
     extendLock: vi.fn(async () => ({ success: true, expiresIn: 300 })),
@@ -275,5 +278,114 @@ describe('reviewStep', () => {
 
     expect(region.querySelector('[data-booked-summary="quantity"]').hidden).toBe(false);
     expect(region.querySelector('[data-booked-summary="quantity"]').textContent).toBe('1');
+  });
+});
+
+describe('questionsStep', () => {
+  const REGION = `
+    <section>
+      <template data-booked-template="question-field">
+        <div data-booked-uploading-text="Uploading…" data-booked-uploaded-text="Uploaded">
+          <label data-booked-field="label"></label>
+          <p data-booked-field="instructions" hidden></p>
+          <div data-booked-question-input></div>
+          <p data-booked-field-status hidden></p>
+          <p data-booked-field-error hidden></p>
+        </div>
+      </template>
+      <div data-booked-list="questions"></div>
+    </section>`;
+
+  const QUESTIONS = [
+    { handle: 'tShirtSize', label: 'T-Shirt Size', type: 'text', required: true },
+    { handle: 'waiver', label: 'Waiver accepted', type: 'lightswitch', required: false },
+    { handle: 'photo', label: 'Reference photo', type: 'assets', required: false },
+  ];
+
+  async function wizardWithQuestions(apiOverrides = {}) {
+    const wizard = await startedWizard({ serviceQuestions: vi.fn(async () => ({ questions: QUESTIONS })), ...apiOverrides });
+    await wizard.selectService(12);
+    return wizard;
+  }
+
+  it('renders one input per question, matched to its type', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const wizard = await wizardWithQuestions();
+    questionsStep.render(region, wizard);
+
+    expect(region.querySelector('[data-booked-question="tShirtSize"]').tagName).toBe('INPUT');
+    expect(region.querySelector('[data-booked-question="tShirtSize"]').type).toBe('text');
+    expect(region.querySelector('[data-booked-question="waiver"]').type).toBe('checkbox');
+    expect(region.querySelector('[data-booked-question="photo"]').type).toBe('file');
+  });
+
+  it('pushes a text answer into the core via setAnswer', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const wizard = await wizardWithQuestions();
+    questionsStep.mount(region, wizard);
+    questionsStep.render(region, wizard);
+
+    const input = region.querySelector('[data-booked-question="tShirtSize"]');
+    input.value = 'Large';
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    expect(wizard.getState().context.answers.tShirtSize).toBe('Large');
+  });
+
+  it('uploads a file for an assets question and records the returned asset id as the answer', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const uploadQuestionFile = vi.fn(async () => ({ assetId: 42, filename: 'photo.jpg' }));
+    const wizard = await wizardWithQuestions({ uploadQuestionFile });
+    questionsStep.mount(region, wizard);
+    questionsStep.render(region, wizard);
+
+    const input = region.querySelector('[data-booked-question="photo"]');
+    const file = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(wizard.getState().context.answers.photo).toBe(42));
+
+    expect(uploadQuestionFile).toHaveBeenCalledWith(12, 'photo', file);
+    expect(region.querySelector('[data-booked-field-status="photo"]').textContent).toBe('photo.jpg');
+  });
+
+  it('surfaces a failed upload in the question\'s own error slot, without touching other answers', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const uploadQuestionFile = vi.fn(async () => {
+      throw new Error('That file is too large.');
+    });
+    const wizard = await wizardWithQuestions({ uploadQuestionFile });
+    questionsStep.mount(region, wizard);
+    questionsStep.render(region, wizard);
+    wizard.setAnswer('tShirtSize', 'Large');
+
+    const input = region.querySelector('[data-booked-question="photo"]');
+    const file = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(region.querySelector('[data-booked-field-error="photo"]').hidden).toBe(false));
+
+    expect(region.querySelector('[data-booked-field-error="photo"]').textContent).toBe('That file is too large.');
+    expect(wizard.getState().context.answers.photo).toBeUndefined();
+    expect(wizard.getState().context.answers.tShirtSize).toBe('Large');
+  });
+
+  it('surfaces a required-question validation error from goNext()', async () => {
+    document.body.innerHTML = REGION;
+    const region = document.body.firstElementChild;
+    const wizard = await wizardWithQuestions();
+    questionsStep.mount(region, wizard);
+    questionsStep.render(region, wizard);
+
+    expect(wizard.goNext().stepId).toBe('questions'); // service → questions (no extras configured)
+    const result = wizard.goNext(); // leaving `questions` without the required tShirtSize answer
+    expect(result.ok).toBe(false);
+    const err = region.querySelector('[data-booked-field-error="tShirtSize"]');
+    expect(err.hidden).toBe(false);
+    expect(err.textContent.length).toBeGreaterThan(0);
+    expect(region.querySelector('[data-booked-question="tShirtSize"]').getAttribute('aria-invalid')).toBe('true');
   });
 });

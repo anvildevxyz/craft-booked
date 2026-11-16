@@ -318,6 +318,16 @@ export class Wizard {
     this._ctx.locations = list(employees, 'locations');
     this._ctx.serviceHasSchedule = !!(employees && employees.serviceHasSchedule);
 
+    // Questions are optional, unlike the above: a failed load just means no
+    // custom questions this time, not a broken booking flow, so this is
+    // fetched separately and never aborts service selection on its own.
+    try {
+      const questions = await this._api.serviceQuestions(id);
+      this._ctx.questions = list(questions, 'questions');
+    } catch (err) {
+      if (!(err && err.aborted)) this._ctx.questions = [];
+    }
+
     // Required add-ons are pre-selected at quantity 1.
     for (const extra of this._ctx.extras) {
       if (extra.isRequired) this._ctx.setExtraQuantity(extra.id, 1);
@@ -351,6 +361,25 @@ export class Wizard {
   clearExtra(id) {
     this._ctx.setExtraQuantity(id, 0);
     this._flow.setContext(this._ctx);
+    return this.getState();
+  }
+
+  /** Record a customer's answer to one of the selected service's custom questions (#146). */
+  setAnswer(handle, value) {
+    this._ctx.setAnswer(handle, value);
+    return this.getState();
+  }
+
+  /**
+   * Upload a file for an `assets` question (#146) and record the returned
+   * asset id as that question's answer. Rejects (ApiError) on failure — a
+   * failed upload is local to one input, not a wizard-wide error, so the
+   * caller (the questions step renderer) is left to surface it, rather than
+   * this going through the shared `error` event channel.
+   */
+  async uploadQuestionFile(handle, file) {
+    const result = await this._api.uploadQuestionFile(this._ctx.serviceId, handle, file);
+    this._ctx.setAnswer(handle, result.assetId);
     return this.getState();
   }
 
@@ -939,6 +968,8 @@ export class Wizard {
       ...customer,
     });
     if (Object.keys(extras).length > 0) body.extras = extras;
+    // Answers to the booked service's custom questions (#146).
+    if (Object.keys(this._ctx.answers).length > 0) body.fields = { ...this._ctx.answers };
     if (this._ctx.isDayService && this._ctx.endDate) {
       body.endDate = this._ctx.endDate;
       delete body.time;

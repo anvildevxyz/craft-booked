@@ -9,6 +9,8 @@
  * one-of-everything setup lands straight on the calendar:
  *   service   — shown unless exactly one exists or it was preselected (deep link)
  *   extras    — shown only when the selected service has add-ons
+ *   questions — shown only when the selected service has custom booking
+ *               questions (#146)
  *   location  — shown when >1 location exists and none was preselected (deep link)
  *   employee  — shown only when more than one exists (1 auto-selects)
  *
@@ -20,6 +22,7 @@ export const bookingFlow = {
   steps: [
     { id: 'service', visible: (ctx) => !(ctx.servicePreselected || (Array.isArray(ctx.services) && ctx.services.length === 1)) },
     { id: 'extras', visible: (ctx) => Array.isArray(ctx.extras) && ctx.extras.length > 0 },
+    { id: 'questions', visible: (ctx) => Array.isArray(ctx.questions) && ctx.questions.length > 0 },
     { id: 'location', visible: (ctx) => !ctx.locationPreselected && Array.isArray(ctx.locations) && ctx.locations.length > 1 },
     { id: 'employee', visible: (ctx) => Array.isArray(ctx.employees) && ctx.employees.length > 1 },
     { id: 'datetime', visible: () => true },

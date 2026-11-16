@@ -168,7 +168,8 @@ class ControllerSourceTest extends TestCase
             ]],
             'WaitlistController' => ['WaitlistController.php', ['join-waitlist', 'join-event-waitlist']],
             'BookingDataController' => ['BookingDataController.php', [
-                'get-services', 'get-service-extras', 'get-service-questions', 'get-employees', 'get-commerce-settings',
+                'get-services', 'get-service-extras', 'get-service-questions', 'upload-question-file',
+                'get-employees', 'get-commerce-settings',
             ]],
             // Reached from the link in a confirmation email, so the visitor is
             // not logged in. Each one authenticates on the reservation's

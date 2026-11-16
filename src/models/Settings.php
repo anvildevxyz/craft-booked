@@ -63,6 +63,14 @@ class Settings extends Model
      * vanilla wizard. Deprecated as of 1.3 — this escape hatch is removed in Booked 2.0.
      */
     public bool $legacyWizard = false;
+    /**
+     * The volume (by UID) that files uploaded for an Assets-type reservation
+     * question (#146) are stored in. Uploads for those questions are rejected
+     * until an admin configures this — there's no per-field fallback, since
+     * the wizard uploads anonymously, before any element exists to resolve a
+     * field's own dynamic upload path against.
+     */
+    public ?string $questionUploadVolumeUid = null;
 
     // Calendar
     public bool $googleCalendarEnabled = false;
@@ -250,6 +258,8 @@ class Settings extends Model
     public function rules(): array
     {
         return [
+            [['questionUploadVolumeUid'], 'string'],
+            [['questionUploadVolumeUid'], 'filter', 'filter' => fn($value) => $value === '' ? null : $value],
             [['defaultCurrency'], 'string', 'max' => 4],
             [['defaultCurrency'], 'match', 'pattern' => '/^(auto|[A-Z]{3})$/', 'message' => Craft::t('booked', 'settings.attributeLabels.currencyValidation'), 'skipOnEmpty' => true],
             [['softLockDurationMinutes', 'softLockMaxLifetimeMinutes', 'rateLimitPerEmail', 'rateLimitPerIp'], 'integer', 'min' => 1],
@@ -390,7 +400,7 @@ class Settings extends Model
             'booking' => [
                 'softLockDurationMinutes', 'defaultTimeSlotLength',
                 'minimumAdvanceBookingHours', 'maximumAdvanceBookingDays', 'cancellationPolicyHours',
-                'bookingPageUrl', 'mutexDriver',
+                'bookingPageUrl', 'mutexDriver', 'questionUploadVolumeUid',
             ],
             'waitlist' => [
                 'enableWaitlist', 'waitlistExpirationDays', 'waitlistNotificationLimit', 'waitlistConversionMinutes',

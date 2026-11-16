@@ -64,6 +64,21 @@ describe('BookedApi — request shaping', () => {
     expect(body.get('serviceId')).toBe('1');
   });
 
+  /**
+   * A nested boolean (e.g. a lightswitch question's answer, #146) must
+   * become '1'/'0' like a top-level one does — PHP's (bool)"false" is true,
+   * so sending the literal string "false" would store an unchecked waiver
+   * as accepted.
+   */
+  it('encodes a nested boolean as 1/0, not the string "true"/"false"', async () => {
+    const f = fakeFetch();
+    const api = new BookedApi({ fetch: f });
+    await api.createBooking({ serviceId: 1, fields: { waiverAccepted: false, newsletterOptIn: true } });
+    const body = f.calls[0].init.body;
+    expect(body.get('fields[waiverAccepted]')).toBe('0');
+    expect(body.get('fields[newsletterOptIn]')).toBe('1');
+  });
+
   it('parses a JSON response body', async () => {
     const f = fakeFetch({ json: { services: [{ id: 1 }] } });
     const api = new BookedApi({ fetch: f });
