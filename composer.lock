@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c0336243d2034b4fca4a0b5506ea0135",
+    "content-hash": "985e5147500a453aace99a149f8a99fb",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -4620,16 +4620,16 @@
         },
         {
             "name": "stripe/stripe-php",
-            "version": "v22.0.0",
+            "version": "v23.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stripe/stripe-php.git",
-                "reference": "c4c1f658483e717519935222e47af224ef4a508b"
+                "reference": "f29b7a44597531c304360c3d42959aaf52e33618"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/c4c1f658483e717519935222e47af224ef4a508b",
-                "reference": "c4c1f658483e717519935222e47af224ef4a508b",
+                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/f29b7a44597531c304360c3d42959aaf52e33618",
+                "reference": "f29b7a44597531c304360c3d42959aaf52e33618",
                 "shasum": ""
             },
             "require": {
@@ -4676,9 +4676,9 @@
             ],
             "support": {
                 "issues": "https://github.com/stripe/stripe-php/issues",
-                "source": "https://github.com/stripe/stripe-php/tree/v22.0.0"
+                "source": "https://github.com/stripe/stripe-php/tree/v23.0.0"
             },
-            "time": "2026-10-01T00:43:03+00:00"
+            "time": "2026-11-11T19:52:56+00:00"
         },
         {
             "name": "symfony/clock",
